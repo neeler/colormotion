@@ -1,19 +1,3 @@
-var __getOwnPropSymbols = Object.getOwnPropertySymbols;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __propIsEnum = Object.prototype.propertyIsEnumerable;
-var __objRest = (source, exclude) => {
-  var target = {};
-  for (var prop in source)
-    if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
-      target[prop] = source[prop];
-  if (source != null && __getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(source)) {
-      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
-        target[prop] = source[prop];
-    }
-  return target;
-};
-
 // src/Theme.ts
 import chroma2 from "chroma-js";
 
@@ -76,7 +60,7 @@ var ColorPalette = class _ColorPalette {
     this.maxNumberOfColors = 8;
     this.mode = mode;
     this.nSteps = nSteps;
-    this.colors = normalizedColors != null ? normalizedColors : _ColorPalette.normalizeColors(colors);
+    this.colors = normalizedColors ?? _ColorPalette.normalizeColors(colors);
     this.nColors = this.colors.length - 1;
     this.hexes = this.colors.map((c) => c.hex());
     this.key = this.hexes.join(":");
@@ -84,15 +68,17 @@ var ColorPalette = class _ColorPalette {
     const scaleColors = this.scale.colors(nSteps + 1).map((c) => chroma(c));
     scaleColors.pop();
     this.scaleColors = scaleColors;
-    this.deltaEThreshold = deltaEThreshold != null ? deltaEThreshold : 20;
+    this.deltaEThreshold = deltaEThreshold ?? 20;
   }
+  /**
+   * Normalizes the input colors to chroma-js colors.
+   */
   static normalizeColors(colorInputs) {
-    var _a, _b;
     const colors = colorInputs.map((value) => chroma(value));
-    const firstColor = (_a = colors[0]) != null ? _a : chroma("green");
+    const firstColor = colors[0] ?? chroma("green");
     colors[0] = firstColor;
     const firstHex = firstColor.hex();
-    const lastHex = (_b = colors[colors.length - 1]) == null ? void 0 : _b.hex();
+    const lastHex = colors[colors.length - 1]?.hex();
     if (colors.length > 1 && firstHex === lastHex) {
       colors.pop();
     }
@@ -107,6 +93,9 @@ var ColorPalette = class _ColorPalette {
       normalizedColors
     };
   }
+  /**
+   * Creates a new palette with the specified configuration.
+   */
   newConfig({
     colors,
     nSteps,
@@ -163,6 +152,11 @@ var ColorPalette = class _ColorPalette {
   }
   /**
    * Randomizes the palette starting with the input color.
+   *
+   * @param seed The color to start with.
+   * @param options Options for randomizing the palette.
+   * @param options.minBrightness The minimum brightness for the colors.
+   * @returns A new palette with randomized colors.
    */
   randomizeFrom(seed, {
     minBrightness = 0
@@ -259,7 +253,7 @@ var ColorPalette = class _ColorPalette {
       }
       attempts += 1;
     }
-    return this.rotateOn(newColor != null ? newColor : chroma.random());
+    return this.rotateOn(newColor ?? chroma.random());
   }
 };
 
@@ -276,32 +270,42 @@ var Theme = class {
     this.transitionSpeed = 0;
     this.iColor = 0;
     this.colorDistanceThreshold = 1e-3;
-    var _a, _b, _c, _d, _e, _f, _g;
-    this.nSteps = (_b = (_a = this.config) == null ? void 0 : _a.nSteps) != null ? _b : 2048;
-    this.mode = (_d = (_c = this.config) == null ? void 0 : _c.mode) != null ? _d : InterpolationModes.rgb;
+    this.nSteps = this.config?.nSteps ?? 2048;
+    this.mode = this.config?.mode ?? InterpolationModes.rgb;
     this.palette = new ColorPalette({
-      colors: (_f = (_e = this.config) == null ? void 0 : _e.colors) != null ? _f : [],
+      colors: this.config?.colors ?? ["red", "green", "blue"],
       mode: this.mode,
       nSteps: this.nSteps,
-      deltaEThreshold: (_g = this.config) == null ? void 0 : _g.deltaEThreshold
+      deltaEThreshold: this.config?.deltaEThreshold
     });
     this.colors = this.palette.scaleColors;
   }
   get scale() {
     return this.palette.scale;
   }
+  /**
+   * The active palette to use for color generation.
+   */
   get activePalette() {
-    var _a;
-    return (_a = this.targetPalette) != null ? _a : this.palette;
+    return this.targetPalette ?? this.palette;
   }
+  /**
+   * The hex values of the colors in the active palette.
+   */
   get activePaletteHexes() {
     const hexes = this.activePalette.hexes;
     hexes.pop();
     return hexes;
   }
+  /**
+   * The relative brightness of the theme.
+   */
   get brightness() {
     return this._brightness;
   }
+  /**
+   * Set the relative brightness of the theme.
+   */
   set brightness(brightness) {
     this._brightness = Math.max(1, Math.min(255, brightness));
   }
@@ -312,6 +316,13 @@ var Theme = class {
     }
     return baseColor.darken(mapBrightnessToDarkenFactor(this._brightness));
   }
+  /**
+   * Get the color at the given index in the theme.
+   * @param index The index of the color to get.
+   * @param options Options for the color generation.
+   * @param options.brightness Optionally adjust the brightness of the color. 0-255, defaults to 255.
+   * @returns The color at the given index.
+   */
   getColor(index = 0, { brightness = 255 } = {}) {
     const color = this.getBaseColor(index);
     if (brightness === 255) {
@@ -320,10 +331,11 @@ var Theme = class {
     return color.darken(mapBrightnessToDarkenFactor(brightness));
   }
   /**
-   * Transition Speed should be between (0,1)
+   * Update the theme to a new set of colors.
+   *
+   * transitionSpeed should be between (0,1)
    */
   updateScale(targetPalette, { transitionSpeed = 0.1 } = {}) {
-    var _a, _b;
     if (targetPalette === this.palette) {
       this.clearTargetPalette();
       return;
@@ -334,8 +346,11 @@ var Theme = class {
     this.mode = targetPalette.mode;
     this.transitionSpeed = Math.min(1, Math.max(0, transitionSpeed)) / 10;
     this.targetPalette = targetPalette;
-    (_b = (_a = this.config) == null ? void 0 : _a.onUpdate) == null ? void 0 : _b.call(_a, this.targetPalette.hexes);
+    this.config?.onUpdate?.(this.targetPalette.hexes);
   }
+  /**
+   * Update the theme to a new set of colors, steps, and interpolation mode.
+   */
   update({
     colors,
     nSteps,
@@ -350,21 +365,31 @@ var Theme = class {
       options
     );
   }
+  /**
+   * Set the interpolation mode of the theme.
+   */
   setMode(mode = InterpolationModes.rgb, options) {
     this.updateScale(this.activePalette.newMode(mode), options);
   }
+  /**
+   * Rotate the interpolation mode of the theme.
+   */
   rotateMode(options) {
     this.updateScale(this.activePalette.rotateMode(), options);
   }
+  /**
+   * Set the colors of the theme.
+   */
   setColors(colorInputs, options) {
     this.updateScale(this.activePalette.newColors(colorInputs), options);
   }
-  randomFrom(color, _a) {
-    var _b = _a, {
-      minBrightness = 0
-    } = _b, options = __objRest(_b, [
-      "minBrightness"
-    ]);
+  /**
+   * Randomize the colors of the theme based on a seed color.
+   */
+  randomFrom(color, {
+    minBrightness = 0,
+    ...options
+  }) {
     this.updateScale(
       this.activePalette.randomizeFrom(color, {
         minBrightness
@@ -372,25 +397,47 @@ var Theme = class {
       options
     );
   }
+  /**
+   * Randomize the colors of the theme.
+   */
   randomTheme(options) {
     this.updateScale(this.activePalette.randomize(), options);
   }
+  /**
+   * Get the color at the given index in the theme.
+   * Rounds and normalizes the index so that it is within the bounds of the color scale.
+   */
   normalizeIndex(index = 0) {
     let normalizedIndex = Math.round(index);
     return safeMod(normalizedIndex + this.iColor, this.nSteps) % this.nSteps;
   }
+  /**
+   * Push a new color to the end of the palette.
+   */
   pushNewColor(color, options) {
     this.updateScale(this.activePalette.push(color), options);
   }
+  /**
+   * Push a random color to the end of the palette.
+   */
   pushRandomColor(options) {
     this.updateScale(this.activePalette.pushRandom(), options);
   }
+  /**
+   * Pop the oldest color from the palette.
+   */
   popOldestColor(options) {
     this.updateScale(this.activePalette.popOldest(), options);
   }
+  /**
+   * Drops the oldest color and pushes the new color.
+   */
   rotateColor(color, options) {
     this.updateScale(this.activePalette.rotateOn(color), options);
   }
+  /**
+   * Drops the oldest color and pushes a random color.
+   */
   rotateRandomColor(options) {
     this.updateScale(this.activePalette.rotateRandomOn(), options);
   }
@@ -398,6 +445,10 @@ var Theme = class {
     this.targetPalette = void 0;
     this.previousColorDistance = void 0;
   }
+  /**
+   * Move the color index by n steps.
+   * Can be negative to move backwards.
+   */
   tick(n = 1) {
     if (this.targetPalette) {
       if (this.targetPalette === this.palette) {
@@ -432,9 +483,6 @@ var Theme = class {
     this.iColor += n;
   }
 };
-
-// src/index.ts
-console.log("Test");
 export {
   ColorPalette,
   InterpolationModes,

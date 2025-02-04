@@ -1,5 +1,5 @@
 {
-	"name": "@raobot/colormotion",
+	"name": "colormotion",
 	"version": "0.0.1",
 	"description": "Dynamic color wheel for LEDs",
 	"main": "dist/index.js",
