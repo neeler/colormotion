@@ -1,0 +1,54 @@
+{
+	"name": "@raobot/colormotion",
+	"version": "0.0.1",
+	"description": "",
+	"main": "dist/index.js",
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"require": "./dist/index.js",
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"prepublishOnly": "npm run build",
+		"type-check": "npx tsc --noEmit"
+	},
+	"keywords": [
+		"color",
+		"gradient",
+		"motion",
+		"animation",
+		"LED",
+		"color wheel"
+	],
+	"author": "neeler",
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/neeler/colormotion.git"
+	},
+	"bugs": {
+		"url": "https://github.com/neeler/colormotion/issues"
+	},
+	"homepage": "https://github.com/neeler/colormotion#readme",
+	"devDependencies": {
+		"@trivago/prettier-plugin-sort-imports": "^5.2.2",
+		"@types/chroma-js": "^3.1.1",
+		"prettier": "^3.4.2",
+		"tsup": "^8.3.6",
+		"type-fest": "^4.33.0",
+		"typescript": "^5.5.3"
+	},
+	"volta": {
+		"node": "22.13.1",
+		"npm": "10.9.2"
+	},
+	"dependencies": {
+		"chroma-js": "^3.1.2"
+	}
+}
