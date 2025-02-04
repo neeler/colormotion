@@ -96,3 +96,7 @@ Set the overall brightness of the theme (0 to 255).
 ```javascript
 theme.brightness = 128;
 ```
+
+## Seen in the Wild
+
+- [Dumpy Fuego @ Burning Man](https://www.dumpster.life/)
