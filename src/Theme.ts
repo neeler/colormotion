@@ -1,7 +1,7 @@
 import chroma, { Color } from 'chroma-js';
+import { ColorInput, ColorPalette } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
-import { ColorInput, ColorPalette } from './ColorPalette';
 import { safeMod } from './safeMod';
 
 export interface ThemeConfig {

@@ -1,9 +1,9 @@
 import chroma, { Color, Scale } from 'chroma-js';
+import { RequireExactlyOne } from 'type-fest';
 import {
     InterpolationMode,
     getNextInterpolationMode,
 } from './InterpolationMode';
-import { RequireExactlyOne } from 'type-fest';
 
 /**
  * String or chroma-js color.
