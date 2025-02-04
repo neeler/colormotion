@@ -17,10 +17,12 @@ export interface ThemeConfig {
     mode?: InterpolationMode;
     /**
      * The initial colors in the palette.
+     * Defaults to red, green, and blue.
      */
     colors?: ColorInput[];
     /**
      * The minimum threshold for the CIEDE2000 color distance between colors in the palette.
+     * Defaults to 20.
      */
     deltaEThreshold?: number;
     /**
@@ -64,7 +66,7 @@ export class Theme {
         this.nSteps = this.config?.nSteps ?? 2048;
         this.mode = this.config?.mode ?? InterpolationModes.rgb;
         this.palette = new ColorPalette({
-            colors: this.config?.colors ?? [],
+            colors: this.config?.colors ?? ['red', 'green', 'blue'],
             mode: this.mode,
             nSteps: this.nSteps,
             deltaEThreshold: this.config?.deltaEThreshold,
