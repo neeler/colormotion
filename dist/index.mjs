@@ -1,6 +1,9 @@
 // src/Theme.ts
 import chroma2 from "chroma-js";
 
+// src/ColorPalette.ts
+import chroma from "chroma-js";
+
 // src/InterpolationMode.ts
 var InterpolationModes = {
   rgb: "rgb",
@@ -27,28 +30,7 @@ function getNextInterpolationMode(mode) {
   return InterpolationModeArray[(index + 1) % InterpolationModeArray.length];
 }
 
-// src/mapRange.ts
-function mapRange({
-  fn = (x) => x,
-  inRange = [0, 1],
-  outRange
-}) {
-  const inWidth = inRange[1] - inRange[0];
-  const outWidth = outRange[1] - outRange[0];
-  return (value) => {
-    const valueInOriginalRange = fn((value - inRange[0]) / inWidth);
-    return outRange[0] + outWidth * valueInOriginalRange;
-  };
-}
-
-// src/mapBrightnessToDarkenFactor.ts
-var mapBrightnessToDarkenFactor = mapRange({
-  inRange: [1, 255],
-  outRange: [3, 0]
-});
-
 // src/ColorPalette.ts
-import chroma from "chroma-js";
 var ColorPalette = class _ColorPalette {
   constructor({
     colors,
@@ -256,6 +238,26 @@ var ColorPalette = class _ColorPalette {
     return this.rotateOn(newColor ?? chroma.random());
   }
 };
+
+// src/mapRange.ts
+function mapRange({
+  fn = (x) => x,
+  inRange = [0, 1],
+  outRange
+}) {
+  const inWidth = inRange[1] - inRange[0];
+  const outWidth = outRange[1] - outRange[0];
+  return (value) => {
+    const valueInOriginalRange = fn((value - inRange[0]) / inWidth);
+    return outRange[0] + outWidth * valueInOriginalRange;
+  };
+}
+
+// src/mapBrightnessToDarkenFactor.ts
+var mapBrightnessToDarkenFactor = mapRange({
+  inRange: [1, 255],
+  outRange: [3, 0]
+});
 
 // src/safeMod.ts
 function safeMod(n, modulus) {
