@@ -11,4 +11,5 @@ yarn-error.log*
 .vscode/*
 .idea/*
 
-/docs
+docs/*
+src/*

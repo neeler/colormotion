@@ -84,6 +84,21 @@ export class ColorPalette {
         };
     }
 
+    /**
+     * Returns a new random palette with the specified number of colors.
+     */
+    static random({
+        nColors,
+        ...config
+    }: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> & {
+        nColors: number;
+    }) {
+        return new ColorPalette({
+            ...config,
+            colors: Array.from({ length: nColors }, () => chroma.random()),
+        });
+    }
+
     constructor({
         colors,
         mode,

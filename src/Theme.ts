@@ -4,7 +4,30 @@ import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
 
-export interface ThemeConfig {
+export type InitialThemeColors =
+    | {
+          /**
+           * The initial color palette.
+           * Takes precedence over colors and nColors.
+           */
+          palette?: ColorPalette;
+      }
+    | {
+          /**
+           * The initial colors in the palette.
+           */
+          colors?: ColorInput[];
+      }
+    | {
+          /**
+           * The initial number of colors in the palette.
+           * N random colors will be generated if colors is not provided.
+           * Defaults to 5.
+           */
+          nColors?: number;
+      };
+
+export type ThemeConfig = InitialThemeColors & {
     /**
      * The number of steps in the color scale.
      * Defaults to 2048.
@@ -16,11 +39,6 @@ export interface ThemeConfig {
      */
     mode?: InterpolationMode;
     /**
-     * The initial colors in the palette.
-     * Defaults to red, green, and blue.
-     */
-    colors?: ColorInput[];
-    /**
      * The minimum threshold for the CIEDE2000 color distance between colors in the palette.
      * Defaults to 20.
      */
@@ -29,7 +47,7 @@ export interface ThemeConfig {
      * A callback function to call when the theme is updated.
      */
     onUpdate?: (colors: string[]) => void | Promise<void>;
-}
+};
 
 interface ColorUpdateConfig {
     /**
@@ -61,17 +79,53 @@ export class Theme {
     private previousColorDistance?: number;
     private readonly colorDistanceThreshold = 0.001;
     private colors: Color[];
+    private readonly onUpdate?: ThemeConfig['onUpdate'];
 
-    constructor(private readonly config?: ThemeConfig) {
-        this.nSteps = this.config?.nSteps ?? 2048;
-        this.mode = this.config?.mode ?? InterpolationModes.rgb;
-        this.palette = new ColorPalette({
-            colors: this.config?.colors ?? ['red', 'green', 'blue'],
-            mode: this.mode,
-            nSteps: this.nSteps,
-            deltaEThreshold: this.config?.deltaEThreshold,
-        });
+    constructor(config?: ThemeConfig) {
+        this.nSteps = config?.nSteps ?? 2048;
+        this.mode = config?.mode ?? InterpolationModes.rgb;
+
+        const initialPalette =
+            config && 'palette' in config ? config.palette : undefined;
+
+        if (initialPalette) {
+            this.palette = initialPalette;
+        } else {
+            const initialColors =
+                config && 'colors' in config ? config.colors : undefined;
+            if (initialColors) {
+                this.palette = new ColorPalette({
+                    colors: initialColors,
+                    mode: this.mode,
+                    nSteps: this.nSteps,
+                    deltaEThreshold: config?.deltaEThreshold,
+                });
+            } else {
+                const nColors =
+                    (config && 'nColors' in config
+                        ? config.nColors
+                        : undefined) ?? 5;
+                this.palette = new ColorPalette({
+                    normalizedColors: Array.from({ length: nColors }, () =>
+                        chroma.random(),
+                    ),
+                    mode: this.mode,
+                    nSteps: this.nSteps,
+                    deltaEThreshold: config?.deltaEThreshold,
+                });
+            }
+        }
+
         this.colors = this.palette.scaleColors;
+        this.onUpdate = config?.onUpdate;
+    }
+
+    static random(
+        config: ThemeConfig & {
+            nColors: number;
+        },
+    ) {
+        return new Theme(config);
     }
 
     private get scale() {
@@ -150,7 +204,7 @@ export class Theme {
         this.mode = targetPalette.mode;
         this.transitionSpeed = Math.min(1, Math.max(0, transitionSpeed)) / 10;
         this.targetPalette = targetPalette;
-        this.config?.onUpdate?.(this.targetPalette.hexes);
+        this.onUpdate?.(this.targetPalette.hexes);
     }
 
     /**
