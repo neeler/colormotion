@@ -1,19 +1,29 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-	--background: #ffffff;
-	--foreground: #171717;
-}
+@theme {
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Roboto', 'Segoe UI',
+        Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol';
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--background: #0a0a0a;
-		--foreground: #ededed;
-	}
-}
+    /**
+    GitHub Corner animation
+     */
+    --animate-octocat-wave: octocat-wave 560ms ease-in-out;
 
-body {
-	color: var(--foreground);
-	background: var(--background);
-	font-family: Arial, Helvetica, sans-serif;
+    @keyframes octocat-wave {
+        0%,
+        100% {
+            transform: rotate(0);
+        }
+
+        20%,
+        60% {
+            transform: rotate(-25deg);
+        }
+
+        40%,
+        80% {
+            transform: rotate(10deg);
+        }
+    }
 }
