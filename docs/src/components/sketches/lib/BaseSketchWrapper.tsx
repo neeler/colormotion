@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import p5 from 'p5';
 import { ReactNode, useEffect, useRef } from 'react';
-import { Sketch } from '~/components/sketches/Sketch';
+import { Sketch } from './Sketch';
 
 export function BaseSketchWrapper({
     sketch: sketchDefinition,

@@ -7,12 +7,12 @@ import {
     P5TouchEvents,
     SketchDefinition,
     SketchProps,
-} from '~/components/sketches/types';
+} from './types';
 
-export class Sketch {
-    private readonly sketchProps: SketchProps;
+export class Sketch<TState = any> {
+    private readonly sketchProps: SketchProps<TState>;
 
-    constructor(sketchProps: SketchProps) {
+    constructor(sketchProps: SketchProps<TState>) {
         this.sketchProps = sketchProps;
     }
 
@@ -23,6 +23,8 @@ export class Sketch {
         let canvas: HTMLElement | null = null;
 
         return (p5: p5Type) => {
+            const state = this.sketchProps.state();
+            const movingState = this.sketchProps.movingState();
             const lastSeenSize = {
                 width: getWidth(),
                 height: getHeight(),
@@ -33,7 +35,11 @@ export class Sketch {
              */
 
             if (this.sketchProps.preload) {
-                p5.preload = () => this.sketchProps.preload?.(p5);
+                p5.preload = () =>
+                    this.sketchProps.preload?.(p5, {
+                        state,
+                        movingState: movingState.get(),
+                    });
             }
 
             p5.setup = () => {
@@ -49,7 +55,10 @@ export class Sketch {
 
                 canvas = p5Canvas.elt;
 
-                this.sketchProps.setup?.(p5);
+                this.sketchProps.setup?.(p5, {
+                    state,
+                    movingState: movingState.get(),
+                });
             };
 
             let hasDrawn = false;
@@ -58,7 +67,11 @@ export class Sketch {
                     p5.resizeCanvas(getWidth(), getHeight());
                     hasDrawn = true;
                 }
-                return this.sketchProps.draw?.(p5);
+                this.sketchProps.draw?.(p5, {
+                    state,
+                    movingState: movingState.get(),
+                });
+                movingState.tick();
             };
 
             /**
@@ -83,7 +96,14 @@ export class Sketch {
                     p5.resizeCanvas(getWidth(), getHeight());
                 }
 
-                return this.sketchProps.windowResized?.(p5, event);
+                return this.sketchProps.windowResized?.(
+                    p5,
+                    {
+                        state,
+                        movingState: movingState.get(),
+                    },
+                    event,
+                );
             };
 
             /**
@@ -92,7 +112,11 @@ export class Sketch {
             P5AccelerationEvents.forEach((eventName) => {
                 const eventHandler = this.sketchProps[eventName];
                 if (eventHandler) {
-                    p5[eventName] = () => eventHandler(p5);
+                    p5[eventName] = () =>
+                        eventHandler(p5, {
+                            state,
+                            movingState: movingState.get(),
+                        });
                 }
             });
 
@@ -103,7 +127,14 @@ export class Sketch {
                 const eventHandler = this.sketchProps[eventName];
                 if (eventHandler) {
                     p5[eventName] = (event: KeyboardEvent) =>
-                        eventHandler(p5, event);
+                        eventHandler(
+                            p5,
+                            {
+                                state,
+                                movingState: movingState.get(),
+                            },
+                            event,
+                        );
                 }
             });
 
@@ -115,7 +146,14 @@ export class Sketch {
                 if (eventHandler) {
                     p5[eventName] = (event: MouseEvent) => {
                         if (event.target === canvas) {
-                            eventHandler(p5, event);
+                            eventHandler(
+                                p5,
+                                {
+                                    state,
+                                    movingState: movingState.get(),
+                                },
+                                event,
+                            );
                         }
                     };
                 }
@@ -129,7 +167,14 @@ export class Sketch {
                 if (eventHandler) {
                     p5[eventName] = (event: TouchEvent) => {
                         if (event.target === canvas) {
-                            eventHandler(p5, event);
+                            eventHandler(
+                                p5,
+                                {
+                                    state,
+                                    movingState: movingState.get(),
+                                },
+                                event,
+                            );
                         }
                     };
                 }

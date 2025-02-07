@@ -14,7 +14,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className="antialiased bg-black text-neutral-50 font-sans">
+            <body className="antialiased bg-black text-neutral-50 font-sans p-2">
                 <GithubCorner />
                 <main className="max-w-5xl mx-auto">{children}</main>
             </body>

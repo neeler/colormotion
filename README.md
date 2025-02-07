@@ -1,8 +1,9 @@
 # colormotion
 
-`colormotion` is a Node.js module that generates dynamic color palettes.
+`colormotion` is a JavaScript library of utilities for creating dynamic color palettes.
 Its primary use case is for generating color palettes that change over time,
-such as for animations or visualizations in LED art.
+such as for animations or visualizations in LED art. It is built on top of the
+fantastic [chroma.js](https://gka.github.io/chroma.js/) library.
 
 It supports many different color interpolation methods:
 
@@ -14,8 +15,6 @@ It supports many different color interpolation methods:
 - HSV
 - HSI
 - HCL
-
-It uses the [chroma.js](https://gka.github.io/chroma.js/) library under the hood for color interpolation.
 
 ## Installation
 
