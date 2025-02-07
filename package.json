@@ -27,7 +27,7 @@
 		"color wheel"
 	],
 	"author": "neeler",
-	"license": "Apache-2.0",
+	"license": "(BSD-3-Clause AND Apache-2.0)",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/neeler/colormotion.git"
