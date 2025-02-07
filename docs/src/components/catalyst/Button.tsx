@@ -6,7 +6,7 @@ import {
     forwardRef,
     ReactNode,
 } from 'react';
-import { Link } from './link';
+import { Link } from './Link';
 
 const styles = {
     base: [

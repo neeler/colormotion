@@ -1,15 +1,17 @@
 'use client';
 
 import { SideMenu } from '~/app/SideMenu';
-import { Strong, Text, TextLink } from '~/components/catalyst/text';
-import { PageTitle } from '~/components/layout/PageTitle';
+import { Heading } from '~/components/catalyst/Heading';
+import { PageTitle } from '~/components/catalyst/PageTitle';
+import { Strong, Text, TextLink } from '~/components/catalyst/Text';
+import { UnorderedList } from '~/components/catalyst/UnorderedList';
 import { fibonacciSpiralSketch } from '~/components/sketches/fibonacciSpiralSketch';
 import { SketchWrapper } from '~/components/sketches/lib';
 
 export default function Home() {
     return (
         <div className="grid grid-cols-7 sm:grid-cols-10">
-            <SideMenu className="hidden sm:block col-span-3"></SideMenu>
+            <SideMenu className="col-span-3 hidden sm:block"></SideMenu>
             <div className="col-span-7">
                 <PageTitle>colormotion</PageTitle>
                 <div className="space-y-4">
@@ -27,8 +29,25 @@ export default function Home() {
                     </Text>
                     <SketchWrapper
                         sketch={fibonacciSpiralSketch}
-                        className="border-neutral-50 border-1 h-100"
+                        className="h-100 w-full"
                     />
+                    <Heading level={2}>Quick Start</Heading>
+                    <Text>
+                        Here are a couple things colormotion can do for you:
+                    </Text>
+                    <UnorderedList>
+                        <li>Generate a color palette that changes over time</li>
+                        <li>
+                            Get colors across the current spectrum that are
+                            evenly spaced
+                        </li>
+                        <li>Smoothly transition between color palettes</li>
+                        <li>
+                            Smoothly transition between color interpolation
+                            modes
+                        </li>
+                        <li>Adjust the global brightness for a given theme</li>
+                    </UnorderedList>
                 </div>
             </div>
         </div>

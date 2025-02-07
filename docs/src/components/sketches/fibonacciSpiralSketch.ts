@@ -1,7 +1,6 @@
 import { Sketch } from '~/components/sketches/lib';
 import { MovingObject } from '~/lib/MovingObject';
 import { MovingRandomNumber } from '~/lib/MovingRandomNumber';
-import { rotateCoordinates } from '~/lib/rotation';
 import { theme } from '~/theme';
 
 const goldenAngle = Math.PI * (3 - 5 ** 0.5);
@@ -52,7 +51,7 @@ export const fibonacciSpiralSketch = new Sketch({
             }),
             rColorStep: new MovingRandomNumber({
                 min: 0,
-                max: 2,
+                max: 1,
             }),
             angleColorStep: new MovingRandomNumber({
                 min: 0,
@@ -96,8 +95,8 @@ export const fibonacciSpiralSketch = new Sketch({
         const midWidth = p5.width / 2;
         const midHeight = p5.height / 2;
         const maxSize = Math.max(midWidth, midHeight);
-        const spiralScale = (100 * scaleRatio) / maxSize;
-        const dotSize = Math.max(1, scaleRatio / 5);
+        const spiralScale = (1.1 * maxSize) / scaleRatio;
+        const dotSize = Math.floor(maxSize / 40);
 
         p5.translate(midWidth, midHeight);
         p5.rotate(p5.frameCount * 0.001);

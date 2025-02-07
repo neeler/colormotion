@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { ComponentPropsWithoutRef, PropsWithChildren } from 'react';
-import { Button } from './button';
+import { Button } from './Button';
 
 export function Pagination({
     'aria-label': ariaLabel = 'Page navigation',

@@ -10,8 +10,8 @@ import {
     ReactNode,
     useId,
 } from 'react';
-import { TouchTarget } from './button';
-import { Link } from './link';
+import { TouchTarget } from './Button';
+import { Link } from './Link';
 
 export function Navbar({
     className,

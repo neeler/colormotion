@@ -1,22 +1,25 @@
 import clsx from 'clsx';
-import p5 from 'p5';
 import { ReactNode, useEffect, useRef } from 'react';
+import { useP5 } from '~/hooks/useP5';
 import { Sketch } from './Sketch';
 
-export function BaseSketchWrapper({
-    sketch: sketchDefinition,
-    className,
-    children,
-}: {
+export interface BaseSketchWrapperProps {
     sketch: Sketch;
     className?: string;
     children?: ReactNode;
-}) {
+}
+
+export default function BaseSketchWrapper({
+    sketch: sketchDefinition,
+    className,
+    children,
+}: BaseSketchWrapperProps) {
     const wrapperRef = useRef<HTMLDivElement | null>(null);
+    const p5 = useP5();
 
     useEffect(() => {
         const wrapper = wrapperRef.current;
-        if (!wrapper) {
+        if (!wrapper || !p5) {
             return;
         }
 
@@ -25,12 +28,12 @@ export function BaseSketchWrapper({
         return () => {
             sketch.remove?.();
         };
-    }, [sketchDefinition]);
+    }, [p5, sketchDefinition]);
 
     return (
         <div
             ref={wrapperRef}
-            className={clsx(className, 'bg-black max-w-full w-full')}
+            className={clsx(className, 'border-1 border-neutral-50 bg-black')}
         >
             {children}
         </div>
