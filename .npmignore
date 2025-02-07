@@ -13,3 +13,5 @@ yarn-error.log*
 
 docs/*
 src/*
+tsup.config.ts
+tsconfig.json
