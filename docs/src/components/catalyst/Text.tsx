@@ -9,7 +9,7 @@ export function Text({ className, ...props }: ComponentPropsWithoutRef<'p'>) {
             {...props}
             className={clsx(
                 className,
-                'text-base/6 text-neutral-400 sm:max-w-125',
+                'text-base/6 text-balance text-neutral-400 sm:max-w-135',
             )}
         />
     );
@@ -24,7 +24,7 @@ export function TextLink({
             {...props}
             className={clsx(
                 className,
-                'underline text-white decoration-white/50 data-hover:decoration-white',
+                'text-white underline decoration-white/50 data-hover:decoration-white',
             )}
         />
     );
@@ -51,7 +51,7 @@ export function Code({
             {...props}
             className={clsx(
                 className,
-                'rounded-sm border px-0.5 text-sm font-medium sm:text-[0.8125rem] border-white/20 bg-white/5 text-white',
+                'rounded-sm border border-white/20 bg-white/5 px-0.5 text-sm font-medium text-white sm:text-[0.8125rem]',
             )}
         />
     );

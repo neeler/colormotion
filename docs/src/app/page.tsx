@@ -1,10 +1,10 @@
 'use client';
 
+import { SectionInstallation } from '~/app/SectionInstallation';
+import { SectionQuickStart } from '~/app/SectionQuickStart';
 import { SideMenu } from '~/app/SideMenu';
-import { Heading } from '~/components/catalyst/Heading';
 import { PageTitle } from '~/components/catalyst/PageTitle';
 import { Strong, Text, TextLink } from '~/components/catalyst/Text';
-import { UnorderedList } from '~/components/catalyst/UnorderedList';
 import { fibonacciSpiralSketch } from '~/components/sketches/fibonacciSpiralSketch';
 import { SketchWrapper } from '~/components/sketches/lib';
 
@@ -27,27 +27,15 @@ export default function Home() {
                         </TextLink>{' '}
                         library.
                     </Text>
+                    <Text>
+                        Compatible with Node.js and browser environments.
+                    </Text>
                     <SketchWrapper
                         sketch={fibonacciSpiralSketch}
                         className="h-100 w-full"
                     />
-                    <Heading level={2}>Quick Start</Heading>
-                    <Text>
-                        Here are a couple things colormotion can do for you:
-                    </Text>
-                    <UnorderedList>
-                        <li>Generate a color palette that changes over time</li>
-                        <li>
-                            Get colors across the current spectrum that are
-                            evenly spaced
-                        </li>
-                        <li>Smoothly transition between color palettes</li>
-                        <li>
-                            Smoothly transition between color interpolation
-                            modes
-                        </li>
-                        <li>Adjust the global brightness for a given theme</li>
-                    </UnorderedList>
+                    <SectionInstallation />
+                    <SectionQuickStart />
                 </div>
             </div>
         </div>
