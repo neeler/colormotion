@@ -9,7 +9,7 @@ export function Text({ className, ...props }: ComponentPropsWithoutRef<'p'>) {
             {...props}
             className={clsx(
                 className,
-                'text-base/6 text-balance text-neutral-400 sm:max-w-135',
+                'text-base/6 text-neutral-400 sm:max-w-135',
             )}
         />
     );

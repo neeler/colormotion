@@ -1,10 +1,11 @@
 'use client';
 
-import { SectionInstallation } from '~/app/SectionInstallation';
-import { SectionQuickStart } from '~/app/SectionQuickStart';
-import { SideMenu } from '~/app/SideMenu';
 import { PageTitle } from '~/components/catalyst/PageTitle';
 import { Strong, Text, TextLink } from '~/components/catalyst/Text';
+import { SectionInstallation } from '~/components/docSections/SectionInstallation';
+import { SectionInterpolation } from '~/components/docSections/SectionInterpolation';
+import { SectionQuickStart } from '~/components/docSections/SectionQuickStart';
+import { SideMenu } from '~/components/sideMenu/SideMenu';
 import { fibonacciSpiralSketch } from '~/components/sketches/fibonacciSpiralSketch';
 import { SketchWrapper } from '~/components/sketches/lib';
 
@@ -36,6 +37,7 @@ export default function Home() {
                     />
                     <SectionInstallation />
                     <SectionQuickStart />
+                    <SectionInterpolation />
                 </div>
             </div>
         </div>

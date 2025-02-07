@@ -11,8 +11,7 @@ export function SectionQuickStart() {
                 Quick Start
             </Heading>
             <Text>
-                Here are a couple things <Code>colormotion</Code> can do for
-                you:
+                With <Code>colormotion</Code> you can:
             </Text>
             <UnorderedList>
                 <li>Generate a color palette that changes over time</li>
