@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { ReactNode, useRef } from 'react';
-import { useColorHex } from '~/hooks/useColor';
+import { useColorHex } from '~/hooks/useColorHex';
 
 export function Level1({
     colorOffset = 0,
