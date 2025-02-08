@@ -1,4 +1,5 @@
 import chroma, { Color } from 'chroma-js';
+import { SubscriptionManager } from 'scrips';
 import { ColorInput, ColorPalette } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
@@ -43,10 +44,6 @@ export type ThemeConfig = InitialThemeColors & {
      * Defaults to 20.
      */
     deltaEThreshold?: number;
-    /**
-     * A callback function to call when the theme is updated.
-     */
-    onUpdate?: (colors: string[]) => void | Promise<void>;
 };
 
 interface ColorUpdateConfig {
@@ -79,7 +76,7 @@ export class Theme {
     private previousColorDistance?: number;
     private readonly colorDistanceThreshold = 0.001;
     private colors: Color[];
-    private readonly onUpdate?: ThemeConfig['onUpdate'];
+    private readonly scrips = new SubscriptionManager<Color[]>();
 
     constructor(config?: ThemeConfig) {
         this.nSteps = config?.nSteps ?? 2048;
@@ -117,7 +114,6 @@ export class Theme {
         }
 
         this.colors = this.palette.scaleColors;
-        this.onUpdate = config?.onUpdate;
     }
 
     static random(
@@ -171,6 +167,21 @@ export class Theme {
     }
 
     /**
+     * Subscribe to get updates when the theme changes.
+     * Callbacks will receive the array of chroma.js colors in the theme.
+     */
+    subscribe(callback: (colors: Color[]) => void) {
+        return this.scrips.subscribe(callback);
+    }
+
+    /**
+     * Unsubscribe a given callback from theme updates.
+     */
+    unsubscribe(callback: (colors: Color[]) => void) {
+        return this.scrips.unsubscribe(callback);
+    }
+
+    /**
      * Get the color at the given index in the theme.
      * @param index The index of the color to get.
      * @param options Options for the color generation.
@@ -204,7 +215,7 @@ export class Theme {
         this.mode = targetPalette.mode;
         this.transitionSpeed = Math.min(1, Math.max(0, transitionSpeed)) / 10;
         this.targetPalette = targetPalette;
-        this.onUpdate?.(this.targetPalette.hexes);
+        this.scrips.publish(this.targetPalette.colors);
     }
 
     /**

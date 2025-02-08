@@ -1,8 +1,10 @@
 # colormotion
 
-`colormotion` is a Node.js module that generates dynamic color palettes.
+`colormotion` is a JavaScript library that generates dynamic color palettes.
 Its primary use case is for generating color palettes that change over time,
 such as for animations or visualizations in LED art.
+
+Compatible with Node.js and browser environments.
 
 It supports many different color interpolation methods:
 
@@ -17,23 +19,67 @@ It supports many different color interpolation methods:
 
 It uses the [chroma.js](https://gka.github.io/chroma.js/) library under the hood for color interpolation.
 
+![tests workflow](https://github.com/neeler/colormotion/actions/workflows/tests.yml/badge.svg)
+![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/colormotion)
+
 ## Installation
+
+Install the `colormotion` npm module using your favorite package manager:
 
 ```bash
 npm install colormotion
+# or
+# pnpm install colormotion
+# or
+# yarn add colormotion
 ```
 
-## Usage
+## Quick Start
 
-```javascript
+Import the `Theme` class from `colormotion` using CommonJS or ES modules:
+
+```typescript
+// CommonJS
 const { Theme } = require('colormotion');
 
+// ES modules
+import { Theme } from 'colormotion';
+```
+
+Create a new theme instance:
+
+```typescript
+const theme = new Theme();
+```
+
+Create a new theme instance with 5 random colors:
+
+```typescript
+const theme = new Theme({
+    nColors: 5,
+});
+```
+
+Create a new theme instance with 5 random colors and 1024 steps:
+
+```typescript
+const theme = new Theme({
+    nColors: 5,
+    nSteps: 1024,
+});
+```
+
+Create a new theme instance with specific colors:
+
+```typescript
 const theme = new Theme({
     colors: ['red', 'green', 'blue'],
-    nSteps: 2048,
-    mode: 'rgb',
 });
+```
 
+Supposing we have some draw loop, we can use the theme to generate colors for our LEDs:
+
+```typescript
 function draw() {
     // Suppose we have an LED strip with 100 LEDs
     for (let i = 0; i < 100; i++) {
@@ -46,15 +92,9 @@ function draw() {
 }
 ```
 
-Or with TypeScript:
-
-```typescript
-import { Theme } from 'colormotion';
-```
-
 Easily set a new color palette, to which the theme will gradually transition.
 
-```javascript
+```typescript
 // Set an entirely new color palette
 theme.setColors(['red', 'green', 'blue']);
 
@@ -71,9 +111,10 @@ theme.rotateColor('#17a398');
 theme.rotateRandomColor();
 ```
 
-Easily change the interpolation mode, to which the theme will gradually transition.
+Change the interpolation mode, generating a different set of intermediary colors,
+to which the theme will gradually transition.
 
-```javascript
+```typescript
 // Set the interpolation mode to LAB
 theme.setMode('lab');
 
@@ -83,7 +124,7 @@ theme.rotateMode();
 
 Update all options at once while still smoothly transitioning.
 
-```javascript
+```typescript
 theme.update({
     colors: ['red', 'green', 'blue'],
     nSteps: 2048,
@@ -93,7 +134,7 @@ theme.update({
 
 Set the overall brightness of the theme (0 to 255).
 
-```javascript
+```typescript
 theme.brightness = 128;
 ```
 
