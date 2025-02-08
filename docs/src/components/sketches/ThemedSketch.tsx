@@ -23,7 +23,9 @@ export function ThemedSketch({
                     className="grow"
                     color="zinc"
                     onClick={() => {
-                        theme.randomTheme();
+                        theme.randomTheme({
+                            minBrightness: 150,
+                        });
                     }}
                 >
                     Full Random Theme
