@@ -1,21 +1,24 @@
+import { ColorPalette, ThemeUpdateCallback } from 'colormotion';
 import { useEffect, useState } from 'react';
 import { theme } from '~/components/theme/theme';
 
-export function usePalette(index: number) {
-    const [color, setColor] = useState<string | undefined>(undefined);
+export function usePalette() {
+    const [palette, setPalette] = useState<ColorPalette | undefined>(undefined);
 
     useEffect(() => {
-        const updateColor = () => {
-            setColor(theme.getColor(index).hex('rgb'));
-        };
-        updateColor();
+        setPalette(theme.palette);
 
-        theme.subscribe(updateColor);
+        const updatePalette: ThemeUpdateCallback = (event) => {
+            setPalette(event.palette);
+            console.log(event.palette.colors.map((c) => c.hex()));
+        };
+
+        theme.subscribe(updatePalette);
 
         return () => {
-            theme.unsubscribe(updateColor);
+            theme.unsubscribe(updatePalette);
         };
-    });
+    }, []);
 
-    return color;
+    return palette;
 }
