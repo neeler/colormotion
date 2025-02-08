@@ -53,6 +53,14 @@ export interface ColorUpdateConfig {
     transitionSpeed?: number;
 }
 
+export interface ThemeUpdateEvent {
+    palette: ColorPalette;
+    mode: InterpolationMode;
+    brightness: number;
+}
+
+export type ThemeUpdateCallback = (event: ThemeUpdateEvent) => void;
+
 /**
  * A dynamic color theme that can be updated and transitioned between different color palettes.
  */
@@ -76,7 +84,7 @@ export class Theme {
     private previousColorDistance?: number;
     private readonly colorDistanceThreshold = 0.001;
     private colors: Color[];
-    private readonly scrips = new SubscriptionManager<Color[]>();
+    private readonly scrips = new SubscriptionManager<ThemeUpdateEvent>();
 
     constructor(config?: ThemeConfig) {
         this.nSteps = config?.nSteps ?? 2048;
@@ -124,6 +132,16 @@ export class Theme {
         return new Theme(config);
     }
 
+    /**
+     * The average distance between the colors in the current and target palettes.
+     * Measured in CIEDE2000 color distance.
+     * Ranges from 0 (identical) to 100 (maximally different).
+     * Returns undefined if there is no target palette.
+     */
+    get transitionDistance() {
+        return this.previousColorDistance;
+    }
+
     private get scale() {
         return this.palette.scale;
     }
@@ -167,18 +185,53 @@ export class Theme {
     }
 
     /**
-     * Subscribe to get updates when the theme changes.
-     * Callbacks will receive the array of chroma.js colors in the theme.
+     * The average distance between the colors in the current and target palettes.
+     * Measured in CIEDE2000 color distance.
+     * Ranges from 0 (identical) to 100 (maximally different).
+     * Returns undefined if there is no target palette.
      */
-    subscribe(callback: (colors: Color[]) => void) {
+    private calculateAverageTargetDistance() {
+        if (!this.targetPalette) {
+            return undefined;
+        }
+        const targetColors = this.targetPalette.scaleColors;
+        const colorDistances = targetColors.map((color, iColor) =>
+            chroma.deltaE(color, this.colors[iColor] as Color, 1, 1, 1),
+        );
+        return (
+            colorDistances.reduce((sum, d) => sum + d, 0) /
+            colorDistances.length
+        );
+    }
+
+    /**
+     * Subscribe to get updates when the theme changes.
+     * Callbacks will receive a ThemeUpdateEvent.
+     */
+    subscribe(callback: ThemeUpdateCallback) {
         return this.scrips.subscribe(callback);
     }
 
     /**
      * Unsubscribe a given callback from theme updates.
      */
-    unsubscribe(callback: (colors: Color[]) => void) {
+    unsubscribe(callback: ThemeUpdateCallback) {
         return this.scrips.unsubscribe(callback);
+    }
+
+    private get status(): ThemeUpdateEvent {
+        return {
+            palette: this.activePalette,
+            mode: this.mode,
+            brightness: this.brightness,
+        };
+    }
+
+    /**
+     * Publish the current theme status to all subscribers.
+     */
+    private publish() {
+        this.scrips.publish(this.status);
     }
 
     /**
@@ -215,7 +268,7 @@ export class Theme {
         this.mode = targetPalette.mode;
         this.transitionSpeed = Math.min(1, Math.max(0, transitionSpeed)) / 10;
         this.targetPalette = targetPalette;
-        this.scrips.publish(this.targetPalette.colors);
+        this.publish();
     }
 
     /**
@@ -343,48 +396,60 @@ export class Theme {
     private clearTargetPalette() {
         this.targetPalette = undefined;
         this.previousColorDistance = undefined;
+        this.publish();
+    }
+
+    private transitionPalette() {
+        if (!this.targetPalette) {
+            return;
+        }
+
+        if (this.targetPalette === this.palette) {
+            // Transition complete
+            this.clearTargetPalette();
+            return;
+        }
+
+        const averageColorDistance = this.calculateAverageTargetDistance();
+        if (!averageColorDistance) {
+            return;
+        }
+
+        if (
+            this.previousColorDistance !== undefined &&
+            Math.abs(this.previousColorDistance - averageColorDistance) <
+                this.colorDistanceThreshold
+        ) {
+            // Transition complete
+            this.palette = this.targetPalette;
+            this.colors = this.palette.scaleColors;
+            this.clearTargetPalette();
+            return;
+        }
+
+        const targetColors = this.targetPalette.scaleColors;
+        this.previousColorDistance = averageColorDistance;
+        this.colors = this.colors.map((baseColor, iColor) =>
+            chroma(
+                chroma.mix(
+                    baseColor,
+                    targetColors[iColor] as Color,
+                    this.transitionSpeed,
+                    this.mode,
+                ),
+            ),
+        );
     }
 
     /**
      * Move the color index by n steps.
      * Can be negative to move backwards.
+     *
+     * Also updates the color palette slightly to transition to the new palette,
+     * if a target palette is set. This is not affected by the n parameter.
      */
     tick(n = 1) {
-        if (this.targetPalette) {
-            if (this.targetPalette === this.palette) {
-                this.clearTargetPalette();
-            } else {
-                const targetColors = this.targetPalette.scaleColors;
-                const colorDistances = targetColors.map((color, iColor) =>
-                    chroma.deltaE(color, this.colors[iColor] as Color, 1, 1, 1),
-                );
-                const averageColorDistance =
-                    colorDistances.reduce((sum, d) => sum + d, 0) /
-                    colorDistances.length;
-                if (
-                    this.previousColorDistance !== undefined &&
-                    Math.abs(
-                        this.previousColorDistance - averageColorDistance,
-                    ) < this.colorDistanceThreshold
-                ) {
-                    this.palette = this.targetPalette;
-                    this.colors = this.palette.scaleColors;
-                    this.clearTargetPalette();
-                } else {
-                    this.previousColorDistance = averageColorDistance;
-                    this.colors = this.colors.map((baseColor, iColor) =>
-                        chroma(
-                            chroma.mix(
-                                baseColor,
-                                targetColors[iColor] as Color,
-                                this.transitionSpeed,
-                                this.mode,
-                            ),
-                        ),
-                    );
-                }
-            }
-        }
+        this.transitionPalette();
 
         this.iColor += n;
     }
