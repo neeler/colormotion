@@ -8,8 +8,9 @@ yarn-error.log*
 /.pnp
 .pnp.js
 
-.vscode/*
-.idea/*
+.github/*
+tests/*
+coverage/*
 
 docs/*
 src/*
