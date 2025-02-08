@@ -124,7 +124,7 @@ export class Theme {
                         ? config.nColors
                         : undefined) ?? 5;
                 this.palette = new ColorPalette({
-                    normalizedColors: Array.from({ length: nColors }, () =>
+                    colors: Array.from({ length: nColors }, () =>
                         chroma.random(),
                     ),
                     mode: this.mode,
