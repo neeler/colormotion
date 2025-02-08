@@ -1,30 +1,27 @@
 import clsx from 'clsx';
 import { ReactNode, useRef } from 'react';
-import { theme } from '~/theme';
+import { useColorHex } from '~/hooks/useColor';
 
 export function Level1({
+    colorOffset = 0,
     children,
     className,
 }: {
+    colorOffset?: number;
     children: ReactNode;
     className?: string;
 }) {
     const ref = useRef<HTMLLIElement>(null);
+    const color = useColorHex(colorOffset);
     return (
         <li
             ref={ref}
-            className={clsx('text-lg font-bold text-neutral-100', className)}
-            onMouseOver={(event) => {
-                const element = ref.current;
-                if (element) {
-                    element.style.color = theme.getColor().hex();
-                }
-            }}
-            onMouseLeave={(event) => {
-                const element = ref.current;
-                if (element) {
-                    element.style.color = '';
-                }
+            className={clsx(
+                'animate-fade-in text-lg font-bold text-black',
+                className,
+            )}
+            style={{
+                color,
             }}
         >
             {children}
