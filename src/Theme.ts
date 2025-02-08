@@ -1,6 +1,6 @@
 import chroma, { Color } from 'chroma-js';
 import { SubscriptionManager } from 'scrips';
-import { ColorInput, ColorPalette } from './ColorPalette';
+import { ColorInput, ColorPalette, RandomPaletteConfig } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
@@ -343,14 +343,14 @@ export class Theme {
         color: ColorInput,
         {
             minBrightness = 0,
+            nColors = this.activePalette.nColors,
             ...options
-        }: ColorUpdateConfig & {
-            minBrightness?: number;
-        },
+        }: ColorUpdateConfig & RandomPaletteConfig,
     ) {
         this.updateScale(
             this.activePalette.randomizeFrom(color, {
                 minBrightness,
+                nColors,
             }),
             options,
         );
@@ -359,8 +359,18 @@ export class Theme {
     /**
      * Randomize the colors of the theme.
      */
-    randomTheme(options?: ColorUpdateConfig) {
-        this.updateScale(this.activePalette.randomize(), options);
+    randomTheme({
+        minBrightness = 0,
+        nColors = this.activePalette.nColors,
+        ...options
+    }: ColorUpdateConfig & RandomPaletteConfig = {}) {
+        this.updateScale(
+            this.activePalette.randomize({
+                minBrightness,
+                nColors,
+            }),
+            options,
+        );
     }
 
     /**
