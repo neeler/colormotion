@@ -1,7 +1,7 @@
 import { Sketch } from '~/components/sketches/lib';
+import { theme } from '~/components/theme/theme';
 import { MovingObject } from '~/lib/MovingObject';
 import { MovingRandomNumber } from '~/lib/MovingRandomNumber';
-import { theme } from '~/theme';
 
 export const traceSketch = new Sketch({
     state: () => ({

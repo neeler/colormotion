@@ -7,7 +7,7 @@ import { SectionInterpolation } from '~/components/docSections/SectionInterpolat
 import { SectionQuickStart } from '~/components/docSections/SectionQuickStart';
 import { SideMenu } from '~/components/sideMenu/SideMenu';
 import { fibonacciSpiralSketch } from '~/components/sketches/fibonacciSpiralSketch';
-import { SketchWrapper } from '~/components/sketches/lib';
+import { ThemedSketch } from '~/components/sketches/lib/ThemedSketch';
 
 export default function Home() {
     return (
@@ -23,7 +23,11 @@ export default function Home() {
                         change over time, such as for animations or
                         visualizations in LED art. It is built on top of the
                         fantastic{' '}
-                        <TextLink href="https://gka.github.io/chroma.js/">
+                        <TextLink
+                            href="https://gka.github.io/chroma.js/"
+                            target="_blank"
+                            rel="nofollow noreferrer"
+                        >
                             chroma.js
                         </TextLink>{' '}
                         library.
@@ -31,10 +35,7 @@ export default function Home() {
                     <Text>
                         Compatible with Node.js and browser environments.
                     </Text>
-                    <SketchWrapper
-                        sketch={fibonacciSpiralSketch}
-                        className="h-100 w-full"
-                    />
+                    <ThemedSketch sketch={fibonacciSpiralSketch} />
                     <SectionInstallation />
                     <SectionQuickStart />
                     <SectionInterpolation />

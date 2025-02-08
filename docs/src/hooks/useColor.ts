@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { theme } from '~/theme';
+import { theme } from '~/components/theme/theme';
 
 export function useColorHex(index: number) {
     const [color, setColor] = useState<string | undefined>(undefined);
