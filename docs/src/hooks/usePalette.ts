@@ -6,14 +6,11 @@ export function usePalette() {
     const [palette, setPalette] = useState<ColorPalette | undefined>(undefined);
 
     useEffect(() => {
-        setPalette(theme.palette);
-
         const updatePalette: ThemeUpdateCallback = (event) => {
             setPalette(event.palette);
-            console.log(event.palette.colors.map((c) => c.hex()));
         };
 
-        theme.subscribe(updatePalette);
+        updatePalette(theme.subscribe(updatePalette));
 
         return () => {
             theme.unsubscribe(updatePalette);
