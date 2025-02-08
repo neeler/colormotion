@@ -46,7 +46,7 @@ export type ThemeConfig = InitialThemeColors & {
     deltaEThreshold?: number;
 };
 
-interface ColorUpdateConfig {
+export interface ColorUpdateConfig {
     /**
      * The speed of the transition between two palettes.
      */
