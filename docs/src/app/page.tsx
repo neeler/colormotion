@@ -6,8 +6,8 @@ import { SectionInstallation } from '~/components/docSections/SectionInstallatio
 import { SectionInterpolation } from '~/components/docSections/SectionInterpolation';
 import { SectionQuickStart } from '~/components/docSections/SectionQuickStart';
 import { SideMenu } from '~/components/sideMenu/SideMenu';
+import { ThemedSketch } from '~/components/sketches/ThemedSketch';
 import { fibonacciSpiralSketch } from '~/components/sketches/fibonacciSpiralSketch';
-import { ThemedSketch } from '~/components/sketches/lib/ThemedSketch';
 
 export default function Home() {
     return (

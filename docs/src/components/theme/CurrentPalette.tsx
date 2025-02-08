@@ -1,12 +1,12 @@
 import clsx from 'clsx';
-import { usePalette } from '~/hooks/usePalette';
+import { useThemeScale } from '~/hooks/useThemeScale';
 
 export function CurrentPalette() {
-    const palette = usePalette();
+    const themeScale = useThemeScale();
 
     return (
         <div className="flex space-x-2">
-            {palette?.colors.map((color, index) => (
+            {themeScale?.palette.colors.map((color, index) => (
                 <div
                     key={`${color}-${index}`}
                     className={clsx(
