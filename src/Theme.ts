@@ -237,7 +237,7 @@ export class Theme {
     private get status(): ThemeUpdateEvent {
         return {
             palette: this.activePalette,
-            colors: this.colors,
+            colors: this.activePalette.scaleColors,
             mode: this.mode,
             brightness: this.brightness,
         };
