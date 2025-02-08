@@ -1,6 +1,6 @@
 {
 	"name": "colormotion",
-	"version": "1.1.4",
+	"version": "2.0.0",
 	"description": "Dynamic color wheel for LEDs",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
@@ -16,7 +16,9 @@
 		"build": "tsup",
 		"dev": "tsup --watch",
 		"prepublishOnly": "npm run build",
-		"type-check": "npx tsc --noEmit"
+		"type-check": "npx tsc --noEmit",
+		"test": "vitest",
+		"coverage": "vitest run --coverage"
 	},
 	"keywords": [
 		"color",
@@ -39,16 +41,19 @@
 	"devDependencies": {
 		"@trivago/prettier-plugin-sort-imports": "^5.2.2",
 		"@types/chroma-js": "^3.1.1",
+		"@vitest/coverage-v8": "^3.0.5",
 		"prettier": "^3.4.2",
 		"tsup": "^8.3.6",
 		"type-fest": "^4.33.0",
-		"typescript": "^5.7.3"
+		"typescript": "^5.7.3",
+		"vitest": "^3.0.5"
 	},
 	"volta": {
 		"node": "22.13.1",
 		"npm": "10.9.2"
 	},
 	"dependencies": {
-		"chroma-js": "^3.1.2"
+		"chroma-js": "^3.1.2",
+		"scrips": "^1.0.5"
 	}
 }
