@@ -54,8 +54,21 @@ export interface ColorUpdateConfig {
 }
 
 export interface ThemeUpdateEvent {
+    /**
+     * The current color palette.
+     */
     palette: ColorPalette;
+    /**
+     * The current colors in the wheel (palette and intermediate colors).
+     */
+    colors: Color[];
+    /**
+     * The current interpolation mode.
+     */
     mode: InterpolationMode;
+    /**
+     * The current brightness factor (0-255).
+     */
     brightness: number;
 }
 
@@ -207,21 +220,24 @@ export class Theme {
     /**
      * Subscribe to get updates when the theme changes.
      * Callbacks will receive a ThemeUpdateEvent.
+     * @returns An event object with the current theme status.
      */
-    subscribe(callback: ThemeUpdateCallback) {
-        return this.scrips.subscribe(callback);
+    subscribe(callback: ThemeUpdateCallback): ThemeUpdateEvent {
+        this.scrips.subscribe(callback);
+        return this.status;
     }
 
     /**
      * Unsubscribe a given callback from theme updates.
      */
-    unsubscribe(callback: ThemeUpdateCallback) {
-        return this.scrips.unsubscribe(callback);
+    unsubscribe(callback: ThemeUpdateCallback): void {
+        this.scrips.unsubscribe(callback);
     }
 
     private get status(): ThemeUpdateEvent {
         return {
             palette: this.activePalette,
+            colors: this.colors,
             mode: this.mode,
             brightness: this.brightness,
         };
