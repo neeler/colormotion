@@ -35,6 +35,17 @@ export type ColorPaletteConfig = RequireExactlyOne<{
     deltaEThreshold?: number;
 };
 
+export interface RandomPaletteConfig {
+    /**
+     * The number of colors in the palette.
+     */
+    nColors?: number;
+    /**
+     * The minimum brightness for the colors.
+     */
+    minBrightness?: number;
+}
+
 /**
  * An immutable ColorPalette.
  */
@@ -204,19 +215,15 @@ export class ColorPalette {
      *
      * @param seed The color to start with.
      * @param options Options for randomizing the palette.
-     * @param options.minBrightness The minimum brightness for the colors.
      * @returns A new palette with randomized colors.
      */
     randomizeFrom(
         seed: ColorInput,
-        {
-            minBrightness = 0,
-        }: {
-            minBrightness?: number;
-        } = {},
+        { nColors = this.nColors, minBrightness = 0 }: RandomPaletteConfig = {},
     ) {
-        let lastColor = seed;
         const colors = [seed];
+
+        let lastColor = seed;
         let attempts = 0;
         while (colors.length < this.nColors && attempts < 10) {
             const possibleColor = chroma.random();
@@ -230,7 +237,7 @@ export class ColorPalette {
             }
             attempts += 1;
         }
-        while (colors.length < this.nColors) {
+        while (colors.length < nColors) {
             colors.push(chroma.random());
         }
 
@@ -238,28 +245,13 @@ export class ColorPalette {
     }
 
     /**
-     * Randomizes the whole palette with a random number of colors.
+     * Randomizes the whole palette.
      */
-    randomize(nColors = Math.floor(Math.random() * 3 + 3)) {
-        let lastColor = chroma.random();
-        const colors = [lastColor];
-        let attempts = 0;
-        while (colors.length < nColors && attempts < 10) {
-            const possibleColor = chroma.random();
-            if (
-                chroma.deltaE(lastColor, possibleColor, 1, 1, 1) >
-                this.deltaEThreshold
-            ) {
-                colors.push(possibleColor);
-                lastColor = possibleColor;
-            }
-            attempts += 1;
-        }
-        while (colors.length < nColors) {
-            colors.push(chroma.random());
-        }
-
-        return this.newColors(colors);
+    randomize({
+        minBrightness = 0,
+        nColors = Math.floor(Math.random() * 3 + 3),
+    }: RandomPaletteConfig = {}) {
+        return this.randomizeFrom(chroma.random(), { nColors, minBrightness });
     }
 
     /**
