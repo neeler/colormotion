@@ -16,3 +16,4 @@ coverage/*
 
 docs/.next/*
 docs/tsconfig.tsbuildinfo
+docs/out/*
