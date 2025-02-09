@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { useRef } from 'react';
+import { useSidebar } from '~/components/sideMenu/SidebarContext';
 import { useColorHex } from '~/hooks/useColorHex';
 
 export function L2MenuItem({
@@ -11,6 +12,7 @@ export function L2MenuItem({
     title: string;
     href: string;
 }) {
+    const { setOpen } = useSidebar();
     const ref = useRef<HTMLLIElement>(null);
     const color = useColorHex(colorOffset);
     return (
@@ -21,7 +23,9 @@ export function L2MenuItem({
                 color,
             }}
         >
-            <Link href={href}>{title}</Link>
+            <Link href={href} onClick={() => setOpen(false)}>
+                {title}
+            </Link>
         </li>
     );
 }

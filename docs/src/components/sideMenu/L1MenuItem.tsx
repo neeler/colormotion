@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ReactNode, useRef } from 'react';
+import { useSidebar } from '~/components/sideMenu/SidebarContext';
 import { useColorHex } from '~/hooks/useColorHex';
 
 export function L1MenuItem({
@@ -13,6 +14,7 @@ export function L1MenuItem({
     href: string;
     children?: ReactNode;
 }) {
+    const { setOpen } = useSidebar();
     const ref = useRef<HTMLLIElement>(null);
     const color = useColorHex(colorOffset);
     return (
@@ -23,7 +25,7 @@ export function L1MenuItem({
                 color,
             }}
         >
-            <Link href={href} className="block">
+            <Link href={href} className="block" onClick={() => setOpen(false)}>
                 {title}
             </Link>
             {children && (
