@@ -17,7 +17,7 @@ export function Level1({
         <li
             ref={ref}
             className={clsx(
-                'animate-fade-in text-lg font-bold text-black',
+                'animate-fade-in text-lg font-bold text-black hover:underline',
                 className,
             )}
             style={{

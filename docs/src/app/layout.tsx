@@ -14,9 +14,9 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className="antialiased bg-black text-neutral-50 font-sans p-2">
+            <body className="bg-black p-2 font-sans text-neutral-50 antialiased">
                 <GithubCorner />
-                <main className="max-w-5xl mx-auto">{children}</main>
+                <main className="mx-auto max-w-5xl">{children}</main>
             </body>
         </html>
     );
