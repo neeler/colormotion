@@ -1,6 +1,11 @@
 import chroma, { Color } from 'chroma-js';
 import { SubscriptionManager } from 'scrips';
-import { ColorInput, ColorPalette, RandomPaletteConfig } from './ColorPalette';
+import {
+    ColorInput,
+    ColorPalette,
+    RandomColorConfig,
+    RandomPaletteConfig,
+} from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
@@ -394,8 +399,16 @@ export class Theme {
     /**
      * Push a random color to the end of the palette.
      */
-    pushRandomColor(options?: ColorUpdateConfig) {
-        this.updateScale(this.activePalette.pushRandom(), options);
+    pushRandomColor({
+        minBrightness,
+        ...options
+    }: ColorUpdateConfig & RandomColorConfig = {}) {
+        this.updateScale(
+            this.activePalette.pushRandom({
+                minBrightness,
+            }),
+            options,
+        );
     }
 
     /**
@@ -415,8 +428,16 @@ export class Theme {
     /**
      * Drops the oldest color and pushes a random color.
      */
-    rotateRandomColor(options?: ColorUpdateConfig) {
-        this.updateScale(this.activePalette.rotateRandomOn(), options);
+    rotateRandomColor({
+        minBrightness,
+        ...options
+    }: ColorUpdateConfig & RandomColorConfig = {}) {
+        this.updateScale(
+            this.activePalette.rotateRandomOn({
+                minBrightness,
+            }),
+            options,
+        );
     }
 
     private clearTargetPalette() {
