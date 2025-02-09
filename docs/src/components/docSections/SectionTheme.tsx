@@ -3,7 +3,6 @@ import { hybrid } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { Heading2 } from '~/components/catalyst/Heading2';
 import { Heading3 } from '~/components/catalyst/Heading3';
 import { Code, Text, TextLink } from '~/components/catalyst/Text';
-import { theme } from '~/components/theme/theme';
 
 export function SectionTheme() {
     return (
