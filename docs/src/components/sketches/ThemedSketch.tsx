@@ -1,10 +1,14 @@
 import clsx from 'clsx';
-import { Button } from '~/components/catalyst/Button';
 import { Sketch } from '~/components/sketches/lib/Sketch';
 import { SketchWrapper } from '~/components/sketches/lib/SketchWrapper';
+import { AddRandomColorButton } from '~/components/theme/AddRandomColorButton';
 import { CurrentPalette } from '~/components/theme/CurrentPalette';
 import { CurrentThemeScale } from '~/components/theme/CurrentThemeScale';
-import { theme } from '~/components/theme/theme';
+import { ModeSelectors } from '~/components/theme/ModeSelectors';
+import { PopOldestColorButton } from '~/components/theme/PopOldestColorButton';
+import { RandomThemeButton } from '~/components/theme/RandomThemeButton';
+import { RotateModeButton } from '~/components/theme/RotateModeButton';
+import { RotateRandomColorButton } from '~/components/theme/RotateRandomColorButton';
 
 const minBrightness = 150;
 
@@ -21,48 +25,23 @@ export function ThemedSketch({
             <CurrentPalette className="max-lg:hidden" />
             <CurrentThemeScale />
             <div className="flex space-x-4">
-                <Button
+                <RandomThemeButton
+                    minBrightness={minBrightness}
                     className="grow"
-                    color="zinc"
-                    onClick={() => {
-                        theme.randomTheme({
-                            minBrightness,
-                        });
-                    }}
-                >
-                    Full Random Theme
-                </Button>
-                <Button
+                />
+                <RotateRandomColorButton
+                    minBrightness={minBrightness}
                     className="grow"
-                    color="zinc"
-                    onClick={() => {
-                        theme.rotateRandomColor({
-                            minBrightness,
-                        });
-                    }}
-                >
-                    Rotate In Random Color
-                </Button>
-                <Button
+                />
+                <AddRandomColorButton
+                    minBrightness={minBrightness}
                     className="grow"
-                    color="zinc"
-                    onClick={() => {
-                        theme.pushRandomColor({
-                            minBrightness,
-                        });
-                    }}
-                >
-                    Add Random Color
-                </Button>
-                <Button
-                    className="grow"
-                    color="zinc"
-                    onClick={() => {
-                        theme.popOldestColor();
-                    }}
-                >
-                    Pop Oldest Color
-                </Button>
+                />
+                <PopOldestColorButton className="grow" />
+            </div>
+            <div className="flex space-x-4">
+                <RotateModeButton className="grow lg:grow-0" />
+                <ModeSelectors className="grow" />
             </div>
         </div>
     );
