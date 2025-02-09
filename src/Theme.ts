@@ -305,6 +305,9 @@ export class Theme {
         }
         this.mode = targetPalette.mode;
         this.transitionSpeed = Math.min(1, Math.max(0, transitionSpeed)) / 10;
+        if (this.targetPalette) {
+            this.palette = targetPalette;
+        }
         this.targetPalette = targetPalette;
         this.publish();
     }

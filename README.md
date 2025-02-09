@@ -19,6 +19,8 @@ It supports many different color interpolation methods:
 
 It uses the [chroma.js](https://gka.github.io/chroma.js/) library under the hood for color interpolation.
 
+Check out the interactive docs [here](https://neeler.github.io/colormotion/).
+
 ![tests workflow](https://github.com/neeler/colormotion/actions/workflows/tests.yml/badge.svg)
 ![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/colormotion)
 
