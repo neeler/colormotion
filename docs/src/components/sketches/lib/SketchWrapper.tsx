@@ -1,10 +1,24 @@
 import clsx from 'clsx';
 import { lazy, Suspense } from 'react';
-import { BaseSketchWrapperProps } from '~/components/sketches/lib/BaseSketchWrapper';
+import type {
+    BaseSketchWrapperProps,
+    BaseSketchWrapperType,
+} from '~/components/sketches/lib/BaseSketchWrapper';
 
-const BaseSketchWrapper = lazy(() => import('./BaseSketchWrapper'));
+function BaseSketchWrapper<
+    TState = unknown,
+    TMovingState extends object = object,
+>() {
+    return lazy<BaseSketchWrapperType<TState, TMovingState>>(
+        () => import('./BaseSketchWrapper'),
+    );
+}
 
-export function SketchWrapper({ className, ...props }: BaseSketchWrapperProps) {
+export function SketchWrapper<
+    TState = unknown,
+    TMovingState extends object = object,
+>({ className, sketch }: BaseSketchWrapperProps<TState, TMovingState>) {
+    const Wrapper = BaseSketchWrapper<TState, TMovingState>();
     return (
         <Suspense
             fallback={
@@ -16,7 +30,7 @@ export function SketchWrapper({ className, ...props }: BaseSketchWrapperProps) {
                 />
             }
         >
-            <BaseSketchWrapper {...props} className={className} />
+            <Wrapper sketch={sketch} className={className} />
         </Suspense>
     );
 }

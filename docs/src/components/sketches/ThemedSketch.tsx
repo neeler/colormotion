@@ -12,11 +12,14 @@ import { RotateRandomColorButton } from '~/components/theme/RotateRandomColorBut
 
 const minBrightness = 150;
 
-export function ThemedSketch({
+export function ThemedSketch<
+    TState = unknown,
+    TMovingState extends object = object,
+>({
     sketch,
     className,
 }: {
-    sketch: Sketch;
+    sketch: Sketch<TState, TMovingState>;
     className?: string;
 }) {
     return (
