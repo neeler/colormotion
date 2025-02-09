@@ -22,6 +22,8 @@ It uses the [chroma.js](https://gka.github.io/chroma.js/) library under the hood
 ![tests workflow](https://github.com/neeler/colormotion/actions/workflows/tests.yml/badge.svg)
 ![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/colormotion)
 
+[![npm stats](https://nodei.co/npm/colormotion.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/colormotion/)
+
 ## Installation
 
 Install the `colormotion` npm module using your favorite package manager:
