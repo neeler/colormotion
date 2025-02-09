@@ -67,8 +67,8 @@ export class ColorPalette {
     readonly nSteps: number;
     readonly scale: Scale;
     readonly scaleColors: Color[];
-    private readonly maxNumberOfColors;
-    private readonly deltaEThreshold: number;
+    readonly maxNumberOfColors;
+    readonly deltaEThreshold: number;
 
     /**
      * Normalizes the input colors to chroma-js colors.
@@ -216,6 +216,7 @@ export class ColorPalette {
             mode: this.mode,
             nSteps: this.nSteps,
             normalizedColors,
+            maxNumberOfColors: this.maxNumberOfColors,
         });
     }
 
@@ -231,6 +232,7 @@ export class ColorPalette {
             colors: this.colors,
             mode,
             nSteps: this.nSteps,
+            maxNumberOfColors: this.maxNumberOfColors,
         });
     }
 

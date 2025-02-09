@@ -4,8 +4,8 @@ import { SketchWrapper } from '~/components/sketches/lib/SketchWrapper';
 import { AddRandomColorButton } from '~/components/theme/AddRandomColorButton';
 import { CurrentPalette } from '~/components/theme/CurrentPalette';
 import { CurrentThemeScale } from '~/components/theme/CurrentThemeScale';
+import { DropOldestColorButton } from '~/components/theme/DropOldestColorButton';
 import { ModeSelectors } from '~/components/theme/ModeSelectors';
-import { PopOldestColorButton } from '~/components/theme/PopOldestColorButton';
 import { RandomThemeButton } from '~/components/theme/RandomThemeButton';
 import { RotateModeButton } from '~/components/theme/RotateModeButton';
 import { RotateRandomColorButton } from '~/components/theme/RotateRandomColorButton';
@@ -43,7 +43,7 @@ export function ThemedSketch<
                         minBrightness={minBrightness}
                         className="grow"
                     />
-                    <PopOldestColorButton className="grow" />
+                    <DropOldestColorButton className="grow" />
                 </div>
             </div>
             <div className="flex space-x-4">

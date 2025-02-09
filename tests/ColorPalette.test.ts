@@ -257,6 +257,20 @@ test('pushRandom', () => {
     expect(pushRandom.hexes[2]).toEqual(palette.hexes[2]);
     expect(pushRandom.hexes[3]).not.toEqual(palette.hexes[3]);
     expect(pushRandom.hexes[4]).toEqual(pushRandom.hexes[0]);
+
+    const paletteWithMaxColors = new ColorPalette({
+        colors: ['red', 'green', 'blue'],
+        mode: 'rgb',
+        nSteps: 10,
+        maxNumberOfColors: 3,
+    });
+
+    const pushRandomWithMaxColors = paletteWithMaxColors.pushRandom();
+    expect(pushRandomWithMaxColors).toBeDefined();
+    expectTypeOf(pushRandomWithMaxColors).toMatchTypeOf<ColorPalette>();
+    expect(pushRandomWithMaxColors instanceof ColorPalette).toBe(true);
+    expect(pushRandomWithMaxColors).toBe(paletteWithMaxColors);
+    expect(pushRandomWithMaxColors.nColors).toBe(3);
 });
 
 test('popOldest', () => {

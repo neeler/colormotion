@@ -1,7 +1,7 @@
 import { Button } from '~/components/catalyst/Button';
 import { theme } from '~/components/theme/theme';
 
-export function PopOldestColorButton({ className }: { className?: string }) {
+export function DropOldestColorButton({ className }: { className?: string }) {
     return (
         <Button
             className={className}
@@ -10,7 +10,7 @@ export function PopOldestColorButton({ className }: { className?: string }) {
                 theme.popOldestColor();
             }}
         >
-            Pop Oldest Color
+            Drop Oldest Color
         </Button>
     );
 }

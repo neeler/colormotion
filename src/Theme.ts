@@ -192,7 +192,7 @@ export class Theme {
      * The hex values of the colors in the active palette.
      */
     get activePaletteHexes() {
-        const hexes = this.activePalette.hexes;
+        const hexes = this.activePalette.hexes.slice();
         hexes.pop();
         return hexes;
     }
