@@ -108,8 +108,11 @@ export const fibonacciSpiralSketch = new Sketch({
             const iFrame = (p5.frameCount * 10) % nDots;
             const frameDiff = Math.abs(i - iFrame) / nDots;
             p5.rotate(goldenAngle);
+            const [r, g, b] = color.rgb();
             p5.fill(
-                ...color.rgb(),
+                r,
+                g,
+                b,
                 (1 + frameOpacityFactor * frameDiff) * shapeOpacity,
             );
             p5.ellipse(0, radius, dotSize);
