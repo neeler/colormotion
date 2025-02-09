@@ -37,7 +37,7 @@
 	"bugs": {
 		"url": "https://github.com/neeler/colormotion/issues"
 	},
-	"homepage": "https://github.com/neeler/colormotion#readme",
+	"homepage": "https://neeler.github.io/colormotion",
 	"devDependencies": {
 		"@trivago/prettier-plugin-sort-imports": "^5.2.2",
 		"@types/chroma-js": "^3.1.1",
