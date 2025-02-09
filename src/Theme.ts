@@ -49,6 +49,11 @@ export type ThemeConfig = InitialThemeColors & {
      * Defaults to 20.
      */
     deltaEThreshold?: number;
+    /**
+     * Max number of colors in the palette.
+     * Defaults to 8.
+     */
+    maxNumberOfColors?: number;
 };
 
 export interface ColorUpdateConfig {
@@ -83,7 +88,16 @@ export type ThemeUpdateCallback = (event: ThemeUpdateEvent) => void;
  * A dynamic color theme that can be updated and transitioned between different color palettes.
  */
 export class Theme {
+    /**
+     * The number of steps in the color scale.
+     * Defaults to 2048.
+     */
     readonly nSteps: number;
+    /**
+     * Max number of colors allowed in the theme's palettes.
+     * Defaults to 8.
+     */
+    readonly maxNumberOfColors: number;
     /**
      * The active palette to use for color generation.
      */
@@ -107,6 +121,7 @@ export class Theme {
     constructor(config?: ThemeConfig) {
         this.nSteps = config?.nSteps ?? 2048;
         this.mode = config?.mode ?? InterpolationModes.rgb;
+        this.maxNumberOfColors = config?.maxNumberOfColors ?? 8;
 
         const initialPalette =
             config && 'palette' in config ? config.palette : undefined;
@@ -122,6 +137,7 @@ export class Theme {
                     mode: this.mode,
                     nSteps: this.nSteps,
                     deltaEThreshold: config?.deltaEThreshold,
+                    maxNumberOfColors: this.maxNumberOfColors,
                 });
             } else {
                 const nColors =
@@ -135,6 +151,7 @@ export class Theme {
                     mode: this.mode,
                     nSteps: this.nSteps,
                     deltaEThreshold: config?.deltaEThreshold,
+                    maxNumberOfColors: this.maxNumberOfColors,
                 });
             }
         }
@@ -312,6 +329,7 @@ export class Theme {
                 colors,
                 nSteps,
                 mode,
+                maxNumberOfColors: this.maxNumberOfColors,
             }),
             options,
         );
@@ -338,11 +356,18 @@ export class Theme {
      * Set the colors of the theme.
      */
     setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig) {
-        this.updateScale(this.activePalette.newColors(colorInputs), options);
+        this.updateScale(
+            this.activePalette.newColors(
+                ColorPalette.clampColors(colorInputs, this.maxNumberOfColors),
+            ),
+            options,
+        );
     }
 
     /**
      * Randomize the colors of the theme based on a seed color.
+     * Defaults to the same number of colors as the current palette.
+     * Max number of colors defined in the theme config is respected.
      */
     randomFrom(
         color: ColorInput,
@@ -355,7 +380,7 @@ export class Theme {
         this.updateScale(
             this.activePalette.randomizeFrom(color, {
                 minBrightness,
-                nColors,
+                nColors: Math.min(nColors, this.maxNumberOfColors),
             }),
             options,
         );
@@ -363,6 +388,8 @@ export class Theme {
 
     /**
      * Randomize the colors of the theme.
+     * Defaults to the same number of colors as the current palette.
+     * Max number of colors defined in the theme config is respected.
      */
     randomTheme({
         minBrightness = 0,
@@ -372,7 +399,7 @@ export class Theme {
         this.updateScale(
             this.activePalette.randomize({
                 minBrightness,
-                nColors,
+                nColors: Math.min(nColors, this.maxNumberOfColors),
             }),
             options,
         );
