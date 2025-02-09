@@ -17,6 +17,7 @@ export type ColorPaletteConfig = RequireExactlyOne<{
     colors: ColorInput[];
     /**
      * The normalized colors to use in the palette.
+     * Don't use this unless you know what you're doing.
      */
     normalizedColors: Color[];
 }> & {
@@ -33,6 +34,11 @@ export type ColorPaletteConfig = RequireExactlyOne<{
      * Defaults to 20.
      */
     deltaEThreshold?: number;
+    /**
+     * Max number of colors in the palette.
+     * Defaults to 8.
+     */
+    maxNumberOfColors?: number;
 };
 
 export interface RandomPaletteConfig {
@@ -61,7 +67,7 @@ export class ColorPalette {
     readonly nSteps: number;
     readonly scale: Scale;
     readonly scaleColors: Color[];
-    private readonly maxNumberOfColors = 8;
+    private readonly maxNumberOfColors;
     private readonly deltaEThreshold: number;
 
     /**
@@ -86,6 +92,14 @@ export class ColorPalette {
         colors.push(firstColor);
 
         return colors;
+    }
+
+    static clampColors(colors: ColorInput[], maxNumberOfColors: number) {
+        if (colors.length <= maxNumberOfColors) {
+            return colors;
+        }
+
+        return colors.slice(0, maxNumberOfColors);
     }
 
     private static analyzeColors(colors: ColorInput[]) {
@@ -119,10 +133,21 @@ export class ColorPalette {
         nSteps,
         normalizedColors,
         deltaEThreshold,
+        maxNumberOfColors = 8,
     }: ColorPaletteConfig) {
         this.mode = mode;
         this.nSteps = nSteps;
+        this.maxNumberOfColors = maxNumberOfColors;
         this.colors = normalizedColors ?? ColorPalette.normalizeColors(colors);
+
+        if (this.colors.length > maxNumberOfColors + 1) {
+            // Crop the colors to the max number of colors
+            this.colors = ColorPalette.normalizeColors(
+                ColorPalette.clampColors(this.colors, maxNumberOfColors).concat(
+                    this.colors[0],
+                ),
+            );
+        }
 
         // Don't count the duplicate color at the end of the wheel
         this.nColors = this.colors.length - 1;
@@ -148,10 +173,12 @@ export class ColorPalette {
         colors,
         nSteps,
         mode,
+        maxNumberOfColors,
     }: {
         colors: ColorInput[];
         mode: InterpolationMode;
         nSteps: number;
+        maxNumberOfColors?: number;
     }) {
         const modeIsSame = mode === this.mode;
         const nStepsIsSame = nSteps === this.nSteps;
@@ -171,6 +198,7 @@ export class ColorPalette {
             mode,
             nSteps,
             normalizedColors,
+            maxNumberOfColors,
         });
     }
 
@@ -215,6 +243,7 @@ export class ColorPalette {
 
     /**
      * Randomizes the palette starting with the input color.
+     * Maintains the number of colors in the palette.
      *
      * @param seed The color to start with.
      * @param options Options for randomizing the palette.
@@ -249,10 +278,11 @@ export class ColorPalette {
 
     /**
      * Randomizes the whole palette.
+     * Maintains the number of colors in the palette.
      */
     randomize({
         minBrightness = 0,
-        nColors = Math.floor(Math.random() * 3 + 3),
+        nColors = this.nColors,
     }: RandomPaletteConfig = {}) {
         return this.randomizeFrom(chroma.random(), { nColors, minBrightness });
     }
