@@ -18,7 +18,7 @@ export function useColorHex(index = 0) {
         return () => {
             theme.unsubscribe(updateColor);
         };
-    }, []);
+    }, [index]);
 
     return color;
 }

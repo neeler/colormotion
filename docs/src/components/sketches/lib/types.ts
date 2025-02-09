@@ -64,7 +64,10 @@ export const P5TouchEvents = [
     'touchStarted',
 ] as const;
 
-export type SketchProps<TState = any, TMovingState extends object = any> = {
+export type SketchProps<
+    TState = unknown,
+    TMovingState extends object = object,
+> = {
     /**
      * Internals
      */

@@ -8,7 +8,7 @@ type HeadingProps = {
 } & ComponentPropsWithoutRef<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'>;
 
 export function Heading({ className, level = 1, id, ...props }: HeadingProps) {
-    let Element: `h${typeof level}` = `h${level}`;
+    const Element: `h${typeof level}` = `h${level}`;
 
     if (!id) {
         return (
@@ -40,7 +40,7 @@ export function Heading({ className, level = 1, id, ...props }: HeadingProps) {
 }
 
 export function Subheading({ className, level = 2, ...props }: HeadingProps) {
-    let Element: `h${typeof level}` = `h${level}`;
+    const Element: `h${typeof level}` = `h${level}`;
 
     return (
         <Element

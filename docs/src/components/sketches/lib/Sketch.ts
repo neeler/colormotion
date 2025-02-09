@@ -9,10 +9,10 @@ import {
     SketchProps,
 } from './types';
 
-export class Sketch<TState = any> {
-    private readonly sketchProps: SketchProps<TState>;
+export class Sketch<TState = unknown, TMovingState extends object = object> {
+    private readonly sketchProps: SketchProps<TState, TMovingState>;
 
-    constructor(sketchProps: SketchProps<TState>) {
+    constructor(sketchProps: SketchProps<TState, TMovingState>) {
         this.sketchProps = sketchProps;
     }
 

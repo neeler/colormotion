@@ -43,8 +43,8 @@ import { Theme } from 'colormotion';`}
                 {`const color = theme.getColor();`}
             </SyntaxHighlighter>
             <Text>
-                Here's an example of creating a theme with an initial rainbow
-                palette and using it to control an LED strip:
+                Here&apos;s an example of creating a theme with an initial
+                rainbow palette and using it to control an LED strip:
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const theme = new Theme({

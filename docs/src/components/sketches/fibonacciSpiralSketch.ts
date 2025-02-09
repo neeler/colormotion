@@ -33,10 +33,6 @@ export const fibonacciSpiralSketch = new Sketch({
                 min: 10,
                 max: 10,
             }),
-            strokeOpacity: new MovingRandomNumber({
-                min: 1,
-                max: 5,
-            }),
             shapeOpacity: new MovingRandomNumber({
                 min: 200,
                 max: 255,
@@ -78,7 +74,6 @@ export const fibonacciSpiralSketch = new Sketch({
         {
             movingState: {
                 bgOpacity,
-                strokeOpacity,
                 shapeOpacity,
                 colorTurnStep,
                 iColorStep,
