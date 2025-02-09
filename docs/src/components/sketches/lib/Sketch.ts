@@ -81,12 +81,6 @@ export class Sketch<TState = any> {
             p5.windowResized = (event: Event) => {
                 if (!wrapperRef.current) return;
 
-                console.log({
-                    lastSeenSize,
-                    width: getWidth(),
-                    height: getHeight(),
-                });
-
                 if (
                     lastSeenSize.width !== getWidth() ||
                     lastSeenSize.height !== getHeight()

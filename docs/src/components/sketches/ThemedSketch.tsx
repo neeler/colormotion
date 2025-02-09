@@ -16,7 +16,7 @@ export function ThemedSketch({
     return (
         <div className={clsx('space-y-4', className)}>
             <SketchWrapper sketch={sketch} className="h-100 w-full" />
-            <CurrentPalette />
+            <CurrentPalette className="max-lg:hidden" />
             <CurrentThemeScale />
             <div className="flex space-x-4">
                 <Button
@@ -38,6 +38,24 @@ export function ThemedSketch({
                     }}
                 >
                     Rotate In Random Color
+                </Button>
+                <Button
+                    className="grow"
+                    color="zinc"
+                    onClick={() => {
+                        theme.pushRandomColor();
+                    }}
+                >
+                    Add Random Color
+                </Button>
+                <Button
+                    className="grow"
+                    color="zinc"
+                    onClick={() => {
+                        theme.popOldestColor();
+                    }}
+                >
+                    Pop Oldest Color
                 </Button>
             </div>
         </div>
