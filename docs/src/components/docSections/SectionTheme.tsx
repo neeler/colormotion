@@ -163,8 +163,8 @@ theme.brightness = 128;`}
             <Heading3 id="theme-getColor">theme.getColor</Heading3>
             <Text>
                 Gets the <Code>Theme</Code> color at the given index. Handles
-                rounding and wrapping around the palette, so you don't need to
-                worry about the index being out of bounds or non-integer.
+                rounding and wrapping around the palette, so you don&apos;t need
+                to worry about the index being out of bounds or non-integer.
                 Returns a <Code>chroma.js</Code> <Code>Color</Code> object.
                 Index defaults to 0.
             </Text>
