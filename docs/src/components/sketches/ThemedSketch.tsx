@@ -24,20 +24,24 @@ export function ThemedSketch({
             <SketchWrapper sketch={sketch} className="h-100 w-full" />
             <CurrentPalette className="max-lg:hidden" />
             <CurrentThemeScale />
-            <div className="flex space-x-4">
-                <RandomThemeButton
-                    minBrightness={minBrightness}
-                    className="grow"
-                />
-                <RotateRandomColorButton
-                    minBrightness={minBrightness}
-                    className="grow"
-                />
-                <AddRandomColorButton
-                    minBrightness={minBrightness}
-                    className="grow"
-                />
-                <PopOldestColorButton className="grow" />
+            <div className="space-y-4 sm:flex sm:space-y-0 sm:space-x-4">
+                <div className="flex space-x-4 sm:grow">
+                    <RandomThemeButton
+                        minBrightness={minBrightness}
+                        className="grow"
+                    />
+                    <RotateRandomColorButton
+                        minBrightness={minBrightness}
+                        className="grow"
+                    />
+                </div>
+                <div className="flex space-x-4 sm:grow">
+                    <AddRandomColorButton
+                        minBrightness={minBrightness}
+                        className="grow"
+                    />
+                    <PopOldestColorButton className="grow" />
+                </div>
             </div>
             <div className="flex space-x-4">
                 <RotateModeButton className="grow lg:grow-0" />

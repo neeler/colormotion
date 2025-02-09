@@ -18,7 +18,7 @@ export function RandomThemeButton({
                 });
             }}
         >
-            Full Random Theme
+            Random Theme
         </Button>
     );
 }
