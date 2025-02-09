@@ -6,6 +6,8 @@ import { CurrentPalette } from '~/components/theme/CurrentPalette';
 import { CurrentThemeScale } from '~/components/theme/CurrentThemeScale';
 import { theme } from '~/components/theme/theme';
 
+const minBrightness = 150;
+
 export function ThemedSketch({
     sketch,
     className,
@@ -24,7 +26,7 @@ export function ThemedSketch({
                     color="zinc"
                     onClick={() => {
                         theme.randomTheme({
-                            minBrightness: 150,
+                            minBrightness,
                         });
                     }}
                 >
@@ -34,7 +36,9 @@ export function ThemedSketch({
                     className="grow"
                     color="zinc"
                     onClick={() => {
-                        theme.rotateRandomColor();
+                        theme.rotateRandomColor({
+                            minBrightness,
+                        });
                     }}
                 >
                     Rotate In Random Color
@@ -43,7 +47,9 @@ export function ThemedSketch({
                     className="grow"
                     color="zinc"
                     onClick={() => {
-                        theme.pushRandomColor();
+                        theme.pushRandomColor({
+                            minBrightness,
+                        });
                     }}
                 >
                     Add Random Color
