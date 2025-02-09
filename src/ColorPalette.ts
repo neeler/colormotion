@@ -265,7 +265,9 @@ export class ColorPalette {
             return this;
         }
 
-        return this.newColors(this.colors.concat(chroma(color)));
+        return this.newColors(
+            this.colors.slice(0, this.nColors).concat(chroma(color)),
+        );
     }
 
     private getNewRandomColor({ minBrightness = 0 }: RandomColorConfig = {}) {
