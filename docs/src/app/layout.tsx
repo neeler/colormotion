@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
     title: 'colormotion api docs',
-    description: 'Documentation for the colormotion package',
+    description: 'Documentation for the colormotion library',
 };
 
 export default function RootLayout({
