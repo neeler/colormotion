@@ -46,6 +46,9 @@ export interface RandomPaletteConfig {
     minBrightness?: number;
 }
 
+export interface RandomColorConfig
+    extends Pick<RandomPaletteConfig, 'minBrightness'> {}
+
 /**
  * An immutable ColorPalette.
  */
@@ -265,11 +268,27 @@ export class ColorPalette {
         return this.newColors(this.colors.concat(chroma(color)));
     }
 
+    private getNewRandomColor({ minBrightness = 0 }: RandomColorConfig = {}) {
+        let possibleColor = chroma.random();
+        const lastColor = this.colors[this.nColors - 1] as Color;
+        let attempts = 0;
+        while (
+            attempts < 10 &&
+            (chroma.deltaE(lastColor, possibleColor, 1, 1, 1) <
+                this.deltaEThreshold ||
+                possibleColor.get('hsv.v') < minBrightness)
+        ) {
+            possibleColor = chroma.random();
+            attempts += 1;
+        }
+        return possibleColor;
+    }
+
     /**
      * Adds a random color.
      */
-    pushRandom() {
-        return this.push(chroma.random());
+    pushRandom(randomColorConfig: RandomColorConfig = {}) {
+        return this.push(this.getNewRandomColor(randomColorConfig));
     }
 
     /**
@@ -280,15 +299,7 @@ export class ColorPalette {
             return this;
         }
 
-        const oldestColor = this.hexes[0];
-        return this.newColors(
-            this.hexes.reduce((colors, hex) => {
-                if (hex !== oldestColor) {
-                    colors.push(chroma(hex));
-                }
-                return colors;
-            }, Array<Color>()),
-        );
+        return this.newColors(this.hexes.slice(1, this.hexes.length - 1));
     }
 
     /**
@@ -305,17 +316,7 @@ export class ColorPalette {
     /**
      * Drops the oldest color and adds a random color.
      */
-    rotateRandomOn() {
-        const lastColor = this.colors[this.colors.length - 1] as Color;
-        let newColor;
-        let attempts = 0;
-        while (!newColor && attempts < 10) {
-            const possibleColor = chroma.random();
-            if (chroma.deltaE(lastColor, possibleColor, 1, 1, 1) > 20) {
-                newColor = possibleColor;
-            }
-            attempts += 1;
-        }
-        return this.rotateOn(newColor ?? chroma.random());
+    rotateRandomOn(options?: RandomColorConfig) {
+        return this.rotateOn(this.getNewRandomColor(options));
     }
 }
