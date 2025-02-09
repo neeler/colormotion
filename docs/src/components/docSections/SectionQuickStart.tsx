@@ -1,15 +1,13 @@
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { hybrid } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import { Heading } from '~/components/catalyst/Heading';
+import { Heading2 } from '~/components/catalyst/Heading2';
 import { Code, Text } from '~/components/catalyst/Text';
 import { UnorderedList } from '~/components/catalyst/UnorderedList';
 
 export function SectionQuickStart() {
     return (
         <>
-            <Heading level={2} id="quick-start">
-                Quick Start
-            </Heading>
+            <Heading2 id="quick-start">Quick Start</Heading2>
             <Text>
                 With <Code>colormotion</Code> you can:
             </Text>

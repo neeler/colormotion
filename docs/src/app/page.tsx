@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { Heading1 } from '~/components/catalyst/Heading1';
 import { NavbarItem } from '~/components/catalyst/Navbar';
-import { PageTitle } from '~/components/catalyst/PageTitle';
 import { Strong, Text, TextLink } from '~/components/catalyst/Text';
 import { SectionInstallation } from '~/components/docSections/SectionInstallation';
 import { SectionInterpolation } from '~/components/docSections/SectionInterpolation';
 import { SectionQuickStart } from '~/components/docSections/SectionQuickStart';
+import { SectionTheme } from '~/components/docSections/SectionTheme';
 import { OpenMenuIcon } from '~/components/icons/OpenMenuIcon';
 import { MobileSidebar } from '~/components/sideMenu/MobileSidebar';
 import { SideMenu } from '~/components/sideMenu/SideMenu';
@@ -43,7 +44,7 @@ export default function Home() {
 
             {/* Content */}
             <div className="col-span-7">
-                <PageTitle>colormotion</PageTitle>
+                <Heading1>colormotion</Heading1>
                 <div className="space-y-4">
                     <Text>
                         <Strong>colormotion</Strong> is a JavaScript library of
@@ -91,6 +92,7 @@ export default function Home() {
                     <SectionInstallation />
                     <SectionQuickStart />
                     <SectionInterpolation />
+                    <SectionTheme />
                 </div>
             </div>
         </div>

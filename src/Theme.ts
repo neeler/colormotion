@@ -59,6 +59,9 @@ export type ThemeConfig = InitialThemeColors & {
 export interface ColorUpdateConfig {
     /**
      * The speed of the transition between two palettes.
+     * Should be between 0 and 1. Will be clamped to this range.
+     * Defaults to 0.1.
+     * The higher the value, the faster the transition.
      */
     transitionSpeed?: number;
 }
@@ -67,7 +70,7 @@ export interface ThemeUpdateEvent {
     /**
      * The current color palette.
      */
-    palette: ColorPalette;
+    palette: Readonly<ColorPalette>;
     /**
      * The current colors in the wheel (palette and intermediate colors).
      */
@@ -184,7 +187,7 @@ export class Theme {
     /**
      * The active palette to use for color generation.
      */
-    get activePalette() {
+    get activePalette(): Readonly<ColorPalette> {
         return this.targetPalette ?? this.palette;
     }
 
@@ -378,7 +381,7 @@ export class Theme {
             minBrightness = 0,
             nColors = this.activePalette.nColors,
             ...options
-        }: ColorUpdateConfig & RandomPaletteConfig,
+        }: ColorUpdateConfig & RandomPaletteConfig = {},
     ) {
         this.updateScale(
             this.activePalette.randomizeFrom(color, {

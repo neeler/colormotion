@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { ReactNode } from 'react';
 
-export function PageTitle({
+export function Heading1({
     children,
     className,
 }: {
@@ -11,7 +11,7 @@ export function PageTitle({
     return (
         <h1
             className={clsx(
-                'text-5xl font-thin tracking-tight my-8',
+                'my-8 text-5xl font-thin tracking-tight',
                 className,
             )}
         >
