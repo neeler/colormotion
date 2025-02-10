@@ -73,6 +73,10 @@ export interface ThemeUpdateEvent {
      */
     palette: Readonly<ColorPalette>;
     /**
+     * Is the theme transitioning between palettes.
+     */
+    isTransitioning: boolean;
+    /**
      * The current colors in the wheel (palette and intermediate colors).
      */
     colors: Color[];
@@ -275,6 +279,7 @@ export class Theme {
     private get status(): ThemeUpdateEvent {
         return {
             palette: this.activePalette,
+            isTransitioning: Boolean(this.targetPalette),
             colors: this.activePalette.scaleColors,
             mode: this.mode,
             brightness: this.brightness,
