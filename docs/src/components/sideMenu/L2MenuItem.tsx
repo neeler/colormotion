@@ -18,7 +18,7 @@ export function L2MenuItem({
     return (
         <li
             ref={ref}
-            className="text-[15px] text-black transition-colors duration-500"
+            className="text-[15px] text-black transition-colors duration-500 hover:!text-white"
             style={{
                 color,
             }}

@@ -18,14 +18,15 @@ export function L1MenuItem({
     const ref = useRef<HTMLLIElement>(null);
     const color = useColorHex(colorOffset);
     return (
-        <li
-            ref={ref}
-            className="text-[17px] font-bold text-black transition-colors duration-500"
-            style={{
-                color,
-            }}
-        >
-            <Link href={href} className="block" onClick={() => setOpen(false)}>
+        <li ref={ref}>
+            <Link
+                href={href}
+                onClick={() => setOpen(false)}
+                className="block text-[17px] font-bold text-black transition-colors duration-500 hover:!text-white"
+                style={{
+                    color,
+                }}
+            >
                 {title}
             </Link>
             {children && (
