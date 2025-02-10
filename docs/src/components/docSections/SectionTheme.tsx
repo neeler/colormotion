@@ -483,8 +483,12 @@ theme.tick(10);`}
             <Text>
                 Subscribe to updates to the <Code>Theme</Code>. The callback
                 will be called whenever the target palette of the{' '}
-                <Code>Theme</Code> is updaed and whenever the <Code>Theme</Code>{' '}
-                reaches the target palette.
+                <Code>Theme</Code> is updated and whenever the{' '}
+                <Code>Theme</Code> reaches the target palette.
+            </Text>
+            <Text>
+                The <Code>subscribe</Code> function also returns the current
+                theme state, which can be used to initialize some variable.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const myCallback = (event: ThemeUpdateEvent)=> {
@@ -492,6 +496,40 @@ theme.tick(10);`}
 }
 
 theme.subscribe(myCallback);`}
+            </SyntaxHighlighter>
+            <Text>
+                Here&apos;s an example of the actual React hook being used in
+                the demo above to show the currently selected interpolation
+                mode:
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`import { ThemeUpdateCallback, ThemeUpdateEvent } from 'colormotion';
+import { useEffect, useState } from 'react';
+import { theme } from '~/components/theme/theme';
+
+export function useInterpolationMode() {
+    const [mode, setMode] = useState<ThemeUpdateEvent['mode'] | undefined>(
+        undefined,
+    );
+
+    useEffect(() => {
+        const updatePalette: ThemeUpdateCallback = (event) => {
+            setMode(event.mode);
+        };
+        
+        // Subscribe to theme updates and capture the current state
+        const initialState = theme.subscribe(updatePalette);
+
+        // Initialize the state upon mounting
+        updatePalette(initialState);
+
+        return () => {
+            theme.unsubscribe(updatePalette);
+        };
+    }, []);
+
+    return mode;
+}`}
             </SyntaxHighlighter>
             <Heading3 id="theme-unsubscribe">theme.unsubscribe</Heading3>
             <Text>
