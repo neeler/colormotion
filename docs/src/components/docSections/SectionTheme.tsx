@@ -158,7 +158,7 @@ const theme = new Theme({
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const brightness = theme.brightness;
 
-theme.brightness = 128;`}
+theme.brightness = 0.6;`}
             </SyntaxHighlighter>
             <Heading3 id="theme-getColor">theme.getColor</Heading3>
             <Text>
@@ -181,7 +181,7 @@ const [r, g, b] = theme.getColor(100).rgb();`}
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const colorDimmed = theme.getColor(100, {
-    brightness: 128,
+    brightness: 0.6,
 });`}
             </SyntaxHighlighter>
             <Text>
