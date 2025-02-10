@@ -1,6 +1,6 @@
 {
 	"name": "colormotion",
-	"version": "2.7.0",
+	"version": "2.7.1",
 	"description": "Dynamic color wheel for LEDs",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
