@@ -131,7 +131,6 @@ Update all options at once while still smoothly transitioning.
 ```typescript
 theme.update({
     colors: ['red', 'green', 'blue'],
-    nSteps: 2048,
     mode: 'rgb',
 });
 ```
