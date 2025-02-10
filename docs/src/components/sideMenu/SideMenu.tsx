@@ -111,6 +111,16 @@ export function SideMenu({
                         href="#theme-tick"
                         title="theme.tick"
                     />
+                    <L2MenuItem
+                        colorOffset={20 * colorSpace}
+                        href="#theme-subscribe"
+                        title="theme.subscribe"
+                    />
+                    <L2MenuItem
+                        colorOffset={21 * colorSpace}
+                        href="#theme-unsubscribe"
+                        title="theme.unsubscribe"
+                    />
                 </L1MenuItem>
             </ul>
         </div>

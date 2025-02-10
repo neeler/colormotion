@@ -130,7 +130,14 @@ export class Theme {
             config && 'palette' in config ? config.palette : undefined;
 
         if (initialPalette) {
-            this.palette = initialPalette;
+            this.palette = new ColorPalette({
+                colors: initialPalette.colors,
+                mode: config?.mode ?? initialPalette.mode,
+                nSteps: this.nSteps,
+                deltaEThreshold: config?.deltaEThreshold,
+                maxNumberOfColors: this.maxNumberOfColors,
+            });
+            this.mode = this.palette.mode;
         } else {
             const initialColors =
                 config && 'colors' in config ? config.colors : undefined;
@@ -318,22 +325,18 @@ export class Theme {
     /**
      * Update the theme to a new set of colors, steps, and interpolation mode.
      */
-    update(
-        {
-            colors,
-            nSteps,
-            mode,
-        }: {
-            colors: ColorInput[];
-            mode: InterpolationMode;
-            nSteps: number;
-        },
-        options?: ColorUpdateConfig,
-    ) {
+    update({
+        colors,
+        mode,
+        ...options
+    }: {
+        colors: ColorInput[];
+        mode: InterpolationMode;
+    } & ColorUpdateConfig) {
         this.updateScale(
             this.activePalette.newConfig({
                 colors,
-                nSteps,
+                nSteps: this.nSteps,
                 mode,
                 maxNumberOfColors: this.maxNumberOfColors,
             }),

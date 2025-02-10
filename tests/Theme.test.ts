@@ -35,7 +35,7 @@ test('creates a new theme with specific colors', () => {
     expect(theme.activePaletteHexes).toEqual(['#ff0000', '#008000', '#0000ff']);
 });
 
-test('creates a new theme with a specific palette', () => {
+test('creates a new theme with a input palette', () => {
     const palette = new ColorPalette({
         colors: ['red', 'green', 'blue'],
         mode: 'rgb',
@@ -44,7 +44,42 @@ test('creates a new theme with a specific palette', () => {
     const theme = new Theme({
         palette,
     });
-    expect(theme.activePalette).toBe(palette);
+    expect(theme.activePalette).not.toBe(palette);
+    expect(theme.activePalette.nColors).toBe(3);
+    expect(theme.activePaletteHexes).toEqual(['#ff0000', '#008000', '#0000ff']);
+});
+
+test('uses the nSteps of the Theme when initialized with a input palette', () => {
+    const palette = new ColorPalette({
+        colors: ['red', 'green', 'blue'],
+        mode: 'lab',
+        nSteps: 10,
+    });
+    const theme = new Theme({
+        palette,
+        nSteps: 1024,
+    });
+    expect(theme.activePalette).not.toBe(palette);
+    expect(theme.activePalette.mode).toBe('lab');
+    expect(theme.activePalette.nSteps).toBe(1024);
+    expect(theme.activePalette.nColors).toBe(3);
+    expect(theme.activePaletteHexes).toEqual(['#ff0000', '#008000', '#0000ff']);
+});
+
+test('uses the mode of the Theme when initialized with a input palette', () => {
+    const palette = new ColorPalette({
+        colors: ['red', 'green', 'blue'],
+        mode: 'rgb',
+        nSteps: 10,
+    });
+    const theme = new Theme({
+        palette,
+        mode: 'lab',
+        nSteps: 1024,
+    });
+    expect(theme.activePalette).not.toBe(palette);
+    expect(theme.activePalette.mode).toBe('lab');
+    expect(theme.activePalette.nSteps).toBe(1024);
     expect(theme.activePalette.nColors).toBe(3);
     expect(theme.activePaletteHexes).toEqual(['#ff0000', '#008000', '#0000ff']);
 });

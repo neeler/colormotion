@@ -220,19 +220,9 @@ for (let i = 0; i < 100; i++) {
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.update({
     colors: ['red', 'green', 'blue'],
-    nSteps: 10,
     mode: 'hsv',
-});
-theme.update(
-    {
-        colors: ['red', 'green', 'blue'],
-        nSteps: 10,
-        mode: 'hsv',
-    },
-    {
-        transitionSpeed: 0.5, // Defaults to 0.1
-    },
-);`}
+    transitionSpeed: 0.5, // Defaults to 0.1
+});`}
             </SyntaxHighlighter>
             <Heading3 id="theme-setMode">theme.setMode</Heading3>
             <Text>
@@ -488,6 +478,27 @@ theme.rotateRandomColor({
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.tick();
 theme.tick(10);`}
+            </SyntaxHighlighter>
+            <Heading3 id="theme-subscribe">theme.subscribe</Heading3>
+            <Text>
+                Subscribe to updates to the <Code>Theme</Code>. The callback
+                will be called whenever the target palette of the{' '}
+                <Code>Theme</Code> is updaed and whenever the <Code>Theme</Code>{' '}
+                reaches the target palette.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`const myCallback = (event: ThemeUpdateEvent)=> {
+    // Do something with the event
+}
+
+theme.subscribe(myCallback);`}
+            </SyntaxHighlighter>
+            <Heading3 id="theme-unsubscribe">theme.unsubscribe</Heading3>
+            <Text>
+                Unsubscribe a given callback from <Code>Theme</Code> updates.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`theme.unsubscribe(myCallback);`}
             </SyntaxHighlighter>
         </>
     );
