@@ -136,10 +136,10 @@ theme.update({
 });
 ```
 
-Set the overall brightness of the theme (0 to 255).
+Set the overall brightness of the theme (0 to 1).
 
 ```typescript
-theme.brightness = 128;
+theme.brightness = 0.6;
 ```
 
 ## Seen in the Wild
