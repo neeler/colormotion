@@ -7,6 +7,7 @@ import {
     RandomPaletteConfig,
 } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
+import { clamp } from './clamp';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
 
@@ -80,7 +81,7 @@ export interface ThemeUpdateEvent {
      */
     mode: InterpolationMode;
     /**
-     * The current brightness factor (0-255).
+     * The current brightness factor (0-1).
      */
     brightness: number;
 }
@@ -109,7 +110,10 @@ export class Theme {
      * The target palette to transition to.
      */
     targetPalette?: ColorPalette;
-    private _brightness = 255;
+    /**
+     * The global brightness factor.
+     */
+    private _brightness = 1;
     /**
      * The interpolation mode to use between colors in the palette.
      */
@@ -209,6 +213,7 @@ export class Theme {
 
     /**
      * The relative brightness of the theme.
+     * 0 is the darkest, 1 is the brightest.
      */
     get brightness() {
         return this._brightness;
@@ -216,14 +221,15 @@ export class Theme {
 
     /**
      * Set the relative brightness of the theme.
+     * 0 is the darkest, 1 is the brightest.
      */
     set brightness(brightness: number) {
-        this._brightness = Math.max(1, Math.min(255, brightness));
+        this._brightness = clamp(brightness, 0, 1);
     }
 
     private getBaseColor(index = 0) {
         const baseColor = this.colors[this.normalizeIndex(index)] as Color;
-        if (this._brightness === 255) {
+        if (this._brightness === 1) {
             return baseColor;
         }
         return baseColor.darken(mapBrightnessToDarkenFactor(this._brightness));
@@ -286,12 +292,12 @@ export class Theme {
      * Get the color at the given index in the theme.
      * @param index The index of the color to get.
      * @param options Options for the color generation.
-     * @param options.brightness Optionally adjust the brightness of the color. 0-255, defaults to 255.
+     * @param options.brightness Optionally adjust the brightness of the color. 0-1, defaults to 1.
      * @returns The color at the given index.
      */
-    getColor(index = 0, { brightness = 255 }: { brightness?: number } = {}) {
+    getColor(index = 0, { brightness = 1 }: { brightness?: number } = {}) {
         const color = this.getBaseColor(index);
-        if (brightness === 255) {
+        if (brightness >= 1) {
             return color;
         }
         return color.darken(mapBrightnessToDarkenFactor(brightness));
@@ -314,7 +320,7 @@ export class Theme {
             return;
         }
         this.mode = targetPalette.mode;
-        this.transitionSpeed = Math.min(1, Math.max(0, transitionSpeed)) / 10;
+        this.transitionSpeed = clamp(transitionSpeed, 0, 1) / 10;
         if (this.targetPalette) {
             this.palette = targetPalette;
         }

@@ -153,7 +153,7 @@ const theme = new Theme({
             <Heading3 id="theme-brightness">theme.brightness</Heading3>
             <Text>
                 Getter and setter for the brightness of the <Code>Theme</Code>.
-                Values range from 1 to 255. The default is 255.
+                Values range from 0 to 1. The default is 1.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const brightness = theme.brightness;
@@ -299,12 +299,12 @@ theme.setColors(['red', 'green', 'blue'], {
             </Text>
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
-                random colors. Expects a value between 0 and 255. Defaults to 0.
+                random colors. Expects a value between 0 and 1. Defaults to 0.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.randomFrom('red');
 theme.randomFrom('red', {
-    minBrightness: 150, // Defaults to 0
+    minBrightness: 0.5, // Defaults to 0
     nColors: 5, // Defaults to the number of colors in the current palette
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
@@ -326,12 +326,12 @@ theme.randomFrom('red', {
             </Text>
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
-                random colors. Expects a value between 0 and 255. Defaults to 0.
+                random colors. Expects a value between 0 and 1. Defaults to 0.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.randomTheme();
 theme.randomTheme({
-    minBrightness: 150, // Defaults to 0
+    minBrightness: 0.5, // Defaults to 0
     nColors: 5, // Defaults to the number of colors in the current palette
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
@@ -384,12 +384,12 @@ theme.pushNewColor('red', {
             </Text>
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
-                random color. Expects a value between 0 and 255. Defaults to 0.
+                random color. Expects a value between 0 and 1. Defaults to 0.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.pushRandomColor();
 theme.pushRandomColor({
-    minBrightness: 150, // Defaults to 0
+    minBrightness: 0.5, // Defaults to 0
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
             </SyntaxHighlighter>
@@ -453,12 +453,12 @@ theme.rotateColor('red', {
             </Text>
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
-                random color. Expects a value between 0 and 255. Defaults to 0.
+                random color. Expects a value between 0 and 1. Defaults to 0.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.rotateRandomColor();
 theme.rotateRandomColor({
-    minBrightness: 150, // Defaults to 0
+    minBrightness: 0.5, // Defaults to 0
     transitionSpeed: 0.5, // Defaults to 1
 });`}
             </SyntaxHighlighter>

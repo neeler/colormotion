@@ -4,6 +4,7 @@ import {
     InterpolationMode,
     getNextInterpolationMode,
 } from './InterpolationMode';
+import { clamp } from './clamp';
 
 /**
  * String or chroma-js color.
@@ -132,7 +133,7 @@ export class ColorPalette {
         mode,
         nSteps,
         normalizedColors,
-        deltaEThreshold,
+        deltaEThreshold = 20,
         maxNumberOfColors = 8,
     }: ColorPaletteConfig) {
         this.mode = mode;
@@ -163,7 +164,7 @@ export class ColorPalette {
         const scaleColors = this.scale.colors(nSteps + 1).map((c) => chroma(c));
         scaleColors.pop();
         this.scaleColors = scaleColors;
-        this.deltaEThreshold = deltaEThreshold ?? 20;
+        this.deltaEThreshold = deltaEThreshold;
     }
 
     /**
@@ -257,22 +258,13 @@ export class ColorPalette {
     ) {
         const colors = [seed];
 
-        let lastColor = seed;
-        let attempts = 0;
-        while (colors.length < this.nColors && attempts < 10) {
-            const possibleColor = chroma.random();
-            if (
-                chroma.deltaE(lastColor, possibleColor, 1, 1, 1) >
-                    this.deltaEThreshold &&
-                possibleColor.get('hsv.v') > minBrightness
-            ) {
-                colors.push(possibleColor);
-                lastColor = possibleColor;
-            }
-            attempts += 1;
-        }
+        let lastColor = chroma(seed);
         while (colors.length < nColors) {
-            colors.push(chroma.random());
+            const nextColor = this.getNewRandomColor(lastColor, {
+                minBrightness,
+            });
+            colors.push(nextColor);
+            lastColor = nextColor;
         }
 
         return this.newColors(colors);
@@ -302,18 +294,32 @@ export class ColorPalette {
         );
     }
 
-    private getNewRandomColor({ minBrightness = 0 }: RandomColorConfig = {}) {
-        let possibleColor = chroma.random();
-        const lastColor = this.colors[this.nColors - 1] as Color;
-        let attempts = 0;
+    private getNewRandomColor(
+        previousColor: Color,
+        { minBrightness = 0 }: RandomColorConfig = {},
+    ) {
+        // random brightness minBrightness or higher normalized to 0-1
+        const brightness = clamp(
+            Math.random() * (1 - minBrightness) + minBrightness,
+            0,
+            1,
+        );
+
+        let possibleColor = chroma({
+            h: Math.random() * 360,
+            s: Math.random(),
+            v: brightness,
+        });
+
         while (
-            attempts < 10 &&
-            (chroma.deltaE(lastColor, possibleColor, 1, 1, 1) <
-                this.deltaEThreshold ||
-                possibleColor.get('hsv.v') < minBrightness)
+            chroma.deltaE(previousColor, possibleColor, 1, 1, 1) <
+            this.deltaEThreshold
         ) {
-            possibleColor = chroma.random();
-            attempts += 1;
+            possibleColor = chroma({
+                h: Math.random() * 360,
+                s: Math.random(),
+                v: brightness,
+            });
         }
         return possibleColor;
     }
@@ -322,7 +328,12 @@ export class ColorPalette {
      * Adds a random color.
      */
     pushRandom(randomColorConfig: RandomColorConfig = {}) {
-        return this.push(this.getNewRandomColor(randomColorConfig));
+        return this.push(
+            this.getNewRandomColor(
+                this.colors[this.nColors - 1]!,
+                randomColorConfig,
+            ),
+        );
     }
 
     /**
@@ -351,6 +362,8 @@ export class ColorPalette {
      * Drops the oldest color and adds a random color.
      */
     rotateRandomOn(options?: RandomColorConfig) {
-        return this.rotateOn(this.getNewRandomColor(options));
+        return this.rotateOn(
+            this.getNewRandomColor(this.colors[this.nColors - 1]!, options),
+        );
     }
 }

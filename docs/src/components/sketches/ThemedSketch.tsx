@@ -10,7 +10,7 @@ import { RandomThemeButton } from '~/components/theme/RandomThemeButton';
 import { RotateModeButton } from '~/components/theme/RotateModeButton';
 import { RotateRandomColorButton } from '~/components/theme/RotateRandomColorButton';
 
-const minBrightness = 150;
+const minBrightness = 0.6;
 
 export function ThemedSketch<
     TState = unknown,
