@@ -1,3 +1,4 @@
+import chroma from 'chroma-js';
 import { expect, expectTypeOf, test } from 'vitest';
 import { ColorPalette } from '../src';
 
@@ -405,4 +406,22 @@ test('clampColors', () => {
     );
     expect(clampedColors2.length).toBe(2);
     expect(clampedColors2).toEqual(['#000', '#fff']);
+});
+
+test('respects minBrightness', () => {
+    const palette = new ColorPalette({
+        colors: ['red', 'green', 'blue'],
+        mode: 'rgb',
+        nSteps: 10,
+    });
+    for (let i = 0; i < 100; i++) {
+        const minBrightness = 0.7;
+        const randomPalette = palette.randomize({
+            minBrightness,
+        });
+        for (const hex of randomPalette.hexes) {
+            const color = chroma(hex);
+            expect(color.get('hsv.v')).toBeGreaterThanOrEqual(minBrightness);
+        }
+    }
 });

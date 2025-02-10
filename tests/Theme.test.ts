@@ -188,19 +188,19 @@ test('always respects max number of colors', () => {
 
     tickTheme(theme2, 10);
 
-    theme2.pushRandomColor({ minBrightness: 150 });
+    theme2.pushRandomColor({ minBrightness: 0.6 });
     expect(theme2.activePalette.nColors).toBe(3);
     expect(theme2.activePalette.maxNumberOfColors).toBe(3);
 
-    theme2.pushRandomColor({ minBrightness: 150 });
+    theme2.pushRandomColor({ minBrightness: 0.6 });
     expect(theme2.activePalette.nColors).toBe(3);
     expect(theme2.activePalette.maxNumberOfColors).toBe(3);
 
-    theme2.pushRandomColor({ minBrightness: 150 });
+    theme2.pushRandomColor({ minBrightness: 0.6 });
     expect(theme2.activePalette.nColors).toBe(3);
     expect(theme2.activePalette.maxNumberOfColors).toBe(3);
 
-    theme2.pushRandomColor({ minBrightness: 150 });
+    theme2.pushRandomColor({ minBrightness: 0.6 });
     expect(theme2.activePalette.nColors).toBe(3);
     expect(theme2.activePalette.maxNumberOfColors).toBe(3);
 });

@@ -256,9 +256,12 @@ export class ColorPalette {
         seed: ColorInput,
         { nColors = this.nColors, minBrightness = 0 }: RandomPaletteConfig = {},
     ) {
-        const colors = [seed];
-
         let lastColor = chroma(seed);
+        if (lastColor.get('hsv.v') < minBrightness) {
+            lastColor = lastColor.set('hsv.v', minBrightness);
+        }
+        const colors = [lastColor];
+
         while (colors.length < nColors) {
             const nextColor = this.getNewRandomColor(lastColor, {
                 minBrightness,
