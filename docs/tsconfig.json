@@ -18,8 +18,10 @@
 				"name": "next"
 			}
 		],
+		"rootDirs": ["./src", "../src"],
 		"paths": {
-			"~/*": ["./src/*"]
+			"~/*": ["./src/*"],
+			"@colormotion": ["../src/index.ts"]
 		}
 	},
 	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

@@ -318,7 +318,6 @@ export class Theme {
         { transitionSpeed = 0.1 }: ColorUpdateConfig = {},
     ) {
         if (targetPalette === this.palette) {
-            this.clearTargetPalette();
             return;
         }
         if (targetPalette === this.targetPalette) {
@@ -495,12 +494,6 @@ export class Theme {
 
     private transitionPalette() {
         if (!this.targetPalette) {
-            return;
-        }
-
-        if (this.targetPalette === this.palette) {
-            // Transition complete
-            this.clearTargetPalette();
             return;
         }
 

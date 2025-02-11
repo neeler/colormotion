@@ -1,4 +1,4 @@
-import { Theme, ThemeUpdateEvent } from 'colormotion';
+import { Theme, ThemeUpdateEvent } from '@colormotion';
 
 export const theme = new Theme({
     maxNumberOfColors: 7,

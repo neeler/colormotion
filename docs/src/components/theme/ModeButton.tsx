@@ -1,5 +1,5 @@
+import { InterpolationMode } from '@colormotion';
 import clsx from 'clsx';
-import { InterpolationMode } from 'colormotion';
 import { Button } from '~/components/catalyst/Button';
 import { theme } from '~/components/theme/theme';
 

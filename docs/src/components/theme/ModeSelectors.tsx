@@ -1,4 +1,4 @@
-import { InterpolationMode, InterpolationModes } from 'colormotion';
+import { InterpolationMode, InterpolationModes } from '@colormotion';
 import { Select } from '~/components/catalyst/Select';
 import { ModeButton } from '~/components/theme/ModeButton';
 import { theme } from '~/components/theme/theme';
