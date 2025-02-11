@@ -8,4 +8,4 @@ export { chroma };
 /**
  * chroma-js color.
  */
-export { Color };
+export type { Color };
