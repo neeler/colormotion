@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   build:
+    name: Node ${{ matrix.node-version }} Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
