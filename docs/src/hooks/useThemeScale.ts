@@ -1,4 +1,4 @@
-import { ThemeUpdateCallback, ThemeUpdateEvent } from 'colormotion';
+import { ThemeUpdateCallback, ThemeUpdateEvent } from '@colormotion';
 import { useEffect, useState } from 'react';
 import { theme } from '~/components/theme/theme';
 
