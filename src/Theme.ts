@@ -32,6 +32,12 @@ export type InitialThemeColors =
            * Defaults to 5.
            */
           nColors?: number;
+          /**
+           * The minimum brightness for the random colors.
+           * Scale from 0 to 1.
+           * Defaults to 0.
+           */
+          minBrightness?: number;
       };
 
 export type ThemeConfig = InitialThemeColors & {
@@ -162,14 +168,19 @@ export class Theme {
                     (config && 'nColors' in config
                         ? config.nColors
                         : undefined) ?? 5;
+                const minBrightness =
+                    config && 'minBrightness' in config
+                        ? config.minBrightness
+                        : 0;
                 this.palette = new ColorPalette({
-                    colors: Array.from({ length: nColors }, () =>
-                        chroma.random(),
-                    ),
+                    colors: ['black'],
                     mode: this.mode,
                     nSteps: this.nSteps,
                     deltaEThreshold: config?.deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
+                }).randomize({
+                    minBrightness,
+                    nColors,
                 });
             }
         }
