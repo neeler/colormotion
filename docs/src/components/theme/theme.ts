@@ -2,6 +2,8 @@ import { Theme, ThemeUpdateEvent } from '@colormotion';
 
 export const theme = new Theme({
     maxNumberOfColors: 7,
+    nColors: 5,
+    minBrightness: 0.6,
 });
 
 /**
