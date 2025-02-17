@@ -115,16 +115,32 @@ export class ColorPalette {
 
     /**
      * Returns a new random palette with the specified number of colors.
+     * Defaults to 5 colors.
      */
     static random({
-        nColors,
+        nColors = 5,
+        minBrightness,
         ...config
-    }: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> & {
-        nColors: number;
-    }) {
+    }: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &
+        RandomPaletteConfig) {
+        let lastColor = ColorPalette.getNewRandomColor(chroma.random(), {
+            minBrightness,
+            deltaEThreshold: 0,
+        });
+        const colors = [lastColor];
+
+        while (colors.length < nColors) {
+            const nextColor = ColorPalette.getNewRandomColor(lastColor, {
+                minBrightness,
+                deltaEThreshold: config.deltaEThreshold,
+            });
+            colors.push(nextColor);
+            lastColor = nextColor;
+        }
+
         return new ColorPalette({
             ...config,
-            colors: Array.from({ length: nColors }, () => chroma.random()),
+            colors,
         });
     }
 
@@ -263,8 +279,9 @@ export class ColorPalette {
         const colors = [lastColor];
 
         while (colors.length < nColors) {
-            const nextColor = this.getNewRandomColor(lastColor, {
+            const nextColor = ColorPalette.getNewRandomColor(lastColor, {
                 minBrightness,
+                deltaEThreshold: this.deltaEThreshold,
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -297,9 +314,14 @@ export class ColorPalette {
         );
     }
 
-    private getNewRandomColor(
+    private static getNewRandomColor(
         previousColor: Color,
-        { minBrightness = 0 }: RandomColorConfig = {},
+        {
+            minBrightness = 0,
+            deltaEThreshold = 0,
+        }: RandomColorConfig & {
+            deltaEThreshold?: number;
+        } = {},
     ) {
         // random brightness minBrightness or higher normalized to 0-1
         const brightness = clamp(
@@ -316,7 +338,7 @@ export class ColorPalette {
 
         while (
             chroma.deltaE(previousColor, possibleColor, 1, 1, 1) <
-            this.deltaEThreshold
+            deltaEThreshold
         ) {
             possibleColor = chroma({
                 h: Math.random() * 360,
@@ -332,10 +354,10 @@ export class ColorPalette {
      */
     pushRandom(randomColorConfig: RandomColorConfig = {}) {
         return this.push(
-            this.getNewRandomColor(
-                this.colors[this.nColors - 1]!,
-                randomColorConfig,
-            ),
+            ColorPalette.getNewRandomColor(this.colors[this.nColors - 1]!, {
+                deltaEThreshold: this.deltaEThreshold,
+                ...randomColorConfig,
+            }),
         );
     }
 
@@ -366,7 +388,10 @@ export class ColorPalette {
      */
     rotateRandomOn(options?: RandomColorConfig) {
         return this.rotateOn(
-            this.getNewRandomColor(this.colors[this.nColors - 1]!, options),
+            ColorPalette.getNewRandomColor(this.colors[this.nColors - 1]!, {
+                deltaEThreshold: this.deltaEThreshold,
+                ...options,
+            }),
         );
     }
 }

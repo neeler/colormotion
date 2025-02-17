@@ -172,13 +172,11 @@ export class Theme {
                     config && 'minBrightness' in config
                         ? config.minBrightness
                         : 0;
-                this.palette = new ColorPalette({
-                    colors: ['black'],
+                this.palette = ColorPalette.random({
                     mode: this.mode,
                     nSteps: this.nSteps,
                     deltaEThreshold: config?.deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
-                }).randomize({
                     minBrightness,
                     nColors,
                 });
