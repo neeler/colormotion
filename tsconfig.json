@@ -1,8 +1,7 @@
 {
 	"compilerOptions": {
 		"target": "es2016",
-		"module": "ESNext",
-		"moduleResolution": "bundler",
+		"module": "commonjs",
 		"declaration": true,
 		"outDir": "./dist",
 		"strict": true,
