@@ -22,7 +22,7 @@ It uses the [chroma.js](https://gka.github.io/chroma.js/) library under the hood
 Check out the interactive docs [here](https://neeler.github.io/colormotion/).
 
 ![tests workflow](https://github.com/neeler/colormotion/actions/workflows/tests.yml/badge.svg)
-![npm package minimized gzipped size](https://img.shields.io/bundlejs/size/colormotion)
+![npm package minimized gzipped size](https://www.npmjs.com/package/colormotion)
 
 [![npm stats](https://nodei.co/npm/colormotion.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/colormotion/)
 
