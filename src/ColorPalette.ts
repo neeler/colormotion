@@ -53,8 +53,10 @@ export interface RandomPaletteConfig {
     minBrightness?: number;
 }
 
-export interface RandomColorConfig
-    extends Pick<RandomPaletteConfig, 'minBrightness'> {}
+export interface RandomColorConfig extends Pick<
+    RandomPaletteConfig,
+    'minBrightness'
+> {}
 
 /**
  * An immutable ColorPalette.
