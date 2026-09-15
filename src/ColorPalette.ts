@@ -1,5 +1,4 @@
 import chroma, { Color, Scale } from 'chroma-js';
-import { RequireExactlyOne } from 'type-fest';
 import {
     InterpolationMode,
     getNextInterpolationMode,
@@ -28,17 +27,27 @@ export const DEFAULT_MAX_NUMBER_OF_COLORS = 8;
  */
 const MAX_RANDOM_COLOR_ATTEMPTS = 100;
 
-export type ColorPaletteConfig = RequireExactlyOne<{
-    /**
-     * The colors to use in the palette.
-     */
-    colors: ColorInput[];
-    /**
-     * The normalized colors to use in the palette.
-     * Don't use this unless you know what you're doing.
-     */
-    normalizedColors: Color[];
-}> & {
+/**
+ * Exactly one of `colors` or `normalizedColors` must be provided.
+ */
+export type ColorPaletteColors =
+    | {
+          /**
+           * The colors to use in the palette.
+           */
+          colors: ColorInput[];
+          normalizedColors?: never;
+      }
+    | {
+          colors?: never;
+          /**
+           * The normalized colors to use in the palette.
+           * Don't use this unless you know what you're doing.
+           */
+          normalizedColors: Color[];
+      };
+
+export type ColorPaletteConfig = ColorPaletteColors & {
     /**
      * The interpolation mode to use between colors in the palette.
      */
