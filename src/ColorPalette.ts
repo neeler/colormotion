@@ -11,6 +11,23 @@ import { clamp } from './clamp';
  */
 export type ColorInput = string | Color;
 
+/**
+ * Default minimum CIEDE2000 distance between consecutive random colors.
+ */
+export const DEFAULT_DELTA_E_THRESHOLD = 20;
+
+/**
+ * Default maximum number of colors in a palette.
+ */
+export const DEFAULT_MAX_NUMBER_OF_COLORS = 8;
+
+/**
+ * Maximum number of candidates drawn when searching for a random color
+ * that satisfies the deltaE threshold. If none qualifies, the most
+ * distant candidate is used.
+ */
+const MAX_RANDOM_COLOR_ATTEMPTS = 100;
+
 export type ColorPaletteConfig = RequireExactlyOne<{
     /**
      * The colors to use in the palette.
@@ -70,7 +87,7 @@ export class ColorPalette {
     readonly nSteps: number;
     readonly scale: Scale;
     readonly scaleColors: Color[];
-    readonly maxNumberOfColors;
+    readonly maxNumberOfColors: number;
     readonly deltaEThreshold: number;
 
     /**
@@ -121,20 +138,20 @@ export class ColorPalette {
      */
     static random({
         nColors = 5,
-        minBrightness,
+        minBrightness = 0,
         ...config
     }: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &
         RandomPaletteConfig) {
-        let lastColor = ColorPalette.getNewRandomColor(chroma.random(), {
-            minBrightness,
-            deltaEThreshold: 0,
-        });
+        const deltaEThreshold =
+            config.deltaEThreshold ?? DEFAULT_DELTA_E_THRESHOLD;
+
+        let lastColor = ColorPalette.randomColor(minBrightness);
         const colors = [lastColor];
 
         while (colors.length < nColors) {
             const nextColor = ColorPalette.getNewRandomColor(lastColor, {
                 minBrightness,
-                deltaEThreshold: config.deltaEThreshold,
+                deltaEThreshold,
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -151,12 +168,13 @@ export class ColorPalette {
         mode,
         nSteps,
         normalizedColors,
-        deltaEThreshold = 20,
-        maxNumberOfColors = 8,
+        deltaEThreshold = DEFAULT_DELTA_E_THRESHOLD,
+        maxNumberOfColors = DEFAULT_MAX_NUMBER_OF_COLORS,
     }: ColorPaletteConfig) {
         this.mode = mode;
         this.nSteps = nSteps;
         this.maxNumberOfColors = maxNumberOfColors;
+        this.deltaEThreshold = deltaEThreshold;
         this.colors = normalizedColors ?? ColorPalette.normalizeColors(colors);
 
         if (this.colors.length > maxNumberOfColors + 1) {
@@ -182,34 +200,51 @@ export class ColorPalette {
         const scaleColors = this.scale.colors(nSteps + 1).map((c) => chroma(c));
         scaleColors.pop();
         this.scaleColors = scaleColors;
-        this.deltaEThreshold = deltaEThreshold;
+    }
+
+    /**
+     * The settings that derived palettes inherit from this one.
+     */
+    private get derivedConfig() {
+        return {
+            mode: this.mode,
+            nSteps: this.nSteps,
+            deltaEThreshold: this.deltaEThreshold,
+            maxNumberOfColors: this.maxNumberOfColors,
+        };
     }
 
     /**
      * Creates a new palette with the specified configuration.
+     * Options not provided are inherited from this palette.
      */
     newConfig({
         colors,
         nSteps,
         mode,
-        maxNumberOfColors,
+        maxNumberOfColors = this.maxNumberOfColors,
+        deltaEThreshold = this.deltaEThreshold,
     }: {
         colors: ColorInput[];
         mode: InterpolationMode;
         nSteps: number;
         maxNumberOfColors?: number;
+        deltaEThreshold?: number;
     }) {
         const modeIsSame = mode === this.mode;
         const nStepsIsSame = nSteps === this.nSteps;
+        const settingsAreSame =
+            maxNumberOfColors === this.maxNumberOfColors &&
+            deltaEThreshold === this.deltaEThreshold;
 
-        if (modeIsSame && nStepsIsSame) {
+        if (modeIsSame && nStepsIsSame && settingsAreSame) {
             return this.newColors(colors);
         }
 
         const { key, normalizedColors } = ColorPalette.analyzeColors(colors);
         const colorsAreSame = key === this.key;
 
-        if (nStepsIsSame && colorsAreSame) {
+        if (nStepsIsSame && colorsAreSame && settingsAreSame) {
             return this.newMode(mode);
         }
 
@@ -218,6 +253,7 @@ export class ColorPalette {
             nSteps,
             normalizedColors,
             maxNumberOfColors,
+            deltaEThreshold,
         });
     }
 
@@ -232,10 +268,8 @@ export class ColorPalette {
         }
 
         return new ColorPalette({
-            mode: this.mode,
-            nSteps: this.nSteps,
+            ...this.derivedConfig,
             normalizedColors,
-            maxNumberOfColors: this.maxNumberOfColors,
         });
     }
 
@@ -248,10 +282,9 @@ export class ColorPalette {
         }
 
         return new ColorPalette({
-            colors: this.colors,
+            ...this.derivedConfig,
             mode,
-            nSteps: this.nSteps,
-            maxNumberOfColors: this.maxNumberOfColors,
+            colors: this.colors,
         });
     }
 
@@ -300,7 +333,10 @@ export class ColorPalette {
         minBrightness = 0,
         nColors = this.nColors,
     }: RandomPaletteConfig = {}) {
-        return this.randomizeFrom(chroma.random(), { nColors, minBrightness });
+        return this.randomizeFrom(ColorPalette.randomColor(minBrightness), {
+            nColors,
+            minBrightness,
+        });
     }
 
     /**
@@ -316,6 +352,28 @@ export class ColorPalette {
         );
     }
 
+    /**
+     * Draws a random color with a brightness (HSV value) of at least minBrightness.
+     */
+    private static randomColor(minBrightness = 0) {
+        const brightness = clamp(
+            Math.random() * (1 - minBrightness) + minBrightness,
+            0,
+            1,
+        );
+
+        return chroma({
+            h: Math.random() * 360,
+            s: Math.random(),
+            v: brightness,
+        });
+    }
+
+    /**
+     * Draws a random color at least deltaEThreshold away from previousColor.
+     * Gives up after a bounded number of attempts and returns the most
+     * distant candidate found, so a strict threshold can never hang.
+     */
     private static getNewRandomColor(
         previousColor: Color,
         {
@@ -325,30 +383,23 @@ export class ColorPalette {
             deltaEThreshold?: number;
         } = {},
     ) {
-        // random brightness minBrightness or higher normalized to 0-1
-        const brightness = clamp(
-            Math.random() * (1 - minBrightness) + minBrightness,
-            0,
-            1,
-        );
+        let bestColor: Color | undefined;
+        let bestDistance = -Infinity;
 
-        let possibleColor = chroma({
-            h: Math.random() * 360,
-            s: Math.random(),
-            v: brightness,
-        });
+        for (let attempt = 0; attempt < MAX_RANDOM_COLOR_ATTEMPTS; attempt++) {
+            const candidate = ColorPalette.randomColor(minBrightness);
+            const distance = chroma.deltaE(previousColor, candidate, 1, 1, 1);
 
-        while (
-            chroma.deltaE(previousColor, possibleColor, 1, 1, 1) <
-            deltaEThreshold
-        ) {
-            possibleColor = chroma({
-                h: Math.random() * 360,
-                s: Math.random(),
-                v: brightness,
-            });
+            if (distance >= deltaEThreshold) {
+                return candidate;
+            }
+            if (distance > bestDistance) {
+                bestColor = candidate;
+                bestDistance = distance;
+            }
         }
-        return possibleColor;
+
+        return bestColor ?? ColorPalette.randomColor(minBrightness);
     }
 
     /**

@@ -3,6 +3,7 @@ import { SubscriptionManager } from 'scrips';
 import {
     ColorInput,
     ColorPalette,
+    DEFAULT_MAX_NUMBER_OF_COLORS,
     RandomColorConfig,
     RandomPaletteConfig,
 } from './ColorPalette';
@@ -69,6 +70,8 @@ export interface ColorUpdateConfig {
      * Should be between 0 and 1. Will be clamped to this range.
      * Defaults to 0.1.
      * The higher the value, the faster the transition.
+     * A speed of 0 makes no progress, so the transition is treated as
+     * settled and the target palette is applied on the second tick.
      */
     transitionSpeed?: number;
 }
@@ -83,7 +86,9 @@ export interface ThemeUpdateEvent {
      */
     isTransitioning: boolean;
     /**
-     * The current colors in the wheel (palette and intermediate colors).
+     * The colors in the wheel of the active palette (the target palette
+     * while transitioning): the palette colors and the interpolated colors
+     * between them.
      */
     colors: Color[];
     /**
@@ -138,17 +143,23 @@ export class Theme {
     constructor(config?: ThemeConfig) {
         this.nSteps = config?.nSteps ?? 2048;
         this.mode = config?.mode ?? InterpolationModes.rgb;
-        this.maxNumberOfColors = config?.maxNumberOfColors ?? 8;
 
         const initialPalette =
             config && 'palette' in config ? config.palette : undefined;
+
+        this.maxNumberOfColors =
+            config?.maxNumberOfColors ??
+            initialPalette?.maxNumberOfColors ??
+            DEFAULT_MAX_NUMBER_OF_COLORS;
+        const deltaEThreshold =
+            config?.deltaEThreshold ?? initialPalette?.deltaEThreshold;
 
         if (initialPalette) {
             this.palette = new ColorPalette({
                 colors: initialPalette.colors,
                 mode: config?.mode ?? initialPalette.mode,
                 nSteps: this.nSteps,
-                deltaEThreshold: config?.deltaEThreshold,
+                deltaEThreshold,
                 maxNumberOfColors: this.maxNumberOfColors,
             });
             this.mode = this.palette.mode;
@@ -160,7 +171,7 @@ export class Theme {
                     colors: initialColors,
                     mode: this.mode,
                     nSteps: this.nSteps,
-                    deltaEThreshold: config?.deltaEThreshold,
+                    deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
                 });
             } else {
@@ -175,7 +186,7 @@ export class Theme {
                 this.palette = ColorPalette.random({
                     mode: this.mode,
                     nSteps: this.nSteps,
-                    deltaEThreshold: config?.deltaEThreshold,
+                    deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
                     minBrightness,
                     nColors,
@@ -202,10 +213,6 @@ export class Theme {
      */
     get transitionDistance() {
         return this.previousColorDistance;
-    }
-
-    private get scale() {
-        return this.palette.scale;
     }
 
     /**
@@ -235,9 +242,15 @@ export class Theme {
     /**
      * Set the relative brightness of the theme.
      * 0 is the darkest, 1 is the brightest.
+     * Subscribers are notified when the value changes.
      */
     set brightness(brightness: number) {
-        this._brightness = clamp(brightness, 0, 1);
+        const nextBrightness = clamp(brightness, 0, 1);
+        if (nextBrightness === this._brightness) {
+            return;
+        }
+        this._brightness = nextBrightness;
+        this.publish();
     }
 
     private getBaseColor(index = 0) {
@@ -249,23 +262,23 @@ export class Theme {
     }
 
     /**
-     * The average distance between the colors in the current and target palettes.
+     * The average distance between the current colors and the target palette's colors.
      * Measured in CIEDE2000 color distance.
      * Ranges from 0 (identical) to 100 (maximally different).
-     * Returns undefined if there is no target palette.
      */
-    private calculateAverageTargetDistance() {
-        if (!this.targetPalette) {
-            return undefined;
+    private calculateAverageTargetDistance(targetPalette: ColorPalette) {
+        const targetColors = targetPalette.scaleColors;
+        let sum = 0;
+        for (let iColor = 0; iColor < targetColors.length; iColor++) {
+            sum += chroma.deltaE(
+                targetColors[iColor] as Color,
+                this.colors[iColor] as Color,
+                1,
+                1,
+                1,
+            );
         }
-        const targetColors = this.targetPalette.scaleColors;
-        const colorDistances = targetColors.map((color, iColor) =>
-            chroma.deltaE(color, this.colors[iColor] as Color, 1, 1, 1),
-        );
-        return (
-            colorDistances.reduce((sum, d) => sum + d, 0) /
-            colorDistances.length
-        );
+        return sum / targetColors.length;
     }
 
     /**
@@ -334,10 +347,8 @@ export class Theme {
         }
         this.mode = targetPalette.mode;
         this.transitionSpeed = clamp(transitionSpeed, 0, 1) / 10;
-        if (this.targetPalette) {
-            this.palette = targetPalette;
-        }
         this.targetPalette = targetPalette;
+        this.previousColorDistance = undefined;
         this.publish();
     }
 
@@ -438,10 +449,7 @@ export class Theme {
      * Rounds and normalizes the index so that it is within the bounds of the color scale.
      */
     normalizeIndex(index = 0) {
-        let normalizedIndex = Math.round(index);
-        return (
-            safeMod(normalizedIndex + this.iColor, this.nSteps) % this.nSteps
-        );
+        return safeMod(Math.round(index) + this.iColor, this.nSteps);
     }
 
     /**
@@ -495,35 +503,45 @@ export class Theme {
         );
     }
 
-    private clearTargetPalette() {
+    /**
+     * Finish the transition by adopting the target palette.
+     */
+    private completeTransition(targetPalette: ColorPalette) {
+        this.palette = targetPalette;
+        this.colors = targetPalette.scaleColors;
         this.targetPalette = undefined;
         this.previousColorDistance = undefined;
         this.publish();
     }
 
     private transitionPalette() {
-        if (!this.targetPalette) {
+        const targetPalette = this.targetPalette;
+        if (!targetPalette) {
             return;
         }
 
-        const averageColorDistance = this.calculateAverageTargetDistance();
-        if (!averageColorDistance) {
-            return;
-        }
+        const averageColorDistance =
+            this.calculateAverageTargetDistance(targetPalette);
 
-        if (
+        // Already there (or no measurable distance, e.g. a mode change on a
+        // single-color palette): finish immediately rather than waiting for a
+        // change in distance that will never come.
+        const isNegligible = !(
+            averageColorDistance > this.colorDistanceThreshold
+        );
+        // The distance has stopped changing: the remaining difference is
+        // imperceptible, so snap to the target.
+        const hasSettled =
             this.previousColorDistance !== undefined &&
             Math.abs(this.previousColorDistance - averageColorDistance) <
-                this.colorDistanceThreshold
-        ) {
-            // Transition complete
-            this.palette = this.targetPalette;
-            this.colors = this.palette.scaleColors;
-            this.clearTargetPalette();
+                this.colorDistanceThreshold;
+
+        if (isNegligible || hasSettled) {
+            this.completeTransition(targetPalette);
             return;
         }
 
-        const targetColors = this.targetPalette.scaleColors;
+        const targetColors = targetPalette.scaleColors;
         this.previousColorDistance = averageColorDistance;
         this.colors = this.colors.map((baseColor, iColor) =>
             chroma(
@@ -547,6 +565,6 @@ export class Theme {
     tick(n = 1) {
         this.transitionPalette();
 
-        this.iColor += n;
+        this.iColor = safeMod(this.iColor + n, this.nSteps);
     }
 }

@@ -204,3 +204,156 @@ test('always respects max number of colors', () => {
     expect(theme2.activePalette.nColors).toBe(3);
     expect(theme2.activePalette.maxNumberOfColors).toBe(3);
 });
+
+test('transitions to a new palette and clears transition state', () => {
+    const theme = new Theme({ colors: ['red', 'green', 'blue'], nSteps: 64 });
+    const events: boolean[] = [];
+    theme.subscribe((event) => events.push(event.isTransitioning));
+
+    expect(theme.transitionDistance).toBeUndefined();
+    theme.setColors(['purple', 'orange', 'teal']);
+    expect(theme.targetPalette).toBeDefined();
+    expect(events).toEqual([true]);
+
+    theme.tick();
+    expect(theme.transitionDistance).toBeGreaterThan(0);
+
+    flushThemeChange(theme);
+    expect(theme.targetPalette).toBeUndefined();
+    expect(theme.transitionDistance).toBeUndefined();
+    expect(theme.activePaletteHexes).toEqual(['#800080', '#ffa500', '#008080']);
+    expect(theme.getColor(-theme.normalizeIndex(0)).hex()).toBe('#800080');
+    expect(events).toEqual([true, false]);
+});
+
+test('completes a transition whose target colors are already reached', () => {
+    // A single-color palette produces identical scale colors in every mode,
+    // so the distance to the target is 0 from the start.
+    const theme = new Theme({ colors: ['red'], nSteps: 64 });
+    theme.setMode('lab');
+    expect(theme.targetPalette).toBeDefined();
+
+    theme.tick();
+    expect(theme.targetPalette).toBeUndefined();
+    expect(theme.mode).toBe('lab');
+    expect(theme.activePalette.mode).toBe('lab');
+});
+
+test('retargeting mid-transition ends on the latest palette', () => {
+    const theme = new Theme({ colors: ['red', 'green', 'blue'], nSteps: 64 });
+    theme.setColors(['purple', 'orange', 'teal']);
+    tickTheme(theme, 20);
+    const midDistance = theme.transitionDistance;
+    expect(midDistance).toBeGreaterThan(0);
+
+    theme.setColors(['white', 'black']);
+    expect(theme.transitionDistance).toBeUndefined();
+    expect(theme.palette.hexes).toEqual([
+        '#ff0000',
+        '#008000',
+        '#0000ff',
+        '#ff0000',
+    ]);
+
+    flushThemeChange(theme);
+    expect(theme.activePaletteHexes).toEqual(['#ffffff', '#000000']);
+    expect(theme.palette).toBe(theme.activePalette);
+});
+
+test('keeps deltaEThreshold across palette changes', () => {
+    const theme = new Theme({
+        colors: ['red', 'blue'],
+        nSteps: 64,
+        deltaEThreshold: 40,
+    });
+    expect(theme.activePalette.deltaEThreshold).toBe(40);
+
+    theme.setColors(['green', 'yellow']);
+    expect(theme.activePalette.deltaEThreshold).toBe(40);
+    theme.setMode('lab');
+    expect(theme.activePalette.deltaEThreshold).toBe(40);
+    theme.rotateMode();
+    expect(theme.activePalette.deltaEThreshold).toBe(40);
+    theme.update({ colors: ['pink', 'cyan'], mode: 'hsl' });
+    expect(theme.activePalette.deltaEThreshold).toBe(40);
+    theme.randomTheme();
+    expect(theme.activePalette.deltaEThreshold).toBe(40);
+    theme.pushRandomColor();
+    expect(theme.activePalette.deltaEThreshold).toBe(40);
+});
+
+test('inherits settings from an input palette', () => {
+    const palette = new ColorPalette({
+        colors: ['red', 'green', 'blue'],
+        mode: 'rgb',
+        nSteps: 64,
+        deltaEThreshold: 35,
+        maxNumberOfColors: 4,
+    });
+    const theme = new Theme({ palette });
+    expect(theme.maxNumberOfColors).toBe(4);
+    expect(theme.activePalette.maxNumberOfColors).toBe(4);
+    expect(theme.activePalette.deltaEThreshold).toBe(35);
+
+    const overridden = new Theme({ palette, deltaEThreshold: 10 });
+    expect(overridden.activePalette.deltaEThreshold).toBe(10);
+});
+
+test('wraps indexes around the color wheel', () => {
+    const theme = new Theme({ colors: ['red', 'green', 'blue'], nSteps: 64 });
+    expect(theme.normalizeIndex(0)).toBe(0);
+    expect(theme.normalizeIndex(64)).toBe(0);
+    expect(theme.normalizeIndex(-1)).toBe(63);
+    expect(theme.normalizeIndex(65.4)).toBe(1);
+    expect(theme.getColor(-64).hex()).toBe(theme.getColor(0).hex());
+
+    theme.tick(10);
+    expect(theme.normalizeIndex(0)).toBe(10);
+    theme.tick(-20);
+    expect(theme.normalizeIndex(0)).toBe(54);
+    theme.tick(64 * 1000);
+    expect(theme.normalizeIndex(0)).toBe(54);
+});
+
+test('getColor applies global and per-call brightness', () => {
+    const theme = new Theme({ colors: ['white'], nSteps: 64 });
+    expect(theme.getColor(0).hex()).toBe('#ffffff');
+    expect(theme.getColor(0, { brightness: 1 }).hex()).toBe('#ffffff');
+
+    const dimmedCall = theme.getColor(0, { brightness: 0.5 });
+    expect(dimmedCall.get('lab.l')).toBeLessThan(100);
+
+    theme.brightness = 0.5;
+    expect(theme.brightness).toBe(0.5);
+    const dimmedGlobal = theme.getColor(0);
+    expect(dimmedGlobal.hex()).toBe(dimmedCall.hex());
+
+    const dimmedBoth = theme.getColor(0, { brightness: 0.5 });
+    expect(dimmedBoth.get('lab.l')).toBeLessThan(dimmedGlobal.get('lab.l'));
+
+    theme.brightness = 5;
+    expect(theme.brightness).toBe(1);
+    theme.brightness = -1;
+    expect(theme.brightness).toBe(0);
+});
+
+test('publishes brightness changes to subscribers', () => {
+    const theme = new Theme({ colors: ['red', 'blue'], nSteps: 64 });
+    const brightnesses: number[] = [];
+    const callback = (event: { brightness: number }) =>
+        brightnesses.push(event.brightness);
+
+    const status = theme.subscribe(callback);
+    expect(status.brightness).toBe(1);
+    expect(status.isTransitioning).toBe(false);
+    expect(status.palette).toBe(theme.activePalette);
+
+    theme.brightness = 0.4;
+    theme.brightness = 0.4;
+    theme.brightness = 0.8;
+    expect(brightnesses).toEqual([0.4, 0.8]);
+
+    theme.unsubscribe(callback);
+    theme.brightness = 0.2;
+    expect(brightnesses).toEqual([0.4, 0.8]);
+});
