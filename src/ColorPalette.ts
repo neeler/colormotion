@@ -11,6 +11,12 @@ import { clamp } from './clamp';
 export type ColorInput = string | Color;
 
 /**
+ * A function returning a pseudo-random number in the range [0, 1),
+ * like Math.random. Supply your own to get reproducible palettes.
+ */
+export type RandomFunction = () => number;
+
+/**
  * Default minimum CIEDE2000 distance between consecutive random colors.
  */
 export const DEFAULT_DELTA_E_THRESHOLD = 20;
@@ -66,6 +72,11 @@ export type ColorPaletteConfig = ColorPaletteColors & {
      * Defaults to 8.
      */
     maxNumberOfColors?: number;
+    /**
+     * Random number generator used when generating random colors.
+     * Defaults to Math.random.
+     */
+    random?: RandomFunction;
 };
 
 export interface RandomPaletteConfig {
@@ -98,6 +109,7 @@ export class ColorPalette {
     readonly scaleColors: Color[];
     readonly maxNumberOfColors: number;
     readonly deltaEThreshold: number;
+    readonly random: RandomFunction;
 
     /**
      * Normalizes the input colors to chroma-js colors.
@@ -151,16 +163,18 @@ export class ColorPalette {
         ...config
     }: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &
         RandomPaletteConfig) {
+        const random = config.random ?? Math.random;
         const deltaEThreshold =
             config.deltaEThreshold ?? DEFAULT_DELTA_E_THRESHOLD;
 
-        let lastColor = ColorPalette.randomColor(minBrightness);
+        let lastColor = ColorPalette.randomColor(random, minBrightness);
         const colors = [lastColor];
 
         while (colors.length < nColors) {
             const nextColor = ColorPalette.getNewRandomColor(lastColor, {
                 minBrightness,
                 deltaEThreshold,
+                random,
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -179,11 +193,13 @@ export class ColorPalette {
         normalizedColors,
         deltaEThreshold = DEFAULT_DELTA_E_THRESHOLD,
         maxNumberOfColors = DEFAULT_MAX_NUMBER_OF_COLORS,
+        random = Math.random,
     }: ColorPaletteConfig) {
         this.mode = mode;
         this.nSteps = nSteps;
         this.maxNumberOfColors = maxNumberOfColors;
         this.deltaEThreshold = deltaEThreshold;
+        this.random = random;
         this.colors = normalizedColors ?? ColorPalette.normalizeColors(colors);
 
         if (this.colors.length > maxNumberOfColors + 1) {
@@ -206,11 +222,12 @@ export class ColorPalette {
             .mode(mode)
             .domain([0, nSteps])
             .out(null);
-        // chroma's scale cache keys on floor(t * 10000), which would collapse
-        // adjacent steps for large nSteps. Each step is only sampled once anyway.
+        // chroma's scale cache keys on floor(t * 10000), which would
+        // collapse adjacent steps for large nSteps. Each step is only
+        // sampled once anyway.
         this.scale.cache(false);
-        // Request Color objects directly rather than hex strings, which would
-        // quantize the scale to 8 bits per channel before any mixing happens.
+        // Request Color objects directly rather than hex strings,
+        // which would quantize the scale to 8 bits per channel.
         const scaleColors = this.scale.colors(nSteps + 1, null);
         scaleColors.pop();
         this.scaleColors = scaleColors;
@@ -225,6 +242,7 @@ export class ColorPalette {
             nSteps: this.nSteps,
             deltaEThreshold: this.deltaEThreshold,
             maxNumberOfColors: this.maxNumberOfColors,
+            random: this.random,
         };
     }
 
@@ -238,18 +256,21 @@ export class ColorPalette {
         mode,
         maxNumberOfColors = this.maxNumberOfColors,
         deltaEThreshold = this.deltaEThreshold,
+        random = this.random,
     }: {
         colors: ColorInput[];
         mode: InterpolationMode;
         nSteps: number;
         maxNumberOfColors?: number;
         deltaEThreshold?: number;
+        random?: RandomFunction;
     }) {
         const modeIsSame = mode === this.mode;
         const nStepsIsSame = nSteps === this.nSteps;
         const settingsAreSame =
             maxNumberOfColors === this.maxNumberOfColors &&
-            deltaEThreshold === this.deltaEThreshold;
+            deltaEThreshold === this.deltaEThreshold &&
+            random === this.random;
 
         if (modeIsSame && nStepsIsSame && settingsAreSame) {
             return this.newColors(colors);
@@ -268,6 +289,7 @@ export class ColorPalette {
             normalizedColors,
             maxNumberOfColors,
             deltaEThreshold,
+            random,
         });
     }
 
@@ -331,6 +353,7 @@ export class ColorPalette {
             const nextColor = ColorPalette.getNewRandomColor(lastColor, {
                 minBrightness,
                 deltaEThreshold: this.deltaEThreshold,
+                random: this.random,
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -347,10 +370,10 @@ export class ColorPalette {
         minBrightness = 0,
         nColors = this.nColors,
     }: RandomPaletteConfig = {}) {
-        return this.randomizeFrom(ColorPalette.randomColor(minBrightness), {
-            nColors,
-            minBrightness,
-        });
+        return this.randomizeFrom(
+            ColorPalette.randomColor(this.random, minBrightness),
+            { nColors, minBrightness },
+        );
     }
 
     /**
@@ -369,16 +392,16 @@ export class ColorPalette {
     /**
      * Draws a random color with a brightness (HSV value) of at least minBrightness.
      */
-    private static randomColor(minBrightness = 0) {
+    private static randomColor(random: RandomFunction, minBrightness = 0) {
         const brightness = clamp(
-            Math.random() * (1 - minBrightness) + minBrightness,
+            random() * (1 - minBrightness) + minBrightness,
             0,
             1,
         );
 
         return chroma({
-            h: Math.random() * 360,
-            s: Math.random(),
+            h: random() * 360,
+            s: random(),
             v: brightness,
         });
     }
@@ -393,15 +416,17 @@ export class ColorPalette {
         {
             minBrightness = 0,
             deltaEThreshold = 0,
+            random = Math.random,
         }: RandomColorConfig & {
             deltaEThreshold?: number;
+            random?: RandomFunction;
         } = {},
     ) {
         let bestColor: Color | undefined;
         let bestDistance = -Infinity;
 
         for (let attempt = 0; attempt < MAX_RANDOM_COLOR_ATTEMPTS; attempt++) {
-            const candidate = ColorPalette.randomColor(minBrightness);
+            const candidate = ColorPalette.randomColor(random, minBrightness);
             const distance = chroma.deltaE(previousColor, candidate, 1, 1, 1);
 
             if (distance >= deltaEThreshold) {
@@ -413,7 +438,7 @@ export class ColorPalette {
             }
         }
 
-        return bestColor ?? ColorPalette.randomColor(minBrightness);
+        return bestColor ?? ColorPalette.randomColor(random, minBrightness);
     }
 
     /**
@@ -423,6 +448,7 @@ export class ColorPalette {
         return this.push(
             ColorPalette.getNewRandomColor(this.colors[this.nColors - 1]!, {
                 deltaEThreshold: this.deltaEThreshold,
+                random: this.random,
                 ...randomColorConfig,
             }),
         );
@@ -457,6 +483,7 @@ export class ColorPalette {
         return this.rotateOn(
             ColorPalette.getNewRandomColor(this.colors[this.nColors - 1]!, {
                 deltaEThreshold: this.deltaEThreshold,
+                random: this.random,
                 ...options,
             }),
         );

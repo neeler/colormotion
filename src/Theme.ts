@@ -5,6 +5,7 @@ import {
     ColorPalette,
     DEFAULT_MAX_NUMBER_OF_COLORS,
     RandomColorConfig,
+    RandomFunction,
     RandomPaletteConfig,
 } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
@@ -47,6 +48,24 @@ export type InitialThemeColors =
           minBrightness?: number;
       };
 
+/**
+ * Supported brightness modes.
+ */
+export const BrightnessModes = {
+    /**
+     * Darkens colors in CIELAB space. Colors keep some luminance at brightness 0.
+     */
+    darken: 'darken',
+    /**
+     * Scales the RGB channels linearly. Brightness 0 is black (LEDs off)
+     * and 0.5 is half output.
+     */
+    linear: 'linear',
+} as const;
+
+export type BrightnessMode =
+    (typeof BrightnessModes)[keyof typeof BrightnessModes];
+
 export type ThemeConfig = InitialThemeColors & {
     /**
      * The number of steps in the color scale.
@@ -68,6 +87,19 @@ export type ThemeConfig = InitialThemeColors & {
      * Defaults to 8.
      */
     maxNumberOfColors?: number;
+    /**
+     * Random number generator used when generating random colors.
+     * Supply a seeded generator for reproducible palettes.
+     * Defaults to Math.random.
+     */
+    random?: RandomFunction;
+    /**
+     * How brightness is applied to colors.
+     * 'darken' (the default) darkens in CIELAB space, so colors keep some
+     * luminance even at brightness 0. 'linear' scales the RGB channels, so
+     * brightness 0 is black and 0.5 is half output.
+     */
+    brightnessMode?: BrightnessMode;
 };
 
 export interface ColorUpdateConfig {
@@ -124,6 +156,11 @@ export class Theme {
      */
     readonly maxNumberOfColors: number;
     /**
+     * How brightness is applied to colors.
+     * Defaults to 'darken'.
+     */
+    readonly brightnessMode: BrightnessMode;
+    /**
      * The active palette to use for color generation.
      */
     palette: ColorPalette;
@@ -153,9 +190,12 @@ export class Theme {
     constructor(config?: ThemeConfig) {
         this.nSteps = config?.nSteps ?? 2048;
         this.mode = config?.mode ?? InterpolationModes.rgb;
+        this.brightnessMode = config?.brightnessMode ?? BrightnessModes.darken;
 
         const initialPalette =
             config && 'palette' in config ? config.palette : undefined;
+
+        const random = config?.random ?? initialPalette?.random;
 
         this.maxNumberOfColors =
             config?.maxNumberOfColors ??
@@ -171,6 +211,7 @@ export class Theme {
                 nSteps: this.nSteps,
                 deltaEThreshold,
                 maxNumberOfColors: this.maxNumberOfColors,
+                random,
             });
             this.mode = this.palette.mode;
         } else {
@@ -183,6 +224,7 @@ export class Theme {
                     nSteps: this.nSteps,
                     deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
+                    random,
                 });
             } else {
                 const nColors =
@@ -198,6 +240,7 @@ export class Theme {
                     nSteps: this.nSteps,
                     deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
+                    random,
                     minBrightness,
                     nColors,
                 });
@@ -279,12 +322,24 @@ export class Theme {
         this.publish();
     }
 
+    /**
+     * Applies a brightness factor (0-1) to a color according to the theme's brightness mode.
+     */
+    private applyBrightness(color: Color, brightness: number) {
+        if (brightness >= 1) {
+            return color;
+        }
+        if (this.brightnessMode === BrightnessModes.linear) {
+            const factor = Math.max(brightness, 0);
+            const [r, g, b] = color.rgb(false);
+            return chroma.rgb(r * factor, g * factor, b * factor);
+        }
+        return color.darken(mapBrightnessToDarkenFactor(brightness));
+    }
+
     private getBaseColor(index = 0) {
         const baseColor = this.colors[this.normalizeIndex(index)] as Color;
-        if (this._brightness === 1) {
-            return baseColor;
-        }
-        return baseColor.darken(mapBrightnessToDarkenFactor(this._brightness));
+        return this.applyBrightness(baseColor, this._brightness);
     }
 
     /**
@@ -350,11 +405,7 @@ export class Theme {
      * @returns The color at the given index.
      */
     getColor(index = 0, { brightness = 1 }: { brightness?: number } = {}) {
-        const color = this.getBaseColor(index);
-        if (brightness >= 1) {
-            return color;
-        }
-        return color.darken(mapBrightnessToDarkenFactor(brightness));
+        return this.applyBrightness(this.getBaseColor(index), brightness);
     }
 
     /**
@@ -380,15 +431,16 @@ export class Theme {
     }
 
     /**
-     * Update the theme to a new set of colors, steps, and interpolation mode.
+     * Update the theme to a new set of colors and, optionally, interpolation mode.
+     * The mode defaults to the current mode.
      */
     update({
         colors,
-        mode,
+        mode = this.mode,
         ...options
     }: {
         colors: ColorInput[];
-        mode: InterpolationMode;
+        mode?: InterpolationMode;
     } & ColorUpdateConfig) {
         this.updateScale(
             this.activePalette.newConfig({

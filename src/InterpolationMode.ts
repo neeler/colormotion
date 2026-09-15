@@ -10,6 +10,8 @@ export const InterpolationModes = {
     hsv: 'hsv',
     hsi: 'hsi',
     hcl: 'hcl',
+    oklab: 'oklab',
+    oklch: 'oklch',
 } as const;
 
 export type InterpolationMode =
@@ -27,6 +29,8 @@ const InterpolationModeArray = [
     InterpolationModes.hsv,
     InterpolationModes.hsi,
     InterpolationModes.hcl,
+    InterpolationModes.oklab,
+    InterpolationModes.oklch,
 ] as const;
 
 /**

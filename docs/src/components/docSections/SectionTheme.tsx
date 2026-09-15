@@ -128,6 +128,33 @@ const theme = new Theme({
     maxNumberOfColors: 12,
 });`}
             </SyntaxHighlighter>
+            <Text>
+                The <Code>brightnessMode</Code> parameter controls how{' '}
+                <TextLink href="#theme-brightness">brightness</TextLink> is
+                applied. <Code>darken</Code> (the default) darkens colors in
+                CIELAB space, so colors keep some luminance even at brightness
+                0. <Code>linear</Code> scales the RGB channels, so brightness 0
+                is black (LEDs off) and 0.5 is half output.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`const theme1 = new Theme({
+    nColors: 5,
+    brightnessMode: 'linear',
+});`}
+            </SyntaxHighlighter>
+            <Text>
+                The <Code>random</Code> parameter supplies the random number
+                generator used for all randomization methods. It should return a
+                number in the range [0, 1), like <Code>Math.random</Code> (the
+                default). Supply a seeded generator to get reproducible
+                palettes.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`const theme1 = new Theme({
+    nColors: 5,
+    random: seededRandom(42),
+});`}
+            </SyntaxHighlighter>
             <Heading3 id="theme-activePalette">theme.activePalette</Heading3>
             <Text>
                 Returns the active <Code>ColorPalette</Code> of the{' '}
@@ -217,10 +244,14 @@ for (let i = 0; i < 100; i++) {
                 while a lower value will result in a slower transition. Defaults
                 to 0.1.
             </Text>
+            <Text>
+                The <Code>mode</Code> is optional and defaults to the current
+                interpolation mode.
+            </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.update({
     colors: ['red', 'green', 'blue'],
-    mode: 'hsv',
+    mode: 'hsv', // Defaults to the current mode
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
             </SyntaxHighlighter>

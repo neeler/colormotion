@@ -378,3 +378,135 @@ test('transitionDistance tracks the full average distance', () => {
     const fullAverage = sum / theme.nSteps;
     expect(Math.abs(theme.transitionDistance! - fullAverage)).toBeLessThan(0.5);
 });
+
+/**
+ * Small seeded PRNG (mulberry32) for reproducible palettes in tests.
+ */
+function seededRandom(seed: number) {
+    let state = seed >>> 0;
+    return () => {
+        state = (state + 0x6d2b79f5) >>> 0;
+        let t = state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+test('rotates through oklab and oklch before wrapping to rgb', () => {
+    const theme = new Theme({
+        colors: ['red', 'blue'],
+        nSteps: 64,
+        mode: 'hcl',
+    });
+    theme.rotateMode();
+    expect(theme.mode).toBe('oklab');
+    theme.rotateMode();
+    expect(theme.mode).toBe('oklch');
+    theme.rotateMode();
+    expect(theme.mode).toBe('rgb');
+});
+
+test('transitions in oklch', () => {
+    const theme = new Theme({ colors: ['red', 'blue'], nSteps: 64 });
+    theme.setMode('oklch');
+    expect(theme.targetPalette?.mode).toBe('oklch');
+    flushThemeChange(theme);
+    expect(theme.activePalette.mode).toBe('oklch');
+    expect(theme.activePalette.scaleColors.length).toBe(64);
+});
+
+test('update keeps the current mode when none is given', () => {
+    const theme = new Theme({
+        colors: ['red', 'blue'],
+        nSteps: 64,
+        mode: 'lab',
+    });
+    theme.update({ colors: ['green', 'yellow'] });
+    expect(theme.activePalette.mode).toBe('lab');
+    expect(theme.activePaletteHexes).toEqual(['#008000', '#ffff00']);
+
+    theme.update({ colors: ['green', 'yellow'], mode: 'hsl' });
+    expect(theme.activePalette.mode).toBe('hsl');
+});
+
+test('uses the injected random function for reproducible palettes', () => {
+    const makeTheme = () =>
+        new Theme({ nColors: 4, nSteps: 64, random: seededRandom(42) });
+    const theme1 = makeTheme();
+    const theme2 = makeTheme();
+    expect(theme1.activePaletteHexes).toEqual(theme2.activePaletteHexes);
+
+    theme1.randomTheme();
+    theme2.randomTheme();
+    expect(theme1.activePaletteHexes).toEqual(theme2.activePaletteHexes);
+
+    theme1.setColors(['red', 'blue']);
+    theme2.setColors(['red', 'blue']);
+    theme1.rotateMode();
+    theme2.rotateMode();
+    theme1.pushRandomColor();
+    theme2.pushRandomColor();
+    theme1.rotateRandomColor({ minBrightness: 0.5 });
+    theme2.rotateRandomColor({ minBrightness: 0.5 });
+    theme1.randomFrom('purple');
+    theme2.randomFrom('purple');
+    expect(theme1.activePaletteHexes).toEqual(theme2.activePaletteHexes);
+
+    const differentSeed = new Theme({
+        nColors: 4,
+        nSteps: 64,
+        random: seededRandom(7),
+    });
+    expect(differentSeed.activePaletteHexes).not.toEqual(
+        theme1.activePaletteHexes,
+    );
+});
+
+test('inherits the random function from an input palette', () => {
+    const random = seededRandom(1);
+    const palette = new ColorPalette({
+        colors: ['red'],
+        mode: 'rgb',
+        nSteps: 64,
+        random,
+    });
+    const theme = new Theme({ palette });
+    expect(theme.activePalette.random).toBe(random);
+    theme.pushRandomColor();
+    expect(theme.activePalette.random).toBe(random);
+});
+
+test('linear brightness mode scales to black', () => {
+    const theme = new Theme({
+        colors: ['white'],
+        nSteps: 64,
+        brightnessMode: 'linear',
+    });
+    expect(theme.brightnessMode).toBe('linear');
+    expect(theme.getColor(0).hex()).toBe('#ffffff');
+
+    theme.brightness = 0;
+    expect(theme.getColor(0).hex()).toBe('#000000');
+
+    theme.brightness = 0.5;
+    expect(theme.getColor(0).rgb(false)).toEqual([127.5, 127.5, 127.5]);
+    expect(theme.getColor(0, { brightness: 0.5 }).rgb(false)).toEqual([
+        63.75, 63.75, 63.75,
+    ]);
+    expect(theme.getColor(0, { brightness: 0 }).hex()).toBe('#000000');
+
+    theme.brightness = 1;
+    expect(theme.getColor(0, { brightness: 0.25 }).rgb(false)).toEqual([
+        63.75, 63.75, 63.75,
+    ]);
+});
+
+test('darken brightness mode is the default and unchanged', () => {
+    const theme = new Theme({ colors: ['white'], nSteps: 64 });
+    expect(theme.brightnessMode).toBe('darken');
+    theme.brightness = 0;
+    expect(theme.getColor(0).hex()).toBe(chroma('white').darken(3).hex());
+    theme.brightness = 0.5;
+    expect(theme.getColor(0).hex()).toBe(chroma('white').darken(1.5).hex());
+});
