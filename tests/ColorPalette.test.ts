@@ -425,3 +425,86 @@ test('respects minBrightness', () => {
         }
     }
 });
+
+test('derived palettes keep deltaEThreshold and maxNumberOfColors', () => {
+    const palette = new ColorPalette({
+        colors: ['red', 'green', 'blue'],
+        mode: 'rgb',
+        nSteps: 10,
+        deltaEThreshold: 40,
+        maxNumberOfColors: 4,
+    });
+
+    const derived = [
+        palette.newColors(['pink', 'cyan']),
+        palette.newMode('lab'),
+        palette.rotateMode(),
+        palette.newConfig({ colors: ['pink'], mode: 'lab', nSteps: 20 }),
+        palette.randomize(),
+        palette.randomizeFrom('red'),
+        palette.push('pink'),
+        palette.pushRandom(),
+        palette.popOldest(),
+        palette.rotateOn('pink'),
+        palette.rotateRandomOn(),
+    ];
+    for (const derivedPalette of derived) {
+        expect(derivedPalette.deltaEThreshold).toBe(40);
+        expect(derivedPalette.maxNumberOfColors).toBe(4);
+    }
+
+    const overridden = palette.newConfig({
+        colors: ['red', 'green', 'blue'],
+        mode: 'rgb',
+        nSteps: 10,
+        deltaEThreshold: 5,
+        maxNumberOfColors: 2,
+    });
+    expect(overridden).not.toBe(palette);
+    expect(overridden.deltaEThreshold).toBe(5);
+    expect(overridden.maxNumberOfColors).toBe(2);
+    expect(overridden.nColors).toBe(2);
+});
+
+test('random palettes respect the default deltaEThreshold', () => {
+    for (let i = 0; i < 20; i++) {
+        const palette = ColorPalette.random({
+            nColors: 5,
+            mode: 'rgb',
+            nSteps: 10,
+        });
+        expect(palette.deltaEThreshold).toBe(20);
+        for (let iColor = 1; iColor < palette.nColors; iColor++) {
+            expect(
+                chroma.deltaE(
+                    palette.colors[iColor - 1]!,
+                    palette.colors[iColor]!,
+                    1,
+                    1,
+                    1,
+                ),
+            ).toBeGreaterThanOrEqual(20);
+        }
+    }
+});
+
+test('random color generation terminates with an unsatisfiable threshold', () => {
+    const palette = new ColorPalette({
+        colors: ['white'],
+        mode: 'rgb',
+        nSteps: 10,
+        deltaEThreshold: 100,
+    });
+    const pushed = palette.pushRandom({ minBrightness: 1 });
+    expect(pushed.nColors).toBe(2);
+    expect(chroma(pushed.hexes[1]!).get('hsv.v')).toBeGreaterThanOrEqual(0.99);
+
+    const randomized = ColorPalette.random({
+        nColors: 3,
+        mode: 'rgb',
+        nSteps: 10,
+        deltaEThreshold: 100,
+        minBrightness: 1,
+    });
+    expect(randomized.nColors).toBe(3);
+});
