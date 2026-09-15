@@ -12,6 +12,12 @@ import { clamp } from './clamp';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
 
+/**
+ * Maximum number of scale colors sampled when estimating the distance to the
+ * target palette during a transition.
+ */
+const MAX_DISTANCE_SAMPLES = 128;
+
 export type InitialThemeColors =
     | {
           /**
@@ -138,6 +144,10 @@ export class Theme {
     private previousColorDistance?: number;
     private readonly colorDistanceThreshold = 0.001;
     private colors: Color[];
+    /**
+     * Indexes of the scale colors sampled when measuring the distance to the target palette.
+     */
+    private readonly sampleIndexes: number[];
     private readonly scrips = new SubscriptionManager<ThemeUpdateEvent>();
 
     constructor(config?: ThemeConfig) {
@@ -195,6 +205,21 @@ export class Theme {
         }
 
         this.colors = this.palette.scaleColors;
+        this.sampleIndexes = Theme.getSampleIndexes(this.nSteps);
+    }
+
+    /**
+     * Evenly spaced indexes used to estimate the distance to the target palette.
+     * Sampling at most 128 of the scale colors keeps the per-tick cost low
+     * while tracking the full average closely.
+     */
+    private static getSampleIndexes(nSteps: number) {
+        const nSamples = Math.max(1, Math.min(nSteps, MAX_DISTANCE_SAMPLES));
+        const indexes: number[] = [];
+        for (let i = 0; i < nSamples; i++) {
+            indexes.push(Math.floor((i * nSteps) / nSamples));
+        }
+        return indexes;
     }
 
     static random(
@@ -209,6 +234,7 @@ export class Theme {
      * The average distance between the colors in the current and target palettes.
      * Measured in CIEDE2000 color distance.
      * Ranges from 0 (identical) to 100 (maximally different).
+     * Estimated from an evenly spaced sample of the scale colors.
      * Returns undefined if there is no target palette.
      */
     get transitionDistance() {
@@ -265,11 +291,12 @@ export class Theme {
      * The average distance between the current colors and the target palette's colors.
      * Measured in CIEDE2000 color distance.
      * Ranges from 0 (identical) to 100 (maximally different).
+     * Estimated from an evenly spaced sample of the scale colors.
      */
     private calculateAverageTargetDistance(targetPalette: ColorPalette) {
         const targetColors = targetPalette.scaleColors;
         let sum = 0;
-        for (let iColor = 0; iColor < targetColors.length; iColor++) {
+        for (const iColor of this.sampleIndexes) {
             sum += chroma.deltaE(
                 targetColors[iColor] as Color,
                 this.colors[iColor] as Color,
@@ -278,7 +305,7 @@ export class Theme {
                 1,
             );
         }
-        return sum / targetColors.length;
+        return sum / this.sampleIndexes.length;
     }
 
     /**
@@ -544,13 +571,11 @@ export class Theme {
         const targetColors = targetPalette.scaleColors;
         this.previousColorDistance = averageColorDistance;
         this.colors = this.colors.map((baseColor, iColor) =>
-            chroma(
-                chroma.mix(
-                    baseColor,
-                    targetColors[iColor] as Color,
-                    this.transitionSpeed,
-                    this.mode,
-                ),
+            chroma.mix(
+                baseColor,
+                targetColors[iColor] as Color,
+                this.transitionSpeed,
+                this.mode,
             ),
         );
     }

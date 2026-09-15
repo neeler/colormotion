@@ -197,7 +197,12 @@ export class ColorPalette {
             .mode(mode)
             .domain([0, nSteps])
             .out(null);
-        const scaleColors = this.scale.colors(nSteps + 1).map((c) => chroma(c));
+        // chroma's scale cache keys on floor(t * 10000), which would collapse
+        // adjacent steps for large nSteps. Each step is only sampled once anyway.
+        this.scale.cache(false);
+        // Request Color objects directly rather than hex strings, which would
+        // quantize the scale to 8 bits per channel before any mixing happens.
+        const scaleColors = this.scale.colors(nSteps + 1, null);
         scaleColors.pop();
         this.scaleColors = scaleColors;
     }

@@ -508,3 +508,22 @@ test('random color generation terminates with an unsatisfiable threshold', () =>
     });
     expect(randomized.nColors).toBe(3);
 });
+
+test('scale colors keep full precision and stay distinct for large nSteps', () => {
+    const palette = new ColorPalette({
+        colors: ['red', 'blue'],
+        mode: 'lab',
+        nSteps: 20000,
+    });
+    expect(palette.scaleColors.length).toBe(20000);
+    for (let i = 1; i < 200; i++) {
+        expect(palette.scaleColors[i]!.rgb(false)).not.toEqual(
+            palette.scaleColors[i - 1]!.rgb(false),
+        );
+    }
+    const hasFractionalChannel = palette.scaleColors.some((color) =>
+        color.rgb(false).some((channel) => !Number.isInteger(channel)),
+    );
+    expect(hasFractionalChannel).toBe(true);
+    expect(palette.scaleColors[0]!.hex()).toBe('#ff0000');
+});

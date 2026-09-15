@@ -1,3 +1,4 @@
+import chroma from 'chroma-js';
 import { expect, expectTypeOf, test } from 'vitest';
 import { Theme, ColorPalette } from '../src';
 
@@ -356,4 +357,24 @@ test('publishes brightness changes to subscribers', () => {
     theme.unsubscribe(callback);
     theme.brightness = 0.2;
     expect(brightnesses).toEqual([0.4, 0.8]);
+});
+
+test('transitionDistance tracks the full average distance', () => {
+    const theme = new Theme({ colors: ['red', 'green', 'blue'] });
+    theme.setColors(['purple', 'orange', 'teal']);
+    theme.tick();
+    const target = theme.targetPalette!;
+    const offset = theme.normalizeIndex(0);
+    let sum = 0;
+    for (let i = 0; i < theme.nSteps; i++) {
+        sum += chroma.deltaE(
+            target.scaleColors[i]!,
+            theme.getColor(i - offset),
+            1,
+            1,
+            1,
+        );
+    }
+    const fullAverage = sum / theme.nSteps;
+    expect(Math.abs(theme.transitionDistance! - fullAverage)).toBeLessThan(0.5);
 });
