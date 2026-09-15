@@ -527,3 +527,29 @@ test('scale colors keep full precision and stay distinct for large nSteps', () =
     expect(hasFractionalChannel).toBe(true);
     expect(palette.scaleColors[0]!.hex()).toBe('#ff0000');
 });
+
+test('random palettes are reproducible with an injected random function', () => {
+    const makeRandom = () => {
+        let state = 12345;
+        return () => {
+            state = (state * 1103515245 + 12345) % 2147483648;
+            return state / 2147483648;
+        };
+    };
+    const palette1 = ColorPalette.random({
+        nColors: 4,
+        mode: 'rgb',
+        nSteps: 10,
+        random: makeRandom(),
+    });
+    const palette2 = ColorPalette.random({
+        nColors: 4,
+        mode: 'rgb',
+        nSteps: 10,
+        random: makeRandom(),
+    });
+    expect(palette1.hexes).toEqual(palette2.hexes);
+    expect(palette1.randomize().hexes).toEqual(palette2.randomize().hexes);
+    expect(palette1.newMode('lab').random).toBe(palette1.random);
+    expect(palette1.pushRandom().random).toBe(palette1.random);
+});

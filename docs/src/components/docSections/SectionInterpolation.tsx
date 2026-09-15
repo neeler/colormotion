@@ -24,6 +24,8 @@ export function SectionInterpolation() {
                 <li>HSV</li>
                 <li>HSI</li>
                 <li>HCL</li>
+                <li>OKLab</li>
+                <li>OKLCH</li>
             </UnorderedList>
             <Text>
                 <Code>colormotion</Code> leverages the scales feature of{' '}

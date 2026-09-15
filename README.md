@@ -16,6 +16,8 @@ It supports many different color interpolation methods:
 - HSV
 - HSI
 - HCL
+- OKLab
+- OKLCH
 
 It uses the [chroma.js](https://gka.github.io/chroma.js/) library under the hood for color interpolation.
 
@@ -127,6 +129,7 @@ theme.rotateMode();
 ```
 
 Update all options at once while still smoothly transitioning.
+The mode is optional and defaults to the current mode.
 
 ```typescript
 theme.update({
@@ -139,6 +142,28 @@ Set the overall brightness of the theme (0 to 1).
 
 ```typescript
 theme.brightness = 0.6;
+```
+
+By default, brightness darkens colors in CIELAB space, so colors keep some
+luminance even at brightness 0. For LEDs you may prefer linear brightness,
+where 0 turns the LEDs off and 0.5 is half output:
+
+```typescript
+const theme = new Theme({
+    colors: ['red', 'green', 'blue'],
+    brightnessMode: 'linear',
+});
+```
+
+Supply your own random number generator (any function returning a number
+in `[0, 1)`) to get reproducible random palettes, for example from a seeded
+PRNG:
+
+```typescript
+const theme = new Theme({
+    nColors: 5,
+    random: seededRandom(42),
+});
 ```
 
 ## Seen in the Wild
