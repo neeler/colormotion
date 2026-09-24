@@ -1,9 +1,11 @@
 import chroma, { Color, Scale } from 'chroma-js';
 import {
     InterpolationMode,
+    InterpolationModes,
     getNextInterpolationMode,
 } from './InterpolationMode';
 import { clamp } from './clamp';
+import { sampleScale } from './interpolate';
 
 /**
  * String or chroma-js color.
@@ -226,11 +228,25 @@ export class ColorPalette {
         // collapse adjacent steps for large nSteps. Each step is only
         // sampled once anyway.
         this.scale.cache(false);
-        // Request Color objects directly rather than hex strings,
-        // which would quantize the scale to 8 bits per channel.
-        const scaleColors = this.scale.colors(nSteps + 1, null);
-        scaleColors.pop();
-        this.scaleColors = scaleColors;
+        if (
+            Number.isInteger(nSteps) &&
+            nSteps > 0 &&
+            this.colors.length > 1 &&
+            Object.prototype.hasOwnProperty.call(InterpolationModes, mode)
+        ) {
+            // The colors scale.colors would return, converting each palette
+            // color once. chroma.scale still samples step counts that aren't
+            // positive integers (it spaces samples by (nSteps + 1) - 1, which
+            // can round), single colors (which it duplicates), and modes
+            // outside InterpolationModes (which it handles itself).
+            this.scaleColors = sampleScale(this.colors, mode, nSteps);
+        } else {
+            // Request Color objects directly rather than hex strings,
+            // which would quantize the scale to 8 bits per channel.
+            const scaleColors = this.scale.colors(nSteps + 1, null);
+            scaleColors.pop();
+            this.scaleColors = scaleColors;
+        }
     }
 
     /**
