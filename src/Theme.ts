@@ -10,6 +10,7 @@ import {
 } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { clamp } from './clamp';
+import { ModeCoords, mixCoords, toModeCoords } from './interpolate';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
 
@@ -180,7 +181,26 @@ export class Theme {
     private iColor = 0;
     private previousColorDistance?: number;
     private readonly colorDistanceThreshold = 0.001;
+    /**
+     * The scale colors at rest, and where the current transition started from.
+     */
     private colors: Color[];
+    /**
+     * How far the current transition has come, 0-1. Mixing a fraction `speed` of the way to the
+     * target on every tick lands at 1 - (1 - speed)^ticks, so a transition is one mix from its start
+     * colors at this progress: no per-tick pass over every color.
+     */
+    private progress = 0;
+    /** 1 - progress, kept as a running product. */
+    private remaining = 1;
+    /** Start and target colors in the mode's coordinates, converted once, on first use. */
+    private fromCoords: (ModeCoords | undefined)[] = [];
+    private toCoords: (ModeCoords | undefined)[] = [];
+    /** Colors mixed at the current progress, built on first use. */
+    private mixed: (Color | undefined)[] = [];
+    /** The tick each entry in `mixed` was built on. */
+    private mixedTick = new Int32Array(0);
+    private tickCount = 0;
     /**
      * Indexes of the scale colors sampled when measuring the distance to the target palette.
      */
@@ -338,8 +358,36 @@ export class Theme {
     }
 
     private getBaseColor(index = 0) {
-        const baseColor = this.colors[this.normalizeIndex(index)] as Color;
-        return this.applyBrightness(baseColor, this._brightness);
+        return this.applyBrightness(
+            this.currentColor(this.normalizeIndex(index)),
+            this._brightness,
+        );
+    }
+
+    /**
+     * The scale color at an index right now: at rest, or mixed at the transition's progress.
+     */
+    private currentColor(index: number): Color {
+        const targetPalette = this.targetPalette;
+        if (!targetPalette || this.progress === 0) {
+            return this.colors[index] as Color;
+        }
+        if (this.mixedTick[index] === this.tickCount) {
+            return this.mixed[index] as Color;
+        }
+        const from = this.colors[index] as Color;
+        const to = targetPalette.scaleColors[index] as Color;
+        const color = mixCoords(
+            (this.fromCoords[index] ??= toModeCoords(from, this.mode)),
+            (this.toCoords[index] ??= toModeCoords(to, this.mode)),
+            this.progress,
+            this.mode,
+            from.alpha(),
+            to.alpha(),
+        );
+        this.mixed[index] = color;
+        this.mixedTick[index] = this.tickCount;
+        return color;
     }
 
     /**
@@ -354,7 +402,7 @@ export class Theme {
         for (const iColor of this.sampleIndexes) {
             sum += chroma.deltaE(
                 targetColors[iColor] as Color,
-                this.colors[iColor] as Color,
+                this.currentColor(iColor),
                 1,
                 1,
                 1,
@@ -423,10 +471,17 @@ export class Theme {
         if (targetPalette === this.targetPalette) {
             return;
         }
+        // a new target mid-transition starts from wherever the colors are now
+        if (this.targetPalette) {
+            this.colors = Array.from({ length: this.nSteps }, (_, i) =>
+                this.currentColor(i),
+            );
+        }
         this.mode = targetPalette.mode;
         this.transitionSpeed = clamp(transitionSpeed, 0, 1) / 10;
         this.targetPalette = targetPalette;
         this.previousColorDistance = undefined;
+        this.resetMixing();
         this.publish();
     }
 
@@ -590,7 +645,23 @@ export class Theme {
         this.colors = targetPalette.scaleColors;
         this.targetPalette = undefined;
         this.previousColorDistance = undefined;
+        this.resetMixing();
         this.publish();
+    }
+
+    /**
+     * Start mixing from progress 0, dropping cached coordinates and colors.
+     */
+    private resetMixing() {
+        this.progress = 0;
+        this.remaining = 1;
+        this.fromCoords = [];
+        this.toCoords = [];
+        this.mixed = [];
+        if (this.mixedTick.length !== this.nSteps) {
+            this.mixedTick = new Int32Array(this.nSteps);
+        }
+        this.tickCount++;
     }
 
     private transitionPalette() {
@@ -620,16 +691,10 @@ export class Theme {
             return;
         }
 
-        const targetColors = targetPalette.scaleColors;
         this.previousColorDistance = averageColorDistance;
-        this.colors = this.colors.map((baseColor, iColor) =>
-            chroma.mix(
-                baseColor,
-                targetColors[iColor] as Color,
-                this.transitionSpeed,
-                this.mode,
-            ),
-        );
+        this.remaining *= 1 - this.transitionSpeed;
+        this.progress = 1 - this.remaining;
+        this.tickCount++;
     }
 
     /**
