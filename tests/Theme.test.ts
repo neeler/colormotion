@@ -1,6 +1,6 @@
 import chroma from 'chroma-js';
-import { expect, expectTypeOf, test } from 'vitest';
-import { Theme, ColorPalette } from '../src';
+import { describe, expect, expectTypeOf, test } from 'vitest';
+import { ColorPalette, InterpolationModes, Theme } from '../src';
 
 function tickTheme(theme: Theme, n: number) {
     for (let i = 0; i < n; i++) {
@@ -510,3 +510,74 @@ test('darken brightness mode is the default and unchanged', () => {
     theme.brightness = 0.5;
     expect(theme.getColor(0).hex()).toBe(chroma('white').darken(1.5).hex());
 });
+
+describe('transitions mix from the start colors at a tracked progress', () => {
+    const from = ['#e8b450', '#f4dca8', '#7a1a2b', '#b8862f', '#2b1a12'];
+    const to = ['#6b2fa0', '#ff7a1a', '#3a1660', '#c0409a', '#1a0a2e'];
+
+    for (const mode of Object.values(InterpolationModes)) {
+        test(`after n ticks, color i is chroma.mix(start i, target i, 1 - (1 - speed)^n) (${mode})`, () => {
+            const theme = new Theme({ colors: from, mode, nSteps: 64 });
+            const start = Array.from({ length: 64 }, (_, i) =>
+                theme.getColor(i),
+            );
+            theme.update({ colors: to, transitionSpeed: 0.3 });
+            const target = theme.activePalette.scaleColors;
+            const n = 25;
+            tickThemeInPlace(theme, n);
+            expect(theme.targetPalette).toBeDefined();
+            const progress = 1 - Math.pow(1 - 0.03, n);
+            for (let i = 0; i < 64; i++) {
+                const expected = chroma
+                    .mix(start[i]!, target[i]!, progress, mode)
+                    .rgba(false);
+                theme
+                    .getColor(i)
+                    .rgba(false)
+                    .forEach((v, k) => expect(v).toBeCloseTo(expected[k]!, 9));
+            }
+        });
+    }
+
+    test('colors do not depend on which ones were read, or in what order', () => {
+        const a = new Theme({ colors: from, mode: 'oklch', nSteps: 128 });
+        const b = new Theme({ colors: from, mode: 'oklch', nSteps: 128 });
+        a.update({ colors: to });
+        b.update({ colors: to });
+        for (let t = 0; t < 40; t++) {
+            // a reads everything every tick; b reads only now and then, backwards
+            for (let i = 0; i < 128; i++) a.getColor(i);
+            if (t % 7 === 0) for (let i = 127; i >= 0; i -= 3) b.getColor(i);
+            a.tick(0);
+            b.tick(0);
+        }
+        for (let i = 0; i < 128; i++) {
+            expect(b.getColor(i).rgba(false)).toEqual(
+                a.getColor(i).rgba(false),
+            );
+        }
+    });
+
+    test('a new target mid-transition starts from the current colors, with no jump', () => {
+        const theme = new Theme({ colors: from, mode: 'oklch', nSteps: 128 });
+        theme.update({ colors: to });
+        tickThemeInPlace(theme, 30);
+        const before = Array.from({ length: 128 }, (_, i) =>
+            theme.getColor(i).rgba(false),
+        );
+        theme.update({ colors: ['#00ff88', '#0044ff'] });
+        const after = Array.from({ length: 128 }, (_, i) =>
+            theme.getColor(i).rgba(false),
+        );
+        expect(after).toEqual(before);
+        // tick(0): finish without rotating the wheel, so index 0 is still the first color
+        while (theme.targetPalette) theme.tick(0);
+        expect(theme.getColor(0).hex()).toBe(chroma('#00ff88').hex());
+    });
+});
+
+function tickThemeInPlace(theme: Theme, n: number) {
+    for (let i = 0; i < n; i++) {
+        theme.tick(0);
+    }
+}
