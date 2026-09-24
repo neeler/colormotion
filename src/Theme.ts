@@ -20,6 +20,11 @@ import { safeMod } from './safeMod';
  */
 const MAX_DISTANCE_SAMPLES = 128;
 
+/**
+ * Transition speed used when none is given (or it is NaN).
+ */
+const DEFAULT_TRANSITION_SPEED = 0.1;
+
 export type InitialThemeColors =
     | {
           /**
@@ -108,6 +113,7 @@ export interface ColorUpdateConfig {
      * The speed of the transition between two palettes.
      * Should be between 0 and 1. Will be clamped to this range.
      * Defaults to 0.1.
+     * NaN is treated as not given.
      * The higher the value, the faster the transition.
      * A speed of 0 makes no progress, so the transition is treated as
      * settled and the target palette is applied on the second tick.
@@ -332,10 +338,14 @@ export class Theme {
      * Set the relative brightness of the theme.
      * 0 is the darkest, 1 is the brightest.
      * Subscribers are notified when the value changes.
+     * NaN is ignored.
      */
     set brightness(brightness: number) {
         const nextBrightness = clamp(brightness, 0, 1);
-        if (nextBrightness === this._brightness) {
+        if (
+            Number.isNaN(nextBrightness) ||
+            nextBrightness === this._brightness
+        ) {
             return;
         }
         this._brightness = nextBrightness;
@@ -346,7 +356,8 @@ export class Theme {
      * Applies a brightness factor (0-1) to a color according to the theme's brightness mode.
      */
     private applyBrightness(color: Color, brightness: number) {
-        if (brightness >= 1) {
+        // written so NaN also counts as full brightness
+        if (!(brightness < 1)) {
             return color;
         }
         if (this.brightnessMode === BrightnessModes.linear) {
@@ -449,7 +460,7 @@ export class Theme {
      * Get the color at the given index in the theme.
      * @param index The index of the color to get.
      * @param options Options for the color generation.
-     * @param options.brightness Optionally adjust the brightness of the color. 0-1, defaults to 1.
+     * @param options.brightness Optionally adjust the brightness of the color. 0-1, defaults to 1. NaN counts as 1.
      * @returns The color at the given index.
      */
     getColor(index = 0, { brightness = 1 }: { brightness?: number } = {}) {
@@ -463,7 +474,7 @@ export class Theme {
      */
     private updateScale(
         targetPalette: ColorPalette,
-        { transitionSpeed = 0.1 }: ColorUpdateConfig = {},
+        { transitionSpeed = DEFAULT_TRANSITION_SPEED }: ColorUpdateConfig = {},
     ) {
         if (targetPalette === this.palette) {
             return;
@@ -478,7 +489,9 @@ export class Theme {
             );
         }
         this.mode = targetPalette.mode;
-        this.transitionSpeed = clamp(transitionSpeed, 0, 1) / 10;
+        const speed = clamp(transitionSpeed, 0, 1);
+        this.transitionSpeed =
+            (Number.isNaN(speed) ? DEFAULT_TRANSITION_SPEED : speed) / 10;
         this.targetPalette = targetPalette;
         this.previousColorDistance = undefined;
         this.resetMixing();
@@ -581,9 +594,15 @@ export class Theme {
     /**
      * Get the color at the given index in the theme.
      * Rounds and normalizes the index so that it is within the bounds of the color scale.
+     * An index that is not a finite number (NaN, Infinity) counts as 0.
      */
     normalizeIndex(index = 0) {
-        return safeMod(Math.round(index) + this.iColor, this.nSteps);
+        // the wheel position is fractional after a fractional tick(n); colors are read at the nearest step
+        const position = Math.round(this.iColor);
+        const normalized = safeMod(Math.round(index) + position, this.nSteps);
+        return Number.isNaN(normalized)
+            ? safeMod(position, this.nSteps)
+            : normalized;
     }
 
     /**
@@ -700,13 +719,18 @@ export class Theme {
     /**
      * Move the color index by n steps.
      * Can be negative to move backwards.
+     * Can be fractional: fractions add up, and colors are read at the nearest whole step.
      *
      * Also updates the color palette slightly to transition to the new palette,
      * if a target palette is set. This is not affected by the n parameter.
+     * An n that is not a finite number (NaN, Infinity) does not move the index.
      */
     tick(n = 1) {
         this.transitionPalette();
 
-        this.iColor = safeMod(this.iColor + n, this.nSteps);
+        const iColor = safeMod(this.iColor + n, this.nSteps);
+        if (!Number.isNaN(iColor)) {
+            this.iColor = iColor;
+        }
     }
 }
