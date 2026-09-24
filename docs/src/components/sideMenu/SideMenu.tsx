@@ -113,11 +113,21 @@ export function SideMenu({
                     />
                     <L2MenuItem
                         colorOffset={20 * colorSpace}
+                        href="#theme-isTransitioning"
+                        title="theme.isTransitioning"
+                    />
+                    <L2MenuItem
+                        colorOffset={21 * colorSpace}
+                        href="#theme-finishTransition"
+                        title="theme.finishTransition"
+                    />
+                    <L2MenuItem
+                        colorOffset={22 * colorSpace}
                         href="#theme-subscribe"
                         title="theme.subscribe"
                     />
                     <L2MenuItem
-                        colorOffset={21 * colorSpace}
+                        colorOffset={23 * colorSpace}
                         href="#theme-unsubscribe"
                         title="theme.unsubscribe"
                     />

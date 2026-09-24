@@ -50,6 +50,25 @@ describe('transition tick', () => {
     }
 });
 
+// The same, for a transition timed with transitionDuration (long enough not to finish mid-run).
+// A timed tick only advances a counter: the colors are mixed when read, as in the LED frame benchmarks.
+describe('transition tick, timed', () => {
+    for (const nSteps of STEP_COUNTS) {
+        for (const mode of MODES) {
+            const t = inTransition(() => {
+                const theme = new Theme({ colors: GOLD, mode, nSteps });
+                theme.update({ colors: DUSK, transitionDuration: 100_000 });
+                return theme;
+            });
+            bench(
+                `${mode}, ${nSteps} steps`,
+                () => (t.get() as Theme).tick(),
+                t.options,
+            );
+        }
+    }
+});
+
 // A whole transition from start to finish at the default speed.
 describe('full transition', () => {
     for (const nSteps of STEP_COUNTS) {
