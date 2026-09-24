@@ -21,7 +21,8 @@
 		"prepublishOnly": "npm run build",
 		"type-check": "npx tsc --noEmit",
 		"test": "vitest",
-		"coverage": "vitest run --coverage"
+		"coverage": "vitest run --coverage",
+		"bench": "vitest bench --run"
 	},
 	"keywords": [
 		"color",

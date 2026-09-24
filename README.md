@@ -166,6 +166,20 @@ const theme = new Theme({
 });
 ```
 
+## Development
+
+```bash
+npm test          # unit tests (watch mode)
+npm run bench     # benchmarks: palette building, getColor, transition ticks, LED frames
+```
+
+To check a change for speed, save a baseline on `main` and compare your branch against it (the file is written under `tests/`):
+
+```bash
+git switch main && npm run bench -- --outputJson bench-main.json
+git switch my-branch && npm run bench -- --compare bench-main.json
+```
+
 ## Seen in the Wild
 
 - [Dumpy Fuego @ Burning Man](https://www.dumpster.life/)
