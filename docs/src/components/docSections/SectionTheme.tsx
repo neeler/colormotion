@@ -255,6 +255,36 @@ for (let i = 0; i < 100; i++) {
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
             </SyntaxHighlighter>
+            <Text>
+                To end a transition at a set time instead, pass a{' '}
+                <Code>transitionDuration</Code>: the number of ticks the
+                transition takes. The colors ease in and out from where they are
+                and become exactly the new palette on the last tick. The same
+                option works with every method below that sets a new palette,
+                and takes precedence over <Code>transitionSpeed</Code>. A value
+                that is not a finite number is ignored, and{' '}
+                <Code>transitionSpeed</Code> applies instead.
+            </Text>
+            <Text>
+                A duration of 0 applies the palette before the call returns, and
+                subscribers are notified once, with <Code>isTransitioning</Code>{' '}
+                false.
+            </Text>
+            <Text>
+                Sending the same duration again for the palette the theme is
+                already transitioning to changes nothing, so an update can be
+                re-sent every tick. A different duration re-times the transition
+                to end that many ticks from now, continuing from the current
+                colors. The easing starts again from rest, so re-send the same
+                duration rather than a countdown of the ticks left.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`// 6 seconds when theme.tick() is called 60 times a second
+theme.update({
+    colors: ['red', 'green', 'blue'],
+    transitionDuration: 6 * 60,
+});`}
+            </SyntaxHighlighter>
             <Heading3 id="theme-setMode">theme.setMode</Heading3>
             <Text>
                 Updates the <Code>Theme</Code> to a new interpolation mode. This
@@ -265,8 +295,9 @@ for (let i = 0; i < 100; i++) {
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.setMode('lab');
@@ -284,8 +315,9 @@ theme.setMode('lab', {
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.rotateMode();
@@ -302,8 +334,9 @@ theme.rotateMode({
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.setColors(['red', 'green', 'blue']);
@@ -325,8 +358,9 @@ theme.setColors(['red', 'green', 'blue'], {
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
@@ -352,8 +386,9 @@ theme.randomFrom('red', {
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
@@ -381,8 +416,9 @@ theme.randomTheme({
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <Text>
                 If the number of colors in the palette is already at the{' '}
@@ -406,8 +442,9 @@ theme.pushNewColor('red', {
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <Text>
                 If the number of colors in the palette is already at the{' '}
@@ -434,8 +471,9 @@ theme.pushRandomColor({
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.popOldestColor();
@@ -458,8 +496,9 @@ theme.popOldestColor({
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.rotateColor('red');
@@ -479,8 +518,9 @@ theme.rotateColor('red', {
             <Text>
                 The transition will be completed gradually over time, with the
                 duration of the transition determined by the set{' '}
-                <Code>transitionSpeed</Code>. Same rules for the{' '}
-                <Code>transitionSpeed</Code> apply as before.
+                <Code>transitionSpeed</Code>, or by{' '}
+                <Code>transitionDuration</Code> if given. The same rules apply
+                as for <Code>theme.update</Code>.
             </Text>
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
@@ -490,7 +530,7 @@ theme.rotateColor('red', {
                 {`theme.rotateRandomColor();
 theme.rotateRandomColor({
     minBrightness: 0.5, // Defaults to 0
-    transitionSpeed: 0.5, // Defaults to 1
+    transitionSpeed: 0.5, // Defaults to 0.1
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-tick">theme.tick</Heading3>
@@ -503,12 +543,40 @@ theme.rotateRandomColor({
             <Text>
                 The number of frames defaults to 1. If you want to advance the
                 color index by more than one frame, you can pass the number of
-                frames as an argument. This does not affect the transition speed
-                between palettes.
+                frames as an argument. Fractional frames add up, and colors are
+                read at the nearest whole step. This does not affect the
+                transition between palettes, which advances once per call, so{' '}
+                <Code>theme.tick(0)</Code> advances a transition without moving
+                the color index.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.tick();
-theme.tick(10);`}
+theme.tick(10);
+theme.tick(0); // Transition only`}
+            </SyntaxHighlighter>
+            <Heading3 id="theme-isTransitioning">
+                theme.isTransitioning
+            </Heading3>
+            <Text>
+                Whether the <Code>Theme</Code> is transitioning to a target
+                palette.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`if (theme.isTransitioning) {
+    // A transition is in progress
+}`}
+            </SyntaxHighlighter>
+            <Heading3 id="theme-finishTransition">
+                theme.finishTransition
+            </Heading3>
+            <Text>
+                Finishes the current transition now. The target palette is
+                applied exactly, and subscribers are notified as when a
+                transition ends on its own. Does nothing when the{' '}
+                <Code>Theme</Code> is not transitioning.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`theme.finishTransition();`}
             </SyntaxHighlighter>
             <Heading3 id="theme-subscribe">theme.subscribe</Heading3>
             <Text>

@@ -138,6 +138,35 @@ theme.update({
 });
 ```
 
+To end a transition at a set time, give its length in ticks with `transitionDuration`.
+The colors ease in and out and become exactly the new palette on the last tick.
+Durations count calls to `tick()`, so they follow the frame rate.
+
+```typescript
+// Transition over exactly 360 ticks: 6 seconds at 60 ticks per second
+theme.setColors(['red', 'green', 'blue'], { transitionDuration: 6 * 60 });
+
+// Advance the transition without rotating the color wheel
+theme.tick(0);
+
+// Apply a palette at once
+theme.setColors(['black'], { transitionDuration: 0 });
+
+// Check for, or finish, a transition in progress
+if (theme.isTransitioning) {
+    theme.finishTransition();
+}
+```
+
+A duration of 0 applies the palette before the call returns, notifying subscribers once. A value that is
+not a finite number is ignored, and `transitionSpeed` applies instead.
+
+Sending the same duration again for the palette the theme is already transitioning to changes nothing,
+so an update can be re-sent every frame. A different duration re-times the transition to end that many
+ticks from now, continuing from the current colors. A re-time, like a new target, starts the easing
+again from rest, so re-send the same duration rather than a countdown of the ticks left.
+`transitionSpeed` suits targets that change continuously.
+
 Set the overall brightness of the theme (0 to 1).
 
 ```typescript

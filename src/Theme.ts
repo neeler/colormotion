@@ -25,6 +25,36 @@ const MAX_DISTANCE_SAMPLES = 128;
  */
 const DEFAULT_TRANSITION_SPEED = 0.1;
 
+/**
+ * A transitionDuration within this fraction of a whole number of ticks (relative to it) counts as that whole number,
+ * so float products such as 1.1 * 50 (55.00000000000001) end on the tick they name.
+ */
+const WHOLE_TICK_TOLERANCE = 1e-9;
+
+/**
+ * 3x² − 2x³: eases in and out, starting and ending at rest.
+ */
+function smoothstep(x: number) {
+    return x * x * (3 - 2 * x);
+}
+
+/**
+ * A transitionDuration in ticks: undefined unless it is a finite number, 0 for "now", and otherwise
+ * the duration, snapped to a whole number when within WHOLE_TICK_TOLERANCE of one.
+ */
+function normalizeDuration(duration: number | undefined) {
+    if (duration === undefined || !Number.isFinite(duration)) {
+        return undefined;
+    }
+    if (duration <= 0) {
+        return 0;
+    }
+    const whole = Math.round(duration);
+    return Math.abs(duration - whole) <= whole * WHOLE_TICK_TOLERANCE
+        ? whole
+        : duration;
+}
+
 export type InitialThemeColors =
     | {
           /**
@@ -117,8 +147,35 @@ export interface ColorUpdateConfig {
      * The higher the value, the faster the transition.
      * A speed of 0 makes no progress, so the transition is treated as
      * settled and the target palette is applied on the second tick.
+     * Ignored when transitionDuration is a finite number.
+     * An update to the palette the theme is already transitioning to does not
+     * change the transition's speed.
      */
     transitionSpeed?: number;
+    /**
+     * How many ticks the transition takes, instead of a transitionSpeed.
+     * A tick is one call to tick(), whatever its n: 6 * 60 is 6 seconds when
+     * tick() is called 60 times a second.
+     *
+     * The colors ease in and out (smoothstep) from where they are, and become
+     * exactly the target palette on the last tick. A fractional duration ends
+     * on the next whole tick (2.5 ends on tick 3), and a value within one part
+     * in a billion of a whole number counts as that number (1.1 * 50 ends on
+     * tick 55). 0 or less applies the palette before the call returns,
+     * notifying subscribers once, with isTransitioning false. Anything that is
+     * not a finite number is ignored, and transitionSpeed applies instead.
+     *
+     * For the palette the theme is already transitioning to (including a call
+     * that leaves it unchanged, such as pushing a color onto a full palette):
+     * - The same duration changes nothing and keeps the current end, so an
+     *   update can safely be re-sent every tick.
+     * - A different duration re-times the transition to end that many ticks
+     *   from now, continuing from the current colors without notifying
+     *   subscribers. The easing starts again from rest, so re-send the same
+     *   duration rather than a countdown of the ticks left.
+     * - 0 or less finishes the transition.
+     */
+    transitionDuration?: number;
 }
 
 export interface ThemeUpdateEvent {
@@ -194,10 +251,11 @@ export class Theme {
     /**
      * How far the current transition has come, 0-1. Mixing a fraction `speed` of the way to the
      * target on every tick lands at 1 - (1 - speed)^ticks, so a transition is one mix from its start
-     * colors at this progress: no per-tick pass over every color.
+     * colors at this progress: no per-tick pass over every color. A timed transition sets it along
+     * smoothstep instead.
      */
     private progress = 0;
-    /** 1 - progress, kept as a running product. */
+    /** 1 - progress; a running product during a transitionSpeed transition. */
     private remaining = 1;
     /** Start and target colors in the mode's coordinates, converted once, on first use. */
     private fromCoords: (ModeCoords | undefined)[] = [];
@@ -207,6 +265,15 @@ export class Theme {
     /** The tick each entry in `mixed` was built on. */
     private mixedTick = new Int32Array(0);
     private tickCount = 0;
+    /** Ticks a timed transition takes; undefined at rest or for a transitionSpeed transition. */
+    private durationTicks?: number;
+    /** Ticks since the timed transition started or was re-timed. */
+    private elapsedTicks = 0;
+    /** Progress when the timed transition was re-timed; 0 for a new target. */
+    private progressBase = 0;
+    /** transitionDistance during a timed transition, measured when read, and the tick it was measured on. */
+    private measuredDistance?: number;
+    private measuredDistanceTick = -1;
     /**
      * Indexes of the scale colors sampled when measuring the distance to the target palette.
      */
@@ -305,9 +372,29 @@ export class Theme {
      * Ranges from 0 (identical) to 100 (maximally different).
      * Estimated from an evenly spaced sample of the scale colors.
      * Returns undefined if there is no target palette.
+     * During a transitionSpeed transition, this is the distance measured at the
+     * start of the last tick, and undefined until the first tick after the
+     * target changed. During a transitionDuration transition, it is measured
+     * from the current colors when read.
      */
     get transitionDistance() {
+        const targetPalette = this.targetPalette;
+        if (targetPalette && this.durationTicks !== undefined) {
+            if (this.measuredDistanceTick !== this.tickCount) {
+                this.measuredDistance =
+                    this.calculateAverageTargetDistance(targetPalette);
+                this.measuredDistanceTick = this.tickCount;
+            }
+            return this.measuredDistance;
+        }
         return this.previousColorDistance;
+    }
+
+    /**
+     * Whether the theme is transitioning to a target palette.
+     */
+    get isTransitioning() {
+        return this.targetPalette !== undefined;
     }
 
     /**
@@ -474,12 +561,33 @@ export class Theme {
      */
     private updateScale(
         targetPalette: ColorPalette,
-        { transitionSpeed = DEFAULT_TRANSITION_SPEED }: ColorUpdateConfig = {},
+        {
+            transitionSpeed = DEFAULT_TRANSITION_SPEED,
+            transitionDuration,
+        }: ColorUpdateConfig = {},
     ) {
         if (targetPalette === this.palette) {
             return;
         }
+        const duration = normalizeDuration(transitionDuration);
         if (targetPalette === this.targetPalette) {
+            if (duration === undefined || duration === this.durationTicks) {
+                return;
+            }
+            if (duration === 0) {
+                this.completeTransition(targetPalette);
+                return;
+            }
+            // re-time from where the colors are: progress, start colors and caches stay, so nothing moves now
+            this.progressBase = this.progress;
+            this.elapsedTicks = 0;
+            this.durationTicks = duration;
+            return;
+        }
+        if (duration === 0) {
+            // nothing to mix: adopt the palette now, even mid-transition
+            this.mode = targetPalette.mode;
+            this.completeTransition(targetPalette);
             return;
         }
         // a new target mid-transition starts from wherever the colors are now
@@ -492,6 +600,9 @@ export class Theme {
         const speed = clamp(transitionSpeed, 0, 1);
         this.transitionSpeed =
             (Number.isNaN(speed) ? DEFAULT_TRANSITION_SPEED : speed) / 10;
+        this.durationTicks = duration;
+        this.elapsedTicks = 0;
+        this.progressBase = 0;
         this.targetPalette = targetPalette;
         this.previousColorDistance = undefined;
         this.resetMixing();
@@ -657,6 +768,19 @@ export class Theme {
     }
 
     /**
+     * Finish the current transition now: the target palette is applied exactly,
+     * and subscribers are notified as when a transition ends on its own.
+     * Works for transitionSpeed and transitionDuration transitions alike.
+     * Does nothing when the theme is not transitioning.
+     */
+    finishTransition() {
+        const targetPalette = this.targetPalette;
+        if (targetPalette) {
+            this.completeTransition(targetPalette);
+        }
+    }
+
+    /**
      * Finish the transition by adopting the target palette.
      */
     private completeTransition(targetPalette: ColorPalette) {
@@ -664,6 +788,9 @@ export class Theme {
         this.colors = targetPalette.scaleColors;
         this.targetPalette = undefined;
         this.previousColorDistance = undefined;
+        this.durationTicks = undefined;
+        this.elapsedTicks = 0;
+        this.progressBase = 0;
         this.resetMixing();
         this.publish();
     }
@@ -686,6 +813,21 @@ export class Theme {
     private transitionPalette() {
         const targetPalette = this.targetPalette;
         if (!targetPalette) {
+            return;
+        }
+
+        const duration = this.durationTicks;
+        if (duration !== undefined) {
+            // a timed transition ends on its last tick, however much or little is left to see
+            const elapsed = ++this.elapsedTicks;
+            if (elapsed >= duration) {
+                this.completeTransition(targetPalette);
+                return;
+            }
+            const base = this.progressBase;
+            this.progress = base + (1 - base) * smoothstep(elapsed / duration);
+            this.remaining = 1 - this.progress;
+            this.tickCount++;
             return;
         }
 
@@ -721,8 +863,9 @@ export class Theme {
      * Can be negative to move backwards.
      * Can be fractional: fractions add up, and colors are read at the nearest whole step.
      *
-     * Also updates the color palette slightly to transition to the new palette,
-     * if a target palette is set. This is not affected by the n parameter.
+     * Also advances the transition to the target palette by one tick, if one is
+     * set. This is not affected by the n parameter, so tick(0) advances a
+     * transition without rotating the wheel.
      * An n that is not a finite number (NaN, Infinity) does not move the index.
      */
     tick(n = 1) {
