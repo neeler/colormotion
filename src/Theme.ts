@@ -26,6 +26,23 @@ const MAX_DISTANCE_SAMPLES = 128;
 const DEFAULT_TRANSITION_SPEED = 0.1;
 
 /**
+ * A transitionSpeed transition snaps to its target once its colors stop changing, but only when they are
+ * within this average CIEDE2000 distance of it: about half of the smallest difference the eye can see.
+ * Stopping is not enough by itself: the distance can hold steady or rise before it falls, most often in
+ * hue-based modes.
+ */
+const SETTLED_DISTANCE = 0.5;
+
+/**
+ * A transitionSpeed transition also snaps to its target once this little of the mix is left (99.9999 %
+ * done), whatever the distance. Mixing toward a color with no hue in LCH, OKLCH or HSI keeps the other
+ * color's chroma or saturation (as chroma.mix does), so those colors never reach the target and the distance
+ * stops above SETTLED_DISTANCE. A transition that can reach its target is within SETTLED_DISTANCE well
+ * before this, even in lrgb, where the distance falls only with the square root of what is left.
+ */
+const SETTLED_REMAINING = 1e-6;
+
+/**
  * A transitionDuration within this fraction of a whole number of ticks (relative to it) counts as that whole number,
  * so float products such as 1.1 * 50 (55.00000000000001) end on the tick they name.
  */
@@ -144,9 +161,18 @@ export interface ColorUpdateConfig {
      * Should be between 0 and 1. Will be clamped to this range.
      * Defaults to 0.1.
      * NaN is treated as not given.
-     * The higher the value, the faster the transition.
+     * The higher the value, the faster the transition: a typical palette
+     * change takes about 45 / speed ticks (0.1: about 10 s at 60 ticks a
+     * second; 0.01: about 75 s; 0.001: about 12 minutes). For an exact
+     * length, use transitionDuration.
+     * The transition ends once the colors stop changing within 0.5 CIEDE2000
+     * of the target, averaged over a sample of the scale colors (single
+     * colors can be a little further off), or once 99.9999 % of the mix is
+     * done.
      * A speed of 0 makes no progress, so the transition is treated as
-     * settled and the target palette is applied on the second tick.
+     * settled and the target palette is applied on the second tick. The same
+     * goes for a speed too small to move the colors at all (about 5e-16 or
+     * less).
      * Ignored when transitionDuration is a finite number.
      * An update to the palette the theme is already transitioning to does not
      * change the transition's speed.
@@ -840,12 +866,17 @@ export class Theme {
         const isNegligible = !(
             averageColorDistance > this.colorDistanceThreshold
         );
-        // The distance has stopped changing: the remaining difference is
-        // imperceptible, so snap to the target.
+        // The distance has stopped changing, and what is left is too small to
+        // see or the mix is all but done, so snap to the target. A speed that
+        // cannot move the colors (0, or so small that 1 - speed rounds to 1)
+        // settles regardless, so every transition ends.
         const hasSettled =
             this.previousColorDistance !== undefined &&
             Math.abs(this.previousColorDistance - averageColorDistance) <
-                this.colorDistanceThreshold;
+                this.colorDistanceThreshold &&
+            (averageColorDistance < SETTLED_DISTANCE ||
+                this.remaining < SETTLED_REMAINING ||
+                1 - this.transitionSpeed === 1);
 
         if (isNegligible || hasSettled) {
             this.completeTransition(targetPalette);
