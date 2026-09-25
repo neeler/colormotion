@@ -22,7 +22,8 @@
 		"type-check": "npx tsc --noEmit",
 		"test": "vitest",
 		"coverage": "vitest run --coverage",
-		"bench": "vitest bench --run"
+		"bench": "vitest bench --run",
+		"docs:api": "node scripts/api.mts"
 	},
 	"keywords": [
 		"color",

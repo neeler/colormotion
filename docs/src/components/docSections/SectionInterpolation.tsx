@@ -1,5 +1,6 @@
+import { typeAnchor } from '~/components/api/api';
 import { Heading2 } from '~/components/catalyst/Heading2';
-import { Code, Text } from '~/components/catalyst/Text';
+import { Code, Text, TextLink } from '~/components/catalyst/Text';
 import { UnorderedList } from '~/components/catalyst/UnorderedList';
 
 export function SectionInterpolation() {
@@ -27,6 +28,14 @@ export function SectionInterpolation() {
                 <li>OKLab</li>
                 <li>OKLCH</li>
             </UnorderedList>
+            <Text>
+                In code, each mode is its lowercase name, such as{' '}
+                <Code>&apos;oklch&apos;</Code>, typed as{' '}
+                <TextLink href={`#${typeAnchor('InterpolationMode')}`}>
+                    InterpolationMode
+                </TextLink>
+                .
+            </Text>
             <Text>
                 <Code>colormotion</Code> uses the color spaces of{' '}
                 <Code>chroma.js</Code> and follows its interpolation, except
