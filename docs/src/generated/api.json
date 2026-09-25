@@ -275,7 +275,7 @@
             "fields": [
                 {
                     "name": "palette",
-                    "doc": "The initial color palette.\nTakes precedence over colors and nColors."
+                    "doc": "The initial color palette.\nTakes precedence over colors and nColors.\nThe theme builds its own copy from the palette's colors, with the theme's nSteps and any\nmode, maxNumberOfColors, deltaEThreshold or random option given in place of the palette's."
                 },
                 {
                     "name": "colors",
@@ -283,7 +283,7 @@
                 },
                 {
                     "name": "nColors",
-                    "doc": "The initial number of colors in the palette.\nN random colors will be generated if colors is not provided.\nDefaults to 5."
+                    "doc": "The initial number of colors in the palette.\nN random colors will be generated if neither palette nor colors is provided,\nup to maxNumberOfColors.\nDefaults to 5."
                 },
                 {
                     "name": "minBrightness",
@@ -297,11 +297,11 @@
             "fields": [
                 {
                     "name": "darken",
-                    "doc": "Darkens colors in CIELAB space. Colors keep some luminance at brightness 0."
+                    "doc": "Darkens colors in CIELAB space, lowering the lightness by up to 54 (of 100) at brightness 0.\nColors lighter than lightness 54 keep some light at brightness 0 (white becomes #6d6d6d), and\nmany saturated colors keep a dim tint (#0000ff becomes #000069); mid and dark greys and dark,\nmuted colors reach black."
                 },
                 {
                     "name": "linear",
-                    "doc": "Scales the RGB channels linearly. Brightness 0 is black (LEDs off)\nand 0.5 is half output."
+                    "doc": "Scales the RGB channels linearly. Brightness 0 is black (LEDs off)\nand 0.5 halves every channel."
                 }
             ]
         },
@@ -315,23 +315,23 @@
                 },
                 {
                     "name": "mode",
-                    "doc": "The color interpolation mode to use between colors in the palette.\nDefaults to RGB."
+                    "doc": "The color interpolation mode to use between colors in the palette.\nDefaults to the palette option's mode if one is given, and to RGB otherwise."
                 },
                 {
                     "name": "deltaEThreshold",
-                    "doc": "The minimum threshold for the CIEDE2000 color distance between colors in the palette.\nDefaults to 20."
+                    "doc": "The minimum threshold for the CIEDE2000 color distance between colors in the palette.\nDefaults to the palette option's deltaEThreshold if one is given, and to 20 otherwise."
                 },
                 {
                     "name": "maxNumberOfColors",
-                    "doc": "Max number of colors in the palette.\nDefaults to 8."
+                    "doc": "Max number of colors in the palette.\nDefaults to the palette option's maxNumberOfColors if one is given, and to 8 otherwise."
                 },
                 {
                     "name": "random",
-                    "doc": "Random number generator used when generating random colors.\nSupply a seeded generator for reproducible palettes.\nDefaults to Math.random."
+                    "doc": "Random number generator used when generating random colors.\nSupply a seeded generator for reproducible palettes.\nDefaults to the palette option's random if one is given, and to Math.random otherwise."
                 },
                 {
                     "name": "brightnessMode",
-                    "doc": "How brightness is applied to colors.\n'darken' (the default) darkens in CIELAB space, so colors keep some\nluminance even at brightness 0. 'linear' scales the RGB channels, so\nbrightness 0 is black and 0.5 is half output."
+                    "doc": "How brightness is applied to colors.\n'darken' (the default) darkens in CIELAB space, so light and saturated\ncolors can keep some light even at brightness 0 (white becomes #6d6d6d).\n'linear' scales the RGB channels, so brightness 0 is black and 0.5\nhalves every channel."
                 }
             ]
         },
@@ -353,7 +353,10 @@
             "code": "interface ThemeUpdateEvent {\n    palette: Readonly<ColorPalette>;\n    isTransitioning: boolean;\n    colors: Color[];\n    mode: InterpolationMode;\n    brightness: number;\n}",
             "doc": "",
             "fields": [
-                { "name": "palette", "doc": "The current color palette." },
+                {
+                    "name": "palette",
+                    "doc": "The active palette: the target palette while transitioning."
+                },
                 {
                     "name": "isTransitioning",
                     "doc": "Is the theme transitioning between palettes."
@@ -384,27 +387,31 @@
                 },
                 {
                     "name": "maxNumberOfColors",
-                    "doc": "Max number of colors allowed in the theme's palettes.\nDefaults to 8."
+                    "doc": "Max number of colors allowed in the theme's palettes.\nDefaults to the palette option's maxNumberOfColors if one is given, and to 8 otherwise."
                 },
                 {
                     "name": "brightnessMode",
-                    "doc": "How brightness is applied to colors.\nDefaults to 'darken'."
+                    "doc": "How brightness is applied to the colors getColor returns.\nDefaults to 'darken'."
                 },
                 {
                     "name": "palette",
-                    "doc": "The active palette to use for color generation."
+                    "doc": "The last palette the theme reached: the initial palette, or the target of the most recent\ntransition that ended. It does not change during a transition, when the colors are a mix that\ngetColor returns. Treat it as read-only: update, setColors and the other methods start the\ntransitions that change it."
                 },
                 {
                     "name": "targetPalette",
-                    "doc": "The target palette to transition to."
+                    "doc": "The palette the theme is transitioning to, or undefined when it is not transitioning.\nTreat it as read-only: update, setColors and the other methods set it, and finishTransition\nends the transition."
                 },
                 {
                     "name": "mode",
-                    "doc": "The interpolation mode to use between colors in the palette."
+                    "doc": "The interpolation mode of the active palette (the target palette while transitioning): the\nmode in which transitions mix colors, and the one update uses when no mode is given. Treat it\nas read-only: setMode, rotateMode and update change it."
+                },
+                {
+                    "name": "static random",
+                    "doc": "Creates a theme with a palette of nColors random colors: the same as new Theme(config), with\nnColors required. A palette or colors option takes precedence over nColors."
                 },
                 {
                     "name": "transitionDistance",
-                    "doc": "The average distance between the colors in the current and target palettes.\nMeasured in CIEDE2000 color distance.\nRanges from 0 (identical) to 100 (maximally different).\nEstimated from an evenly spaced sample of the scale colors.\nReturns undefined if there is no target palette.\nDuring a transitionSpeed transition, this is the distance measured at the\nstart of the last tick, and undefined until the first tick after the\ntarget changed. During a transitionDuration transition, it is measured\nfrom the current colors when read."
+                    "doc": "The average distance between the theme's colors (before brightness) and the target palette's.\nMeasured in CIEDE2000 color distance.\nRanges from 0 (identical) to 100 (maximally different).\nEstimated from an evenly spaced sample of the scale colors.\nReturns undefined if there is no target palette.\nDuring a transitionSpeed transition, this is the distance measured at the\nstart of the most recent tick, before the colors moved, and undefined until\nthe first tick after the target changed. During a transitionDuration\ntransition, it is measured from the current colors when read."
                 },
                 {
                     "name": "isTransitioning",
@@ -412,7 +419,7 @@
                 },
                 {
                     "name": "activePalette",
-                    "doc": "The active palette to use for color generation."
+                    "doc": "The palette the theme is at or heading to: targetPalette while transitioning, and palette\notherwise. During a transition, getColor returns a mix of the starting colors and this palette."
                 },
                 {
                     "name": "activePaletteHexes",
@@ -457,7 +464,7 @@
                 },
                 {
                     "name": "normalizeIndex",
-                    "doc": "Get the color at the given index in the theme.\nRounds and normalizes the index so that it is within the bounds of the color scale.\nAn index that is not a finite number (NaN, Infinity) counts as 0."
+                    "doc": "The position in the color scale that getColor(index) reads: the index plus the wheel position\nthat tick() moves, each rounded to a whole step, wrapped into the range 0 to nSteps - 1.\nAn index that is not a finite number (NaN, Infinity) counts as 0."
                 },
                 {
                     "name": "pushNewColor",
