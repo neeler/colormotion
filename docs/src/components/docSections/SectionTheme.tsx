@@ -300,19 +300,20 @@ theme.pushNewColor('blue'); // No change: the palette is full`}
             <Heading3 id="theme-palette">theme.palette</Heading3>
             <Signature of="Theme#palette" />
             <Text>
-                The last <Code>ColorPalette</Code> the <Code>Theme</Code>{' '}
-                reached: the initial palette, or the target of the most recent
-                transition that ended. When the <Code>Theme</Code> is not
-                transitioning, <Code>theme.getColor</Code> reads from it, and{' '}
+                The <Code>ColorPalette</Code> the <Code>Theme</Code> was last at
+                rest on: the initial palette, the one most recently assigned, or
+                the target of the most recent transition that finished. When the{' '}
+                <Code>Theme</Code> is not transitioning,{' '}
+                <Code>theme.getColor</Code> reads from it, and{' '}
                 <Code>theme.activePalette</Code> returns it.
             </Text>
             <Text>
                 It does not change during a transition: it becomes the{' '}
                 <TextLink href="#theme-targetPalette">target palette</TextLink>{' '}
-                only when the transition ends, and a target replaced
-                mid-transition never becomes <Code>theme.palette</Code>.
-                Meanwhile the colors are a mix that no palette holds, so read
-                them with <Code>theme.getColor</Code>.
+                only when the transition finishes, and a target that is replaced
+                or cancelled never becomes <Code>theme.palette</Code>. Meanwhile
+                the colors are a mix that no palette holds, so read them with{' '}
+                <Code>theme.getColor</Code>.
             </Text>
             <Text>
                 A <Code>palette</Code> passed to the constructor is copied with
@@ -320,15 +321,22 @@ theme.pushNewColor('blue'); // No change: the palette is full`}
                 <Code>theme.palette</Code> is not that object.
             </Text>
             <Text>
-                Assigning to <Code>palette</Code> directly is not supported:{' '}
-                <Code>theme.getColor</Code> keeps returning the old colors while{' '}
-                <Code>theme.activePalette</Code> reports the new ones,
-                subscribers are not notified, the next transition starts from
-                the old colors, and a palette with a different{' '}
-                <Code>nSteps</Code> from the theme&apos;s breaks it. To switch
-                to a palette you have, pass its colors and mode to{' '}
-                <Code>theme.update</Code>, with a{' '}
-                <Code>transitionDuration</Code> of 0 to switch at once.
+                Assigning a palette puts the <Code>Theme</Code> at rest on it at
+                once, ending any transition, and notifies subscribers: the same
+                as <Code>theme.update</Code> with its colors and mode and a{' '}
+                <Code>transitionDuration</Code> of 0, except that the
+                palette&apos;s <Code>deltaEThreshold</Code> and{' '}
+                <Code>random</Code> are kept. Assigning the palette the{' '}
+                <Code>Theme</Code> is already at rest on, or one with the same
+                colors and settings, changes nothing. A palette with a different{' '}
+                <Code>nSteps</Code> or <Code>maxNumberOfColors</Code> from the
+                theme&apos;s is rebuilt with the theme&apos;s, as the
+                constructor does, so <Code>theme.palette</Code> is then a copy
+                of it. To blend into a palette instead, assign it to{' '}
+                <TextLink href="#theme-targetPalette">
+                    theme.targetPalette
+                </TextLink>
+                .
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const theme = new Theme({ colors: ['red', 'blue'] });
@@ -339,7 +347,16 @@ theme.palette === start; // true until the transition ends
 const target = theme.targetPalette;
 
 theme.finishTransition();
-theme.palette === target; // true`}
+theme.palette === target; // true
+
+const lab = new ColorPalette({
+    colors: ['white', 'black'],
+    mode: 'lab',
+    nSteps: 2048,
+});
+theme.palette = lab; // At rest on it at once
+theme.palette === lab; // true
+theme.mode; // 'lab'`}
             </SyntaxHighlighter>
             <Heading3 id="theme-targetPalette">theme.targetPalette</Heading3>
             <Signature of="Theme#targetPalette" />
@@ -368,15 +385,24 @@ theme.palette === target; // true`}
                 transition before the call returns.
             </Text>
             <Text>
-                Assigning to <Code>targetPalette</Code> directly is not
-                supported: subscribers are not notified that a transition
-                started, <Code>theme.mode</Code> is not updated, the colors can
-                jump instead of blending, and a palette with a different{' '}
-                <Code>nSteps</Code> from the theme&apos;s gives the wrong colors
-                or makes <Code>theme.tick</Code>, <Code>theme.getColor</Code> or{' '}
-                <Code>theme.transitionDistance</Code> throw. Use the methods
-                below to set a new palette, and{' '}
-                <Code>theme.finishTransition</Code> to end a transition early.
+                Assigning a palette starts a transition to it at the default
+                speed, as <Code>theme.update</Code> does, from wherever the
+                colors are. Assigning the palette it is already heading to, or
+                one with the same colors and settings, changes nothing and keeps
+                the transition&apos;s timing; so does assigning the palette it
+                is at rest on. A palette with a different <Code>nSteps</Code> or{' '}
+                <Code>maxNumberOfColors</Code> from the theme&apos;s is rebuilt
+                with the theme&apos;s. So reading{' '}
+                <Code>theme.targetPalette</Code> back does not always give the
+                palette assigned: it can be a copy, or <Code>undefined</Code>{' '}
+                when nothing changed.
+            </Text>
+            <Text>
+                Assigning <Code>undefined</Code> cancels a transition: the{' '}
+                <Code>Theme</Code> returns to <Code>theme.palette</Code>, and{' '}
+                <Code>theme.mode</Code> to its mode, at once, and notifies
+                subscribers. To end a transition at its target instead, use{' '}
+                <Code>theme.finishTransition</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const theme = new Theme({ colors: ['red', 'blue'] });
@@ -386,8 +412,8 @@ theme.setColors(['green', 'yellow']);
 theme.isTransitioning; // true
 theme.activePalette === theme.targetPalette; // true
 
-theme.setColors(['white', 'black'], { transitionDuration: 0 });
-theme.targetPalette; // undefined: applied before the call returned`}
+theme.targetPalette = undefined; // Back on red and blue at once
+theme.targetPalette; // undefined`}
             </SyntaxHighlighter>
             <Heading3 id="theme-mode">theme.mode</Heading3>
             <Signature of="Theme#mode" />
@@ -409,20 +435,21 @@ theme.targetPalette; // undefined: applied before the call returned`}
                 given.
             </Text>
             <Text>
-                Assigning to <Code>mode</Code> directly is not supported: the
-                palettes keep their own mode, subscribers are not notified,{' '}
-                <Code>theme.update</Code> picks it up while the other methods
-                reset it, and during a transition the mixed colors come out
-                wrong. Use <Code>theme.setMode</Code>,{' '}
-                <Code>theme.rotateMode</Code>, or <Code>theme.update</Code> with
-                a <Code>mode</Code> instead, and pass a{' '}
-                <Code>transitionDuration</Code> of 0 to switch at once.
+                Assigning a mode is the same as calling{' '}
+                <TextLink href="#theme-setMode">theme.setMode</TextLink> with
+                it: the <Code>Theme</Code> transitions to its palette in that
+                mode at the default speed. To switch at once, call{' '}
+                <Code>theme.setMode</Code> with a{' '}
+                <Code>transitionDuration</Code> of 0. Assigning{' '}
+                <TextLink href="#theme-palette">theme.palette</TextLink> sets
+                the mode to that palette&apos;s at once, and cancelling a
+                transition returns it to <Code>theme.palette</Code>&apos;s.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const theme = new Theme({ colors: ['red', 'blue'] });
 theme.mode; // 'rgb'
 
-theme.setMode('oklch');
+theme.mode = 'oklch'; // The same as theme.setMode('oklch')
 theme.mode; // 'oklch'
 theme.palette.mode; // 'rgb' until the transition ends`}
             </SyntaxHighlighter>
