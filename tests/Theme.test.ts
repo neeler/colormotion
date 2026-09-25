@@ -62,6 +62,7 @@ test('uses the nSteps of the Theme when initialized with a input palette', () =>
     });
     expect(theme.activePalette).not.toBe(palette);
     expect(theme.activePalette.mode).toBe('lab');
+    expect(theme.mode).toBe('lab');
     expect(theme.activePalette.nSteps).toBe(1024);
     expect(theme.activePalette.nColors).toBe(3);
     expect(theme.activePaletteHexes).toEqual(['#ff0000', '#008000', '#0000ff']);
@@ -80,6 +81,7 @@ test('uses the mode of the Theme when initialized with a input palette', () => {
     });
     expect(theme.activePalette).not.toBe(palette);
     expect(theme.activePalette.mode).toBe('lab');
+    expect(theme.mode).toBe('lab');
     expect(theme.activePalette.nSteps).toBe(1024);
     expect(theme.activePalette.nColors).toBe(3);
     expect(theme.activePaletteHexes).toEqual(['#ff0000', '#008000', '#0000ff']);

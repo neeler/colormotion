@@ -256,29 +256,16 @@ export class Theme {
      * Defaults to 'darken'.
      */
     readonly brightnessMode: BrightnessMode;
-    /**
-     * The last palette the theme reached: the initial palette, or the target of the most recent
-     * transition that ended. It does not change during a transition, when the colors are a mix that
-     * getColor returns. Treat it as read-only: update, setColors and the other methods start the
-     * transitions that change it.
-     */
-    palette: ColorPalette;
-    /**
-     * The palette the theme is transitioning to, or undefined when it is not transitioning.
-     * Treat it as read-only: update, setColors and the other methods set it, and finishTransition
-     * ends the transition.
-     */
-    targetPalette?: ColorPalette;
+    /** Backs palette, which resyncs the theme when assigned. */
+    private _palette: ColorPalette;
+    /** Backs targetPalette, which starts or cancels a transition when assigned. */
+    private _targetPalette?: ColorPalette;
     /**
      * The global brightness factor.
      */
     private _brightness = 1;
-    /**
-     * The interpolation mode of the active palette (the target palette while transitioning): the
-     * mode in which transitions mix colors, and the one update uses when no mode is given. Treat it
-     * as read-only: setMode, rotateMode and update change it.
-     */
-    mode: InterpolationMode;
+    /** Backs mode, which transitions to the new mode when assigned. */
+    private _mode: InterpolationMode;
     private transitionSpeed = 0;
     private iColor = 0;
     private previousColorDistance?: number;
@@ -318,10 +305,15 @@ export class Theme {
      */
     private readonly sampleIndexes: number[];
     private readonly scrips = new SubscriptionManager<ThemeUpdateEvent>();
+    /**
+     * The copies adopt made of assigned palettes, so assigning the same palette again, for example on
+     * every frame, doesn't rebuild it.
+     */
+    private readonly adoptedCopies = new WeakMap<ColorPalette, ColorPalette>();
 
     constructor(config?: ThemeConfig) {
         this.nSteps = config?.nSteps ?? 2048;
-        this.mode = config?.mode ?? InterpolationModes.rgb;
+        this._mode = config?.mode ?? InterpolationModes.rgb;
         this.brightnessMode = config?.brightnessMode ?? BrightnessModes.darken;
 
         const initialPalette =
@@ -337,7 +329,7 @@ export class Theme {
             config?.deltaEThreshold ?? initialPalette?.deltaEThreshold;
 
         if (initialPalette) {
-            this.palette = new ColorPalette({
+            this._palette = new ColorPalette({
                 colors: initialPalette.colors,
                 mode: config?.mode ?? initialPalette.mode,
                 nSteps: this.nSteps,
@@ -345,14 +337,14 @@ export class Theme {
                 maxNumberOfColors: this.maxNumberOfColors,
                 random,
             });
-            this.mode = this.palette.mode;
+            this._mode = this._palette.mode;
         } else {
             const initialColors =
                 config && 'colors' in config ? config.colors : undefined;
             if (initialColors) {
-                this.palette = new ColorPalette({
+                this._palette = new ColorPalette({
                     colors: initialColors,
-                    mode: this.mode,
+                    mode: this._mode,
                     nSteps: this.nSteps,
                     deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
@@ -367,8 +359,8 @@ export class Theme {
                     config && 'minBrightness' in config
                         ? config.minBrightness
                         : 0;
-                this.palette = ColorPalette.random({
-                    mode: this.mode,
+                this._palette = ColorPalette.random({
+                    mode: this._mode,
                     nSteps: this.nSteps,
                     deltaEThreshold,
                     maxNumberOfColors: this.maxNumberOfColors,
@@ -379,7 +371,7 @@ export class Theme {
             }
         }
 
-        this.colors = this.palette.scaleColors;
+        this.colors = this._palette.scaleColors;
         this.sampleIndexes = Theme.getSampleIndexes(this.nSteps);
     }
 
@@ -410,6 +402,111 @@ export class Theme {
     }
 
     /**
+     * The palette the theme was last at rest on: the initial palette, the one most recently assigned,
+     * or the target of the most recent transition that finished (cancelling a transition leaves it
+     * unchanged). It does not change during a transition, when the colors are a mix that getColor
+     * returns.
+     */
+    get palette(): ColorPalette {
+        return this._palette;
+    }
+
+    /**
+     * Puts the theme at rest on the palette at once, ending any transition, and notifies subscribers:
+     * the same as update with the palette's colors and mode and a transitionDuration of 0, except that
+     * the palette's deltaEThreshold and random are kept. Assigning the palette the theme is already at
+     * rest on changes nothing. A palette with a different nSteps or maxNumberOfColors from the theme's
+     * is rebuilt with the theme's, as the constructor does, so reading palette back gives that copy.
+     */
+    set palette(palette: ColorPalette) {
+        const adopted = this.adopt(palette);
+        if (adopted === this._palette && !this._targetPalette) {
+            return;
+        }
+        this._mode = adopted.mode;
+        this.completeTransition(adopted);
+    }
+
+    /**
+     * The palette the theme is transitioning to, or undefined when it is not transitioning.
+     */
+    get targetPalette(): ColorPalette | undefined {
+        return this._targetPalette;
+    }
+
+    /**
+     * Transitions to the palette at the default speed, as update does, from wherever the colors are;
+     * the palette it is already heading to changes nothing, and the palette it is at rest on changes
+     * nothing either. A palette with a different nSteps or maxNumberOfColors from the theme's is
+     * rebuilt with the theme's. So reading targetPalette back does not always give the palette
+     * assigned: it can be a copy, or undefined when nothing changed.
+     * undefined cancels a transition: the theme returns to palette, and mode to its mode, at once, and
+     * notifies subscribers (finishTransition ends it at the target instead).
+     */
+    set targetPalette(palette: ColorPalette | undefined) {
+        if (palette) {
+            this.updateScale(this.adopt(palette));
+        } else if (this._targetPalette) {
+            this._mode = this._palette.mode;
+            this.completeTransition(this._palette);
+        }
+    }
+
+    /**
+     * The interpolation mode of the active palette (the target palette while transitioning): the
+     * mode in which transitions mix colors, and the one update uses when no mode is given.
+     */
+    get mode(): InterpolationMode {
+        return this._mode;
+    }
+
+    /**
+     * Transitions to the active palette in this mode at the default speed: the same as setMode.
+     */
+    set mode(mode: InterpolationMode) {
+        this.setMode(mode);
+    }
+
+    /**
+     * An assigned palette as the theme holds it: a copy with the theme's nSteps and maxNumberOfColors if
+     * it has others (as the constructor makes of a palette option), or the palette the theme is on or
+     * heading to if it has the same colors and settings, so it compares as update compares colors.
+     */
+    private adopt(palette: ColorPalette): ColorPalette {
+        let adopted = palette;
+        if (
+            palette.nSteps !== this.nSteps ||
+            palette.maxNumberOfColors !== this.maxNumberOfColors
+        ) {
+            adopted =
+                this.adoptedCopies.get(palette) ??
+                new ColorPalette({
+                    colors: palette.colors,
+                    mode: palette.mode,
+                    nSteps: this.nSteps,
+                    maxNumberOfColors: this.maxNumberOfColors,
+                    deltaEThreshold: palette.deltaEThreshold,
+                    random: palette.random,
+                });
+            this.adoptedCopies.set(palette, adopted);
+        }
+        for (const own of [this._targetPalette, this._palette]) {
+            if (
+                own &&
+                own.key === adopted.key &&
+                own.mode === adopted.mode &&
+                own.nSteps === adopted.nSteps &&
+                own.maxNumberOfColors === adopted.maxNumberOfColors &&
+                own.deltaEThreshold === adopted.deltaEThreshold &&
+                own.random === adopted.random
+            ) {
+                return own;
+            }
+        }
+        return adopted;
+    }
+
+    /**
      * The average distance between the theme's colors (before brightness) and the target palette's.
      * Measured in CIEDE2000 color distance.
      * Ranges from 0 (identical) to 100 (maximally different).
@@ -421,7 +518,7 @@ export class Theme {
      * transition, it is measured from the current colors when read.
      */
     get transitionDistance() {
-        const targetPalette = this.targetPalette;
+        const targetPalette = this._targetPalette;
         if (targetPalette && this.durationTicks !== undefined) {
             if (this.measuredDistanceTick !== this.tickCount) {
                 this.measuredDistance =
@@ -437,7 +534,7 @@ export class Theme {
      * Whether the theme is transitioning to a target palette.
      */
     get isTransitioning() {
-        return this.targetPalette !== undefined;
+        return this._targetPalette !== undefined;
     }
 
     /**
@@ -445,7 +542,7 @@ export class Theme {
      * otherwise. During a transition, getColor returns a mix of the starting colors and this palette.
      */
     get activePalette(): Readonly<ColorPalette> {
-        return this.targetPalette ?? this.palette;
+        return this._targetPalette ?? this._palette;
     }
 
     /**
@@ -515,7 +612,7 @@ export class Theme {
      * The scale color at an index right now: at rest, or mixed at the transition's progress.
      */
     private currentColor(index: number): Color {
-        const targetPalette = this.targetPalette;
+        const targetPalette = this._targetPalette;
         if (!targetPalette || this.progress === 0) {
             return this.colors[index] as Color;
         }
@@ -525,10 +622,10 @@ export class Theme {
         const from = this.colors[index] as Color;
         const to = targetPalette.scaleColors[index] as Color;
         const color = mixCoords(
-            (this.fromCoords[index] ??= toModeCoords(from, this.mode)),
-            (this.toCoords[index] ??= toModeCoords(to, this.mode)),
+            (this.fromCoords[index] ??= toModeCoords(from, this._mode)),
+            (this.toCoords[index] ??= toModeCoords(to, this._mode)),
             this.progress,
-            this.mode,
+            this._mode,
             from.alpha(),
             to.alpha(),
         );
@@ -578,9 +675,9 @@ export class Theme {
     private get status(): ThemeUpdateEvent {
         return {
             palette: this.activePalette,
-            isTransitioning: Boolean(this.targetPalette),
+            isTransitioning: Boolean(this._targetPalette),
             colors: this.activePalette.scaleColors,
-            mode: this.mode,
+            mode: this._mode,
             brightness: this.brightness,
         };
     }
@@ -615,11 +712,13 @@ export class Theme {
             transitionDuration,
         }: ColorUpdateConfig = {},
     ) {
-        if (targetPalette === this.palette) {
+        // at rest, the palette the theme is on changes nothing; mid-transition it is a target like
+        // any other (only the targetPalette setter passes the palette itself)
+        if (targetPalette === this._palette && !this._targetPalette) {
             return;
         }
         const duration = normalizeDuration(transitionDuration);
-        if (targetPalette === this.targetPalette) {
+        if (targetPalette === this._targetPalette) {
             if (duration === undefined || duration === this.durationTicks) {
                 return;
             }
@@ -635,24 +734,24 @@ export class Theme {
         }
         if (duration === 0) {
             // nothing to mix: adopt the palette now, even mid-transition
-            this.mode = targetPalette.mode;
+            this._mode = targetPalette.mode;
             this.completeTransition(targetPalette);
             return;
         }
         // a new target mid-transition starts from wherever the colors are now
-        if (this.targetPalette) {
+        if (this._targetPalette) {
             this.colors = Array.from({ length: this.nSteps }, (_, i) =>
                 this.currentColor(i),
             );
         }
-        this.mode = targetPalette.mode;
+        this._mode = targetPalette.mode;
         const speed = clamp(transitionSpeed, 0, 1);
         this.transitionSpeed =
             (Number.isNaN(speed) ? DEFAULT_TRANSITION_SPEED : speed) / 10;
         this.durationTicks = duration;
         this.elapsedTicks = 0;
         this.progressBase = 0;
-        this.targetPalette = targetPalette;
+        this._targetPalette = targetPalette;
         this.previousColorDistance = undefined;
         this.resetMixing();
         this.publish();
@@ -664,7 +763,7 @@ export class Theme {
      */
     update({
         colors,
-        mode = this.mode,
+        mode = this._mode,
         ...options
     }: {
         colors: ColorInput[];
@@ -819,7 +918,7 @@ export class Theme {
      * Does nothing when the theme is not transitioning.
      */
     finishTransition() {
-        const targetPalette = this.targetPalette;
+        const targetPalette = this._targetPalette;
         if (targetPalette) {
             this.completeTransition(targetPalette);
         }
@@ -829,9 +928,9 @@ export class Theme {
      * Finish the transition by adopting the target palette.
      */
     private completeTransition(targetPalette: ColorPalette) {
-        this.palette = targetPalette;
+        this._palette = targetPalette;
         this.colors = targetPalette.scaleColors;
-        this.targetPalette = undefined;
+        this._targetPalette = undefined;
         this.previousColorDistance = undefined;
         this.durationTicks = undefined;
         this.elapsedTicks = 0;
@@ -856,7 +955,7 @@ export class Theme {
     }
 
     private transitionPalette() {
-        const targetPalette = this.targetPalette;
+        const targetPalette = this._targetPalette;
         if (!targetPalette) {
             return;
         }
