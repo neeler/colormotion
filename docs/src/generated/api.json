@@ -68,12 +68,18 @@
         "Theme#brightnessMode": {
             "code": "readonly brightnessMode: BrightnessMode;"
         },
-        "Theme#palette": { "code": "palette: ColorPalette;" },
-        "Theme#targetPalette": { "code": "targetPalette?: ColorPalette;" },
-        "Theme#mode": { "code": "mode: InterpolationMode;" },
         "new Theme": { "code": "new Theme(config?: ThemeConfig);" },
         "Theme.random": {
             "code": "static random(config: ThemeConfig & { nColors: number }): Theme;"
+        },
+        "Theme#palette": {
+            "code": "get palette(): ColorPalette;\nset palette(palette: ColorPalette);"
+        },
+        "Theme#targetPalette": {
+            "code": "get targetPalette(): ColorPalette | undefined;\nset targetPalette(palette: ColorPalette | undefined);"
+        },
+        "Theme#mode": {
+            "code": "get mode(): InterpolationMode;\nset mode(mode: InterpolationMode);"
         },
         "Theme#transitionDistance": {
             "code": "get transitionDistance(): number | undefined;"
@@ -378,7 +384,7 @@
             "fields": []
         },
         "Theme": {
-            "code": "class Theme {\n    readonly nSteps: number;\n    readonly maxNumberOfColors: number;\n    readonly brightnessMode: BrightnessMode;\n    palette: ColorPalette;\n    targetPalette?: ColorPalette;\n    mode: InterpolationMode;\n    constructor(config?: ThemeConfig);\n    static random(config: ThemeConfig & { nColors: number }): Theme;\n    get transitionDistance(): number | undefined;\n    get isTransitioning(): boolean;\n    get activePalette(): Readonly<ColorPalette>;\n    get activePaletteHexes(): string[];\n    get brightness(): number;\n    set brightness(brightness: number);\n    subscribe(callback: ThemeUpdateCallback): ThemeUpdateEvent;\n    unsubscribe(callback: ThemeUpdateCallback): void;\n    getColor(index?: number, options?: { brightness?: number }): Color;\n    update(\n        options: {\n            colors: ColorInput[];\n            mode?: InterpolationMode;\n        } & ColorUpdateConfig,\n    ): void;\n    setMode(mode?: InterpolationMode, options?: ColorUpdateConfig): void;\n    rotateMode(options?: ColorUpdateConfig): void;\n    setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig): void;\n    randomFrom(\n        color: ColorInput,\n        options?: ColorUpdateConfig & RandomPaletteConfig,\n    ): void;\n    randomTheme(options?: ColorUpdateConfig & RandomPaletteConfig): void;\n    normalizeIndex(index?: number): number;\n    pushNewColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    pushRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    popOldestColor(options?: ColorUpdateConfig): void;\n    rotateColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    finishTransition(): void;\n    tick(n?: number): void;\n}",
+            "code": "class Theme {\n    readonly nSteps: number;\n    readonly maxNumberOfColors: number;\n    readonly brightnessMode: BrightnessMode;\n    constructor(config?: ThemeConfig);\n    static random(config: ThemeConfig & { nColors: number }): Theme;\n    get palette(): ColorPalette;\n    set palette(palette: ColorPalette);\n    get targetPalette(): ColorPalette | undefined;\n    set targetPalette(palette: ColorPalette | undefined);\n    get mode(): InterpolationMode;\n    set mode(mode: InterpolationMode);\n    get transitionDistance(): number | undefined;\n    get isTransitioning(): boolean;\n    get activePalette(): Readonly<ColorPalette>;\n    get activePaletteHexes(): string[];\n    get brightness(): number;\n    set brightness(brightness: number);\n    subscribe(callback: ThemeUpdateCallback): ThemeUpdateEvent;\n    unsubscribe(callback: ThemeUpdateCallback): void;\n    getColor(index?: number, options?: { brightness?: number }): Color;\n    update(\n        options: {\n            colors: ColorInput[];\n            mode?: InterpolationMode;\n        } & ColorUpdateConfig,\n    ): void;\n    setMode(mode?: InterpolationMode, options?: ColorUpdateConfig): void;\n    rotateMode(options?: ColorUpdateConfig): void;\n    setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig): void;\n    randomFrom(\n        color: ColorInput,\n        options?: ColorUpdateConfig & RandomPaletteConfig,\n    ): void;\n    randomTheme(options?: ColorUpdateConfig & RandomPaletteConfig): void;\n    normalizeIndex(index?: number): number;\n    pushNewColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    pushRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    popOldestColor(options?: ColorUpdateConfig): void;\n    rotateColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    finishTransition(): void;\n    tick(n?: number): void;\n}",
             "doc": "A dynamic color theme that can be updated and transitioned between different color palettes.",
             "fields": [
                 {
@@ -394,20 +400,20 @@
                     "doc": "How brightness is applied to the colors getColor returns.\nDefaults to 'darken'."
                 },
                 {
+                    "name": "static random",
+                    "doc": "Creates a theme with a palette of nColors random colors: the same as new Theme(config), with\nnColors required. A palette or colors option takes precedence over nColors."
+                },
+                {
                     "name": "palette",
-                    "doc": "The last palette the theme reached: the initial palette, or the target of the most recent\ntransition that ended. It does not change during a transition, when the colors are a mix that\ngetColor returns. Treat it as read-only: update, setColors and the other methods start the\ntransitions that change it."
+                    "doc": "The palette the theme was last at rest on: the initial palette, the one most recently assigned,\nor the target of the most recent transition that finished (cancelling a transition leaves it\nunchanged). It does not change during a transition, when the colors are a mix that getColor\nreturns.\nPuts the theme at rest on the palette at once, ending any transition, and notifies subscribers:\nthe same as update with the palette's colors and mode and a transitionDuration of 0, except that\nthe palette's deltaEThreshold and random are kept. Assigning the palette the theme is already at\nrest on changes nothing. A palette with a different nSteps or maxNumberOfColors from the theme's\nis rebuilt with the theme's, as the constructor does, so reading palette back gives that copy."
                 },
                 {
                     "name": "targetPalette",
-                    "doc": "The palette the theme is transitioning to, or undefined when it is not transitioning.\nTreat it as read-only: update, setColors and the other methods set it, and finishTransition\nends the transition."
+                    "doc": "The palette the theme is transitioning to, or undefined when it is not transitioning.\nTransitions to the palette at the default speed, as update does, from wherever the colors are;\nthe palette it is already heading to changes nothing, and the palette it is at rest on changes\nnothing either. A palette with a different nSteps or maxNumberOfColors from the theme's is\nrebuilt with the theme's. So reading targetPalette back does not always give the palette\nassigned: it can be a copy, or undefined when nothing changed.\nundefined cancels a transition: the theme returns to palette, and mode to its mode, at once, and\nnotifies subscribers (finishTransition ends it at the target instead)."
                 },
                 {
                     "name": "mode",
-                    "doc": "The interpolation mode of the active palette (the target palette while transitioning): the\nmode in which transitions mix colors, and the one update uses when no mode is given. Treat it\nas read-only: setMode, rotateMode and update change it."
-                },
-                {
-                    "name": "static random",
-                    "doc": "Creates a theme with a palette of nColors random colors: the same as new Theme(config), with\nnColors required. A palette or colors option takes precedence over nColors."
+                    "doc": "The interpolation mode of the active palette (the target palette while transitioning): the\nmode in which transitions mix colors, and the one update uses when no mode is given.\nTransitions to the active palette in this mode at the default speed: the same as setMode."
                 },
                 {
                     "name": "transitionDistance",
