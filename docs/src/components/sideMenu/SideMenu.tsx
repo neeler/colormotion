@@ -2,6 +2,39 @@ import { TYPE_SECTIONS, typeAnchor } from '~/components/api/api';
 import { L1MenuItem } from '~/components/sideMenu/L1MenuItem';
 import { L2MenuItem } from '~/components/sideMenu/L2MenuItem';
 
+/** The Theme section's headings, in page order: [anchor id, title]. */
+const THEME_SECTIONS: [string, string][] = [
+    ['theme-random', 'Theme.random'],
+    ['theme-nSteps', 'theme.nSteps'],
+    ['theme-maxNumberOfColors', 'theme.maxNumberOfColors'],
+    ['theme-activePalette', 'theme.activePalette'],
+    ['theme-activePaletteHexes', 'theme.activePaletteHexes'],
+    ['theme-palette', 'theme.palette'],
+    ['theme-targetPalette', 'theme.targetPalette'],
+    ['theme-mode', 'theme.mode'],
+    ['theme-brightness', 'theme.brightness'],
+    ['theme-brightnessMode', 'theme.brightnessMode'],
+    ['theme-getColor', 'theme.getColor'],
+    ['theme-normalizeIndex', 'theme.normalizeIndex'],
+    ['theme-update', 'theme.update'],
+    ['theme-setMode', 'theme.setMode'],
+    ['theme-rotateMode', 'theme.rotateMode'],
+    ['theme-setColors', 'theme.setColors'],
+    ['theme-randomFrom', 'theme.randomFrom'],
+    ['theme-randomTheme', 'theme.randomTheme'],
+    ['theme-pushNewColor', 'theme.pushNewColor'],
+    ['theme-pushRandomColor', 'theme.pushRandomColor'],
+    ['theme-popOldestColor', 'theme.popOldestColor'],
+    ['theme-rotateColor', 'theme.rotateColor'],
+    ['theme-rotateRandomColor', 'theme.rotateRandomColor'],
+    ['theme-tick', 'theme.tick'],
+    ['theme-isTransitioning', 'theme.isTransitioning'],
+    ['theme-transitionDistance', 'theme.transitionDistance'],
+    ['theme-finishTransition', 'theme.finishTransition'],
+    ['theme-subscribe', 'theme.subscribe'],
+    ['theme-unsubscribe', 'theme.unsubscribe'],
+];
+
 export function SideMenu({
     colorSpace = 20,
     className,
@@ -32,116 +65,26 @@ export function SideMenu({
                     href="#theme"
                     title="Theme"
                 >
-                    <L2MenuItem
-                        colorOffset={4 * colorSpace}
-                        href="#theme-activePalette"
-                        title="theme.activePalette"
-                    />
-                    <L2MenuItem
-                        colorOffset={5 * colorSpace}
-                        href="#theme-activePaletteHexes"
-                        title="theme.activePaletteHexes"
-                    />
-                    <L2MenuItem
-                        colorOffset={6 * colorSpace}
-                        href="#theme-brightness"
-                        title="theme.brightness"
-                    />
-                    <L2MenuItem
-                        colorOffset={7 * colorSpace}
-                        href="#theme-getColor"
-                        title="theme.getColor"
-                    />
-                    <L2MenuItem
-                        colorOffset={8 * colorSpace}
-                        href="#theme-update"
-                        title="theme.update"
-                    />
-                    <L2MenuItem
-                        colorOffset={9 * colorSpace}
-                        href="#theme-setMode"
-                        title="theme.setMode"
-                    />
-                    <L2MenuItem
-                        colorOffset={10 * colorSpace}
-                        href="#theme-rotateMode"
-                        title="theme.rotateMode"
-                    />
-                    <L2MenuItem
-                        colorOffset={11 * colorSpace}
-                        href="#theme-setColors"
-                        title="theme.setColors"
-                    />
-                    <L2MenuItem
-                        colorOffset={12 * colorSpace}
-                        href="#theme-randomFrom"
-                        title="theme.randomFrom"
-                    />
-                    <L2MenuItem
-                        colorOffset={13 * colorSpace}
-                        href="#theme-randomTheme"
-                        title="theme.randomTheme"
-                    />
-                    <L2MenuItem
-                        colorOffset={14 * colorSpace}
-                        href="#theme-pushNewColor"
-                        title="theme.pushNewColor"
-                    />
-                    <L2MenuItem
-                        colorOffset={15 * colorSpace}
-                        href="#theme-pushRandomColor"
-                        title="theme.pushRandomColor"
-                    />
-                    <L2MenuItem
-                        colorOffset={16 * colorSpace}
-                        href="#theme-popOldestColor"
-                        title="theme.popOldestColor"
-                    />
-                    <L2MenuItem
-                        colorOffset={17 * colorSpace}
-                        href="#theme-rotateColor"
-                        title="theme.rotateColor"
-                    />
-                    <L2MenuItem
-                        colorOffset={18 * colorSpace}
-                        href="#theme-rotateRandomColor"
-                        title="theme.rotateRandomColor"
-                    />
-                    <L2MenuItem
-                        colorOffset={19 * colorSpace}
-                        href="#theme-tick"
-                        title="theme.tick"
-                    />
-                    <L2MenuItem
-                        colorOffset={20 * colorSpace}
-                        href="#theme-isTransitioning"
-                        title="theme.isTransitioning"
-                    />
-                    <L2MenuItem
-                        colorOffset={21 * colorSpace}
-                        href="#theme-finishTransition"
-                        title="theme.finishTransition"
-                    />
-                    <L2MenuItem
-                        colorOffset={22 * colorSpace}
-                        href="#theme-subscribe"
-                        title="theme.subscribe"
-                    />
-                    <L2MenuItem
-                        colorOffset={23 * colorSpace}
-                        href="#theme-unsubscribe"
-                        title="theme.unsubscribe"
-                    />
+                    {THEME_SECTIONS.map(([id, title], i) => (
+                        <L2MenuItem
+                            key={id}
+                            colorOffset={(4 + i) * colorSpace}
+                            href={`#${id}`}
+                            title={title}
+                        />
+                    ))}
                 </L1MenuItem>
                 <L1MenuItem
-                    colorOffset={24 * colorSpace}
+                    colorOffset={(4 + THEME_SECTIONS.length) * colorSpace}
                     href="#types"
                     title="Types"
                 >
                     {TYPE_SECTIONS.map((name, i) => (
                         <L2MenuItem
                             key={name}
-                            colorOffset={(25 + i) * colorSpace}
+                            colorOffset={
+                                (5 + THEME_SECTIONS.length + i) * colorSpace
+                            }
                             href={`#${typeAnchor(name)}`}
                             title={name}
                         />

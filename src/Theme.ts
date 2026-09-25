@@ -76,6 +76,8 @@ export type InitialThemeColors =
           /**
            * The initial color palette.
            * Takes precedence over colors and nColors.
+           * The theme builds its own copy from the palette's colors, with the theme's nSteps and any
+           * mode, maxNumberOfColors, deltaEThreshold or random option given in place of the palette's.
            */
           palette?: ColorPalette;
       }
@@ -88,7 +90,8 @@ export type InitialThemeColors =
     | {
           /**
            * The initial number of colors in the palette.
-           * N random colors will be generated if colors is not provided.
+           * N random colors will be generated if neither palette nor colors is provided,
+           * up to maxNumberOfColors.
            * Defaults to 5.
            */
           nColors?: number;
@@ -105,12 +108,15 @@ export type InitialThemeColors =
  */
 export const BrightnessModes = {
     /**
-     * Darkens colors in CIELAB space. Colors keep some luminance at brightness 0.
+     * Darkens colors in CIELAB space, lowering the lightness by up to 54 (of 100) at brightness 0.
+     * Colors lighter than lightness 54 keep some light at brightness 0 (white becomes #6d6d6d), and
+     * many saturated colors keep a dim tint (#0000ff becomes #000069); mid and dark greys and dark,
+     * muted colors reach black.
      */
     darken: 'darken',
     /**
      * Scales the RGB channels linearly. Brightness 0 is black (LEDs off)
-     * and 0.5 is half output.
+     * and 0.5 halves every channel.
      */
     linear: 'linear',
 } as const;
@@ -126,30 +132,31 @@ export type ThemeConfig = InitialThemeColors & {
     nSteps?: number;
     /**
      * The color interpolation mode to use between colors in the palette.
-     * Defaults to RGB.
+     * Defaults to the palette option's mode if one is given, and to RGB otherwise.
      */
     mode?: InterpolationMode;
     /**
      * The minimum threshold for the CIEDE2000 color distance between colors in the palette.
-     * Defaults to 20.
+     * Defaults to the palette option's deltaEThreshold if one is given, and to 20 otherwise.
      */
     deltaEThreshold?: number;
     /**
      * Max number of colors in the palette.
-     * Defaults to 8.
+     * Defaults to the palette option's maxNumberOfColors if one is given, and to 8 otherwise.
      */
     maxNumberOfColors?: number;
     /**
      * Random number generator used when generating random colors.
      * Supply a seeded generator for reproducible palettes.
-     * Defaults to Math.random.
+     * Defaults to the palette option's random if one is given, and to Math.random otherwise.
      */
     random?: RandomFunction;
     /**
      * How brightness is applied to colors.
-     * 'darken' (the default) darkens in CIELAB space, so colors keep some
-     * luminance even at brightness 0. 'linear' scales the RGB channels, so
-     * brightness 0 is black and 0.5 is half output.
+     * 'darken' (the default) darkens in CIELAB space, so light and saturated
+     * colors can keep some light even at brightness 0 (white becomes #6d6d6d).
+     * 'linear' scales the RGB channels, so brightness 0 is black and 0.5
+     * halves every channel.
      */
     brightnessMode?: BrightnessMode;
 };
@@ -205,7 +212,7 @@ export interface ColorUpdateConfig {
 
 export interface ThemeUpdateEvent {
     /**
-     * The current color palette.
+     * The active palette: the target palette while transitioning.
      */
     palette: Readonly<ColorPalette>;
     /**
@@ -241,20 +248,25 @@ export class Theme {
     readonly nSteps: number;
     /**
      * Max number of colors allowed in the theme's palettes.
-     * Defaults to 8.
+     * Defaults to the palette option's maxNumberOfColors if one is given, and to 8 otherwise.
      */
     readonly maxNumberOfColors: number;
     /**
-     * How brightness is applied to colors.
+     * How brightness is applied to the colors getColor returns.
      * Defaults to 'darken'.
      */
     readonly brightnessMode: BrightnessMode;
     /**
-     * The active palette to use for color generation.
+     * The last palette the theme reached: the initial palette, or the target of the most recent
+     * transition that ended. It does not change during a transition, when the colors are a mix that
+     * getColor returns. Treat it as read-only: update, setColors and the other methods start the
+     * transitions that change it.
      */
     palette: ColorPalette;
     /**
-     * The target palette to transition to.
+     * The palette the theme is transitioning to, or undefined when it is not transitioning.
+     * Treat it as read-only: update, setColors and the other methods set it, and finishTransition
+     * ends the transition.
      */
     targetPalette?: ColorPalette;
     /**
@@ -262,7 +274,9 @@ export class Theme {
      */
     private _brightness = 1;
     /**
-     * The interpolation mode to use between colors in the palette.
+     * The interpolation mode of the active palette (the target palette while transitioning): the
+     * mode in which transitions mix colors, and the one update uses when no mode is given. Treat it
+     * as read-only: setMode, rotateMode and update change it.
      */
     mode: InterpolationMode;
     private transitionSpeed = 0;
@@ -383,6 +397,10 @@ export class Theme {
         return indexes;
     }
 
+    /**
+     * Creates a theme with a palette of nColors random colors: the same as new Theme(config), with
+     * nColors required. A palette or colors option takes precedence over nColors.
+     */
     static random(
         config: ThemeConfig & {
             nColors: number;
@@ -392,15 +410,15 @@ export class Theme {
     }
 
     /**
-     * The average distance between the colors in the current and target palettes.
+     * The average distance between the theme's colors (before brightness) and the target palette's.
      * Measured in CIEDE2000 color distance.
      * Ranges from 0 (identical) to 100 (maximally different).
      * Estimated from an evenly spaced sample of the scale colors.
      * Returns undefined if there is no target palette.
      * During a transitionSpeed transition, this is the distance measured at the
-     * start of the last tick, and undefined until the first tick after the
-     * target changed. During a transitionDuration transition, it is measured
-     * from the current colors when read.
+     * start of the most recent tick, before the colors moved, and undefined until
+     * the first tick after the target changed. During a transitionDuration
+     * transition, it is measured from the current colors when read.
      */
     get transitionDistance() {
         const targetPalette = this.targetPalette;
@@ -423,7 +441,8 @@ export class Theme {
     }
 
     /**
-     * The active palette to use for color generation.
+     * The palette the theme is at or heading to: targetPalette while transitioning, and palette
+     * otherwise. During a transition, getColor returns a mix of the starting colors and this palette.
      */
     get activePalette(): Readonly<ColorPalette> {
         return this.targetPalette ?? this.palette;
@@ -728,8 +747,8 @@ export class Theme {
     }
 
     /**
-     * Get the color at the given index in the theme.
-     * Rounds and normalizes the index so that it is within the bounds of the color scale.
+     * The position in the color scale that getColor(index) reads: the index plus the wheel position
+     * that tick() moves, each rounded to a whole step, wrapped into the range 0 to nSteps - 1.
      * An index that is not a finite number (NaN, Infinity) counts as 0.
      */
     normalizeIndex(index = 0) {
