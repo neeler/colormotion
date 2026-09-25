@@ -107,6 +107,11 @@ export class ColorPalette {
     readonly nColors: number;
     readonly mode: InterpolationMode;
     readonly nSteps: number;
+    /**
+     * chroma-js's scale over the palette colors. The palette's own colors (scaleColors, and so a Theme's)
+     * follow chroma's interpolation except near hue-less ends, where colormotion's mix reaches the end and
+     * chroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI.
+     */
     readonly scale: Scale;
     readonly scaleColors: Color[];
     readonly maxNumberOfColors: number;
@@ -229,16 +234,15 @@ export class ColorPalette {
         // sampled once anyway.
         this.scale.cache(false);
         if (
-            Number.isInteger(nSteps) &&
+            Number.isFinite(nSteps) &&
             nSteps > 0 &&
             this.colors.length > 1 &&
             Object.prototype.hasOwnProperty.call(InterpolationModes, mode)
         ) {
-            // The colors scale.colors would return, converting each palette
-            // color once. chroma.scale still samples step counts that aren't
-            // positive integers (it spaces samples by (nSteps + 1) - 1, which
-            // can round), single colors (which it duplicates), and modes
-            // outside InterpolationModes (which it handles itself).
+            // The samples scale.colors would take, converting each palette
+            // color once and mixing with colormotion's rules. chroma.scale
+            // still samples step counts of 0 or less, single colors (which it
+            // duplicates), and modes outside InterpolationModes.
             this.scaleColors = sampleScale(this.colors, mode, nSteps);
         } else {
             // Request Color objects directly rather than hex strings,

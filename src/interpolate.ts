@@ -3,14 +3,15 @@ import { InterpolationMode } from './InterpolationMode';
 import { clamp } from './clamp';
 
 /**
- * A color's coordinates in the space an interpolation mode mixes in, exactly as chroma-js reads them
+ * A color's coordinates in the space an interpolation mode mixes in, as chroma-js reads them
  * (including any trailing alpha chroma returns). Converting once and reusing the coordinates is what
  * makes repeated mixing cheap: chroma.mix converts both colors on every call.
  */
 export type ModeCoords = number[];
 
 /**
- * The coordinates chroma.mix(color, ·, f, mode) would read from `color`.
+ * The coordinates chroma.mix(color, ·, f, mode) would read from `color`, except that a saturated color
+ * gets an HSI hue where chroma's rounding leaves none (see hsiHue).
  */
 export function toModeCoords(
     color: Color,
@@ -28,8 +29,13 @@ export function toModeCoords(
             return color.hsl();
         case 'hsv':
             return color.hsv();
-        case 'hsi':
-            return color.hsi();
+        case 'hsi': {
+            const hsi = color.hsi();
+            if (isNaN(hsi[0]!) && hsi[1]! > 0) {
+                hsi[0] = hsiHue(color);
+            }
+            return hsi;
+        }
         case 'lch':
         case 'hcl':
             return color.hcl();
@@ -39,10 +45,33 @@ export function toModeCoords(
 }
 
 /**
+ * The HSI hue of a saturated color, as chroma-js computes it (src/io/hsi/rgb2hsi.js) but with the
+ * arccosine's argument clamped to [-1, 1]. For colors that come out of HSI mixing, such as halfway
+ * from red to black, (127.5, 1.4e-14, 0), rounding puts it a hair outside [-1, 1], and chroma returns
+ * NaN, as if the color were a gray.
+ */
+function hsiHue(color: Color) {
+    const [r255, g255, b255] = color.rgb(false) as [number, number, number];
+    const r = r255 / 255;
+    const g = g255 / 255;
+    const b = b255 / 255;
+    const cos =
+        (r - g + (r - b)) /
+        2 /
+        Math.sqrt((r - g) * (r - g) + (r - b) * (g - b));
+    let h = Math.acos(clamp(cos, -1, 1));
+    if (b > g) {
+        h = 2 * Math.PI - h;
+    }
+    return (h / (2 * Math.PI)) * 360;
+}
+
+/**
  * Mixes two colors given their mode coordinates: the same result as
  * chroma.mix(color0, color1, f, mode), without converting either color.
  * Mirrors the arithmetic of chroma-js 3's interpolators (src/interpolator/*.js) expression for
- * expression and builds the same Color chroma.mix returns, so results are identical, not just close.
+ * expression and builds the same Color chroma.mix returns, so results are identical, not just close,
+ * except where chroma's mix can't reach an endpoint (see mixHsx).
  */
 export function mixCoords(
     xyz0: ModeCoords,
@@ -116,8 +145,27 @@ function mixOpaque(
 }
 
 /**
+ * Whether mixing toward a hue-less end with this lightness keeps the other color's saturation, as chroma
+ * does: only where the end looks the same at any saturation (black and white in HSL, black in HSI).
+ */
+function keepsSaturation(mode: string, lbv: number) {
+    return (
+        (mode === 'hsl' && (lbv === 1 || lbv === 0)) ||
+        (mode === 'hsi' && lbv === 0)
+    );
+}
+
+/**
  * Hue-based modes, mirroring chroma-js's _hsx interpolator: shortest way around the hue circle,
- * and a missing hue (a gray) takes the other color's.
+ * and a missing hue (a gray) takes the other color's. Two departures, so every mix reaches its ends:
+ * - When one end has no hue and a lightness of exactly 0 or 1 on the mode's scale, chroma keeps the
+ *   other color's saturation (chroma) the whole way. That is harmless where such a color looks the same
+ *   at any saturation: black and white in HSL, black in HSI, so it stays there. But in LCH, HCL and
+ *   OKLCH it applies to black (lightness 0), and the mix never gets there: red toward black ends as a
+ *   dark red. In HSI it applies to white (intensity 1), and blue toward white stays blue. There the
+ *   saturation runs to the other end's own, as it does toward any gray.
+ * - In HSV, a hue a hair below 0 wraps to exactly 360, which chroma turns into NaN channels, so hues
+ *   are wrapped into [0, 360) first.
  */
 function mixHsx(
     xyz0: ModeCoords,
@@ -143,12 +191,16 @@ function mixHsx(
         hue = hue0 + f * dh;
     } else if (!isNaN(hue0)) {
         hue = hue0;
-        if ((lbv1 == 1 || lbv1 == 0) && m != 'hsv') sat = sat0;
+        if (keepsSaturation(m, lbv1)) sat = sat0;
     } else if (!isNaN(hue1)) {
         hue = hue1;
-        if ((lbv0 == 1 || lbv0 == 0) && m != 'hsv') sat = sat1;
+        if (keepsSaturation(m, lbv0)) sat = sat1;
     } else {
         hue = Number.NaN;
+    }
+    if (m === 'hsv') {
+        if (hue < 0) hue += 360;
+        if (hue >= 360) hue -= 360;
     }
     if (sat === undefined) sat = sat0 + f * (sat1 - sat0);
     const lbv = lbv0 + f * (lbv1 - lbv0);
@@ -162,7 +214,7 @@ function mixHsx(
  * segment to the mode's coordinates (except in rgb and lrgb) and builds each color twice; this converts
  * each stop once. Mirrors chroma-js 3's scale (src/generator/scale.js): the same sample positions,
  * computed the same way, and the stops themselves (not copies) wherever a sample lands on one.
- * nSteps must be a positive integer and there must be at least two colors.
+ * nSteps must be a positive finite number and there must be at least two colors.
  */
 export function sampleScale(
     colors: Color[],
@@ -198,13 +250,17 @@ export function sampleScale(
         return stops[last]!;
     };
 
+    // scale.colors(nSteps + 1) spreads its samples over the domain [0, nSteps], (nSteps + 1) - 1 apart
+    // (which rounds for a fractional nSteps), and the scale maps each back to [0, 1]. chroma's arithmetic
+    // is kept as is so the rounding matches; the last sample (the domain's end) is dropped.
+    const numColors = nSteps + 1;
+    const spacing = numColors - 1;
+    const count = Math.ceil(numColors) - 1;
     // sized up front: an array grown by pushing keeps its spare capacity for as long as the palette lives
-    const sampled = new Array<Color>(nSteps);
-    for (let step = 0; step < nSteps; step++) {
-        // chroma's arithmetic, kept rather than simplified to step / nSteps so the rounding matches:
-        // scale.colors spreads its samples over the domain [0, nSteps], and the scale maps each back to [0, 1]
+    const sampled = new Array<Color>(count);
+    for (let step = 0; step < count; step++) {
         sampled[step] = sampleAt(
-            Math.min(Math.max(0, ((step / nSteps) * nSteps) / nSteps), 1),
+            Math.min(Math.max(0, ((step / spacing) * nSteps) / nSteps), 1),
         );
     }
     return sampled;

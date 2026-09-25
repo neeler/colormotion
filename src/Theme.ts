@@ -34,11 +34,10 @@ const DEFAULT_TRANSITION_SPEED = 0.1;
 const SETTLED_DISTANCE = 0.5;
 
 /**
- * A transitionSpeed transition also snaps to its target once this little of the mix is left (99.9999 %
- * done), whatever the distance. Mixing toward a color with no hue in LCH, OKLCH or HSI keeps the other
- * color's chroma or saturation (as chroma.mix does), so those colors never reach the target and the distance
- * stops above SETTLED_DISTANCE. A transition that can reach its target is within SETTLED_DISTANCE well
- * before this, even in lrgb, where the distance falls only with the square root of what is left.
+ * A backstop: a transitionSpeed transition also snaps to its target once this little of the mix is left
+ * (99.9999 % done), whatever the distance, in case its colors ever stop short of the target. colormotion's
+ * mixing reaches its ends in every mode, and a transition that does is within SETTLED_DISTANCE well before
+ * this, even in lrgb, where the distance falls only with the square root of what is left.
  */
 const SETTLED_REMAINING = 1e-6;
 
