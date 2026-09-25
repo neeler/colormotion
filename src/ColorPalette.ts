@@ -122,7 +122,11 @@ export class ColorPalette {
      * Normalizes the input colors to chroma-js colors.
      */
     static normalizeColors(colorInputs: ColorInput[]) {
-        const colors = colorInputs.map((value) => chroma(value));
+        const colors = colorInputs.map((value) => {
+            const color = chroma(value);
+            // chroma's oklch and oklab constructors leave alpha undefined (NaN): such a color is opaque
+            return Number.isNaN(color.alpha()) ? color.alpha(1) : color;
+        });
 
         // Ensure that the palette has colors
         const firstColor = colors[0] ?? chroma('green');
@@ -148,6 +152,22 @@ export class ColorPalette {
         }
 
         return colors.slice(0, maxNumberOfColors);
+    }
+
+    /**
+     * Normalized colors cut to their first maxNumberOfColors, still closing the wheel. The cut comes after
+     * normalizing, so a cut list that happens to end on the first color keeps it as a color of its own.
+     * (Such a palette's hexes, given back as colors, normalize to one color fewer.)
+     */
+    private static cropColors(colors: Color[], maxNumberOfColors: number) {
+        if (colors.length > maxNumberOfColors + 1) {
+            return ColorPalette.normalizeColors(
+                ColorPalette.clampColors(colors, maxNumberOfColors).concat(
+                    colors[0]!,
+                ),
+            );
+        }
+        return colors;
     }
 
     private static analyzeColors(colors: ColorInput[]) {
@@ -207,16 +227,10 @@ export class ColorPalette {
         this.maxNumberOfColors = maxNumberOfColors;
         this.deltaEThreshold = deltaEThreshold;
         this.random = random;
-        this.colors = normalizedColors ?? ColorPalette.normalizeColors(colors);
-
-        if (this.colors.length > maxNumberOfColors + 1) {
-            // Crop the colors to the max number of colors
-            this.colors = ColorPalette.normalizeColors(
-                ColorPalette.clampColors(this.colors, maxNumberOfColors).concat(
-                    this.colors[0],
-                ),
-            );
-        }
+        this.colors = ColorPalette.cropColors(
+            normalizedColors ?? ColorPalette.normalizeColors(colors),
+            maxNumberOfColors,
+        );
 
         // Don't count the duplicate color at the end of the wheel
         this.nColors = this.colors.length - 1;
@@ -319,7 +333,14 @@ export class ColorPalette {
     newColors(colors: ColorInput[]) {
         const { key, normalizedColors } = ColorPalette.analyzeColors(colors);
 
-        if (key === this.key) {
+        // the same colors change nothing, and so does a longer list that starts with the colors this
+        // palette keeps (the constructor makes the cut)
+        if (
+            key === this.key ||
+            ColorPalette.cropColors(normalizedColors, this.maxNumberOfColors)
+                .map((c) => c.hex())
+                .join(':') === this.key
+        ) {
             return this;
         }
 
