@@ -1,5 +1,6 @@
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { hybrid } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import { Signature } from '~/components/api/Signature';
 import { Heading2 } from '~/components/catalyst/Heading2';
 import { Heading3 } from '~/components/catalyst/Heading3';
 import { Code, Text, TextLink } from '~/components/catalyst/Text';
@@ -8,6 +9,7 @@ export function SectionTheme() {
     return (
         <>
             <Heading2 id="theme">Theme</Heading2>
+            <Signature of="new Theme" />
             <Text>
                 The <Code>Theme</Code> class is the primary interface for
                 creating dynamic color palettes. It is responsible for
@@ -156,6 +158,7 @@ const theme = new Theme({
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-activePalette">theme.activePalette</Heading3>
+            <Signature of="Theme#activePalette" />
             <Text>
                 Returns the active <Code>ColorPalette</Code> of the{' '}
                 <Code>Theme</Code>. If the <Code>Theme</Code> is currently
@@ -168,6 +171,7 @@ const theme = new Theme({
             <Heading3 id="theme-activePaletteHexes">
                 theme.activePaletteHexes
             </Heading3>
+            <Signature of="Theme#activePaletteHexes" />
             <Text>
                 Returns the hex values of the active <Code>ColorPalette</Code>{' '}
                 of the <Code>Theme</Code>. If the <Code>Theme</Code> is
@@ -178,6 +182,7 @@ const theme = new Theme({
                 {`const hexes = theme.activePaletteHexes;`}
             </SyntaxHighlighter>
             <Heading3 id="theme-brightness">theme.brightness</Heading3>
+            <Signature of="Theme#brightness" />
             <Text>
                 Getter and setter for the brightness of the <Code>Theme</Code>.
                 Values range from 0 to 1. The default is 1.
@@ -188,6 +193,7 @@ const theme = new Theme({
 theme.brightness = 0.6;`}
             </SyntaxHighlighter>
             <Heading3 id="theme-getColor">theme.getColor</Heading3>
+            <Signature of="Theme#getColor" />
             <Text>
                 Gets the <Code>Theme</Code> color at the given index. Handles
                 rounding and wrapping around the palette, so you don&apos;t need
@@ -231,6 +237,7 @@ for (let i = 0; i < 100; i++) {
 }`}
             </SyntaxHighlighter>
             <Heading3 id="theme-update">theme.update</Heading3>
+            <Signature of="Theme#update" />
             <Text>
                 Updates the <Code>Theme</Code> to a new palette. This will set a
                 target palette for the theme to transition to.
@@ -286,6 +293,7 @@ theme.update({
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-setMode">theme.setMode</Heading3>
+            <Signature of="Theme#setMode" />
             <Text>
                 Updates the <Code>Theme</Code> to a new interpolation mode. This
                 will set a target palette for the theme to transition to with
@@ -306,6 +314,7 @@ theme.setMode('lab', {
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-rotateMode">theme.rotateMode</Heading3>
+            <Signature of="Theme#rotateMode" />
             <Text>
                 Rotates the <Code>Theme</Code> interpolation mode. This will set
                 a target palette for the theme to transition to with the same
@@ -326,6 +335,7 @@ theme.rotateMode({
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-setColors">theme.setColors</Heading3>
+            <Signature of="Theme#setColors" />
             <Text>
                 Updates the <Code>Theme</Code> to a new set of colors. This will
                 set a target palette for the theme to transition to with the
@@ -345,6 +355,7 @@ theme.setColors(['red', 'green', 'blue'], {
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-randomFrom">theme.randomFrom</Heading3>
+            <Signature of="Theme#randomFrom" />
             <Text>
                 Updates the <Code>Theme</Code> to a new set of colors randomized
                 based on a seed color, which will become the first color of the
@@ -375,6 +386,7 @@ theme.randomFrom('red', {
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-randomTheme">theme.randomTheme</Heading3>
+            <Signature of="Theme#randomTheme" />
             <Text>
                 Updates the <Code>Theme</Code> to a new set of random colors.
                 Defaults to the same number of colors as the current palette,
@@ -403,6 +415,7 @@ theme.randomTheme({
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-pushNewColor">theme.pushNewColor</Heading3>
+            <Signature of="Theme#pushNewColor" />
             <Text>
                 Pushes a new color to the <Code>Theme</Code> palette. This will
                 set a target palette for the theme to transition to with the
@@ -433,6 +446,7 @@ theme.pushNewColor('red', {
             <Heading3 id="theme-pushRandomColor">
                 theme.pushRandomColor
             </Heading3>
+            <Signature of="Theme#pushRandomColor" />
             <Text>
                 Pushes a new random color to the <Code>Theme</Code> palette.
                 This will set a target palette for the theme to transition to
@@ -462,6 +476,7 @@ theme.pushRandomColor({
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-popOldestColor">theme.popOldestColor</Heading3>
+            <Signature of="Theme#popOldestColor" />
             <Text>
                 Drops the oldest color from the <Code>Theme</Code> palette. This
                 will set a target palette for the theme to transition to with
@@ -482,6 +497,7 @@ theme.popOldestColor({
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-rotateColor">theme.rotateColor</Heading3>
+            <Signature of="Theme#rotateColor" />
             <Text>
                 Drops the oldest color from the <Code>Theme</Code> palette and
                 adds the new color. This will set a target palette for the theme
@@ -509,6 +525,7 @@ theme.rotateColor('red', {
             <Heading3 id="theme-rotateRandomColor">
                 theme.rotateRandomColor
             </Heading3>
+            <Signature of="Theme#rotateRandomColor" />
             <Text>
                 Drops the oldest color from the <Code>Theme</Code> palette and
                 adds a random color. This will set a target palette for the
@@ -534,6 +551,7 @@ theme.rotateRandomColor({
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-tick">theme.tick</Heading3>
+            <Signature of="Theme#tick" />
             <Text>
                 Arguably the most important method. This advances the color
                 index by a given number of frames, and updates the current
@@ -557,6 +575,7 @@ theme.tick(0); // Transition only`}
             <Heading3 id="theme-isTransitioning">
                 theme.isTransitioning
             </Heading3>
+            <Signature of="Theme#isTransitioning" />
             <Text>
                 Whether the <Code>Theme</Code> is transitioning to a target
                 palette.
@@ -569,6 +588,7 @@ theme.tick(0); // Transition only`}
             <Heading3 id="theme-finishTransition">
                 theme.finishTransition
             </Heading3>
+            <Signature of="Theme#finishTransition" />
             <Text>
                 Finishes the current transition now. The target palette is
                 applied exactly, and subscribers are notified as when a
@@ -579,6 +599,7 @@ theme.tick(0); // Transition only`}
                 {`theme.finishTransition();`}
             </SyntaxHighlighter>
             <Heading3 id="theme-subscribe">theme.subscribe</Heading3>
+            <Signature of="Theme#subscribe" />
             <Text>
                 Subscribe to updates to the <Code>Theme</Code>. The callback
                 will be called whenever the target palette of the{' '}
@@ -631,6 +652,7 @@ export function useInterpolationMode() {
 }`}
             </SyntaxHighlighter>
             <Heading3 id="theme-unsubscribe">theme.unsubscribe</Heading3>
+            <Signature of="Theme#unsubscribe" />
             <Text>
                 Unsubscribe a given callback from <Code>Theme</Code> updates.
             </Text>

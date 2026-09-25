@@ -29,7 +29,9 @@ export function MobileSidebar({ children }: { children: ReactNode }) {
                             <CloseMenuIcon />
                         </Headless.CloseButton>
                     </div>
-                    {children}
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                        {children}
+                    </div>
                 </div>
             </Headless.DialogPanel>
         </Headless.Dialog>

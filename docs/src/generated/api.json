@@ -1,0 +1,493 @@
+{
+    "members": {
+        "ColorPalette#colors": { "code": "readonly colors: Color[];" },
+        "ColorPalette#hexes": { "code": "readonly hexes: string[];" },
+        "ColorPalette#key": { "code": "readonly key: string;" },
+        "ColorPalette#nColors": { "code": "readonly nColors: number;" },
+        "ColorPalette#mode": { "code": "readonly mode: InterpolationMode;" },
+        "ColorPalette#nSteps": { "code": "readonly nSteps: number;" },
+        "ColorPalette#scale": { "code": "readonly scale: Scale;" },
+        "ColorPalette#scaleColors": {
+            "code": "readonly scaleColors: Color[];"
+        },
+        "ColorPalette#maxNumberOfColors": {
+            "code": "readonly maxNumberOfColors: number;"
+        },
+        "ColorPalette#deltaEThreshold": {
+            "code": "readonly deltaEThreshold: number;"
+        },
+        "ColorPalette#random": { "code": "readonly random: RandomFunction;" },
+        "ColorPalette.normalizeColors": {
+            "code": "static normalizeColors(colorInputs: ColorInput[]): Color[];"
+        },
+        "ColorPalette.clampColors": {
+            "code": "static clampColors(\n    colors: ColorInput[],\n    maxNumberOfColors: number,\n): ColorInput[];"
+        },
+        "ColorPalette.random": {
+            "code": "static random(\n    options: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &\n        RandomPaletteConfig,\n): ColorPalette;"
+        },
+        "new ColorPalette": {
+            "code": "new ColorPalette(options: ColorPaletteConfig);"
+        },
+        "ColorPalette#newConfig": {
+            "code": "newConfig(options: {\n    colors: ColorInput[];\n    mode: InterpolationMode;\n    nSteps: number;\n    maxNumberOfColors?: number;\n    deltaEThreshold?: number;\n    random?: RandomFunction;\n}): ColorPalette;"
+        },
+        "ColorPalette#newColors": {
+            "code": "newColors(colors: ColorInput[]): ColorPalette;"
+        },
+        "ColorPalette#newMode": {
+            "code": "newMode(mode: InterpolationMode): ColorPalette;"
+        },
+        "ColorPalette#rotateMode": { "code": "rotateMode(): ColorPalette;" },
+        "ColorPalette#randomizeFrom": {
+            "code": "randomizeFrom(\n    seed: ColorInput,\n    options?: RandomPaletteConfig,\n): ColorPalette;"
+        },
+        "ColorPalette#randomize": {
+            "code": "randomize(options?: RandomPaletteConfig): ColorPalette;"
+        },
+        "ColorPalette#push": {
+            "code": "push(color: ColorInput): ColorPalette;"
+        },
+        "ColorPalette#pushRandom": {
+            "code": "pushRandom(randomColorConfig?: RandomColorConfig): ColorPalette;"
+        },
+        "ColorPalette#popOldest": { "code": "popOldest(): ColorPalette;" },
+        "ColorPalette#rotateOn": {
+            "code": "rotateOn(color: ColorInput): ColorPalette;"
+        },
+        "ColorPalette#rotateRandomOn": {
+            "code": "rotateRandomOn(options?: RandomColorConfig): ColorPalette;"
+        },
+        "getNextInterpolationMode": {
+            "code": "function getNextInterpolationMode(\n    mode: InterpolationMode,\n): InterpolationMode;"
+        },
+        "Theme#nSteps": { "code": "readonly nSteps: number;" },
+        "Theme#maxNumberOfColors": {
+            "code": "readonly maxNumberOfColors: number;"
+        },
+        "Theme#brightnessMode": {
+            "code": "readonly brightnessMode: BrightnessMode;"
+        },
+        "Theme#palette": { "code": "palette: ColorPalette;" },
+        "Theme#targetPalette": { "code": "targetPalette?: ColorPalette;" },
+        "Theme#mode": { "code": "mode: InterpolationMode;" },
+        "new Theme": { "code": "new Theme(config?: ThemeConfig);" },
+        "Theme.random": {
+            "code": "static random(config: ThemeConfig & { nColors: number }): Theme;"
+        },
+        "Theme#transitionDistance": {
+            "code": "get transitionDistance(): number | undefined;"
+        },
+        "Theme#isTransitioning": { "code": "get isTransitioning(): boolean;" },
+        "Theme#activePalette": {
+            "code": "get activePalette(): Readonly<ColorPalette>;"
+        },
+        "Theme#activePaletteHexes": {
+            "code": "get activePaletteHexes(): string[];"
+        },
+        "Theme#brightness": {
+            "code": "get brightness(): number;\nset brightness(brightness: number);"
+        },
+        "Theme#subscribe": {
+            "code": "subscribe(callback: ThemeUpdateCallback): ThemeUpdateEvent;"
+        },
+        "Theme#unsubscribe": {
+            "code": "unsubscribe(callback: ThemeUpdateCallback): void;"
+        },
+        "Theme#getColor": {
+            "code": "getColor(index?: number, options?: { brightness?: number }): Color;"
+        },
+        "Theme#update": {
+            "code": "update(\n    options: {\n        colors: ColorInput[];\n        mode?: InterpolationMode;\n    } & ColorUpdateConfig,\n): void;"
+        },
+        "Theme#setMode": {
+            "code": "setMode(mode?: InterpolationMode, options?: ColorUpdateConfig): void;"
+        },
+        "Theme#rotateMode": {
+            "code": "rotateMode(options?: ColorUpdateConfig): void;"
+        },
+        "Theme#setColors": {
+            "code": "setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig): void;"
+        },
+        "Theme#randomFrom": {
+            "code": "randomFrom(\n    color: ColorInput,\n    options?: ColorUpdateConfig & RandomPaletteConfig,\n): void;"
+        },
+        "Theme#randomTheme": {
+            "code": "randomTheme(options?: ColorUpdateConfig & RandomPaletteConfig): void;"
+        },
+        "Theme#normalizeIndex": {
+            "code": "normalizeIndex(index?: number): number;"
+        },
+        "Theme#pushNewColor": {
+            "code": "pushNewColor(color: ColorInput, options?: ColorUpdateConfig): void;"
+        },
+        "Theme#pushRandomColor": {
+            "code": "pushRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;"
+        },
+        "Theme#popOldestColor": {
+            "code": "popOldestColor(options?: ColorUpdateConfig): void;"
+        },
+        "Theme#rotateColor": {
+            "code": "rotateColor(color: ColorInput, options?: ColorUpdateConfig): void;"
+        },
+        "Theme#rotateRandomColor": {
+            "code": "rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;"
+        },
+        "Theme#finishTransition": { "code": "finishTransition(): void;" },
+        "Theme#tick": { "code": "tick(n?: number): void;" }
+    },
+    "types": {
+        "ColorInput": {
+            "code": "type ColorInput = string | Color;",
+            "doc": "String or chroma-js color.",
+            "fields": []
+        },
+        "RandomFunction": {
+            "code": "type RandomFunction = () => number;",
+            "doc": "A function returning a pseudo-random number in the range [0, 1),\nlike Math.random. Supply your own to get reproducible palettes.",
+            "fields": []
+        },
+        "ColorPaletteColors": {
+            "code": "type ColorPaletteColors =\n    | {\n          colors: ColorInput[];\n          normalizedColors?: never;\n      }\n    | {\n          colors?: never;\n          normalizedColors: Color[];\n      };",
+            "doc": "Exactly one of `colors` or `normalizedColors` must be provided.",
+            "fields": [
+                {
+                    "name": "colors",
+                    "doc": "The colors to use in the palette."
+                },
+                {
+                    "name": "normalizedColors",
+                    "doc": "The normalized colors to use in the palette.\nDon't use this unless you know what you're doing."
+                }
+            ]
+        },
+        "ColorPaletteConfig": {
+            "code": "type ColorPaletteConfig = ColorPaletteColors & {\n    mode: InterpolationMode;\n    nSteps: number;\n    deltaEThreshold?: number;\n    maxNumberOfColors?: number;\n    random?: RandomFunction;\n};",
+            "doc": "",
+            "fields": [
+                {
+                    "name": "mode",
+                    "doc": "The interpolation mode to use between colors in the palette."
+                },
+                {
+                    "name": "nSteps",
+                    "doc": "The number of steps in the color scale."
+                },
+                {
+                    "name": "deltaEThreshold",
+                    "doc": "The minimum threshold for the CIEDE2000 color distance between colors in the palette.\nDefaults to 20."
+                },
+                {
+                    "name": "maxNumberOfColors",
+                    "doc": "Max number of colors in the palette.\nDefaults to 8."
+                },
+                {
+                    "name": "random",
+                    "doc": "Random number generator used when generating random colors.\nDefaults to Math.random."
+                }
+            ]
+        },
+        "RandomPaletteConfig": {
+            "code": "interface RandomPaletteConfig {\n    nColors?: number;\n    minBrightness?: number;\n}",
+            "doc": "",
+            "fields": [
+                {
+                    "name": "nColors",
+                    "doc": "The number of colors in the palette."
+                },
+                {
+                    "name": "minBrightness",
+                    "doc": "The minimum brightness for the colors."
+                }
+            ]
+        },
+        "RandomColorConfig": {
+            "code": "interface RandomColorConfig extends Pick<\n    RandomPaletteConfig,\n    'minBrightness'\n> {}",
+            "doc": "",
+            "fields": [
+                {
+                    "name": "minBrightness",
+                    "doc": "The minimum brightness for the colors."
+                }
+            ]
+        },
+        "ColorPalette": {
+            "code": "class ColorPalette {\n    readonly colors: Color[];\n    readonly hexes: string[];\n    readonly key: string;\n    readonly nColors: number;\n    readonly mode: InterpolationMode;\n    readonly nSteps: number;\n    readonly scale: Scale;\n    readonly scaleColors: Color[];\n    readonly maxNumberOfColors: number;\n    readonly deltaEThreshold: number;\n    readonly random: RandomFunction;\n    static normalizeColors(colorInputs: ColorInput[]): Color[];\n    static clampColors(\n        colors: ColorInput[],\n        maxNumberOfColors: number,\n    ): ColorInput[];\n    static random(\n        options: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &\n            RandomPaletteConfig,\n    ): ColorPalette;\n    constructor(options: ColorPaletteConfig);\n    newConfig(options: {\n        colors: ColorInput[];\n        mode: InterpolationMode;\n        nSteps: number;\n        maxNumberOfColors?: number;\n        deltaEThreshold?: number;\n        random?: RandomFunction;\n    }): ColorPalette;\n    newColors(colors: ColorInput[]): ColorPalette;\n    newMode(mode: InterpolationMode): ColorPalette;\n    rotateMode(): ColorPalette;\n    randomizeFrom(\n        seed: ColorInput,\n        options?: RandomPaletteConfig,\n    ): ColorPalette;\n    randomize(options?: RandomPaletteConfig): ColorPalette;\n    push(color: ColorInput): ColorPalette;\n    pushRandom(randomColorConfig?: RandomColorConfig): ColorPalette;\n    popOldest(): ColorPalette;\n    rotateOn(color: ColorInput): ColorPalette;\n    rotateRandomOn(options?: RandomColorConfig): ColorPalette;\n}",
+            "doc": "An immutable ColorPalette.",
+            "fields": [
+                {
+                    "name": "scale",
+                    "doc": "chroma-js's scale over the palette colors. The palette's own colors (scaleColors, and so a Theme's)\nfollow chroma's interpolation except near hue-less ends, where colormotion's mix reaches the end and\nchroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI."
+                },
+                {
+                    "name": "static normalizeColors",
+                    "doc": "Normalizes the input colors to chroma-js colors."
+                },
+                {
+                    "name": "static random",
+                    "doc": "Returns a new random palette with the specified number of colors.\nDefaults to 5 colors."
+                },
+                {
+                    "name": "newConfig",
+                    "doc": "Creates a new palette with the specified configuration.\nOptions not provided are inherited from this palette."
+                },
+                {
+                    "name": "newColors",
+                    "doc": "Gets a new palette with new colors but the same mode."
+                },
+                {
+                    "name": "newMode",
+                    "doc": "Gets a new palette with the same colors but a different mode."
+                },
+                {
+                    "name": "rotateMode",
+                    "doc": "Gets a new palette with the same colors but the next mode."
+                },
+                {
+                    "name": "randomizeFrom",
+                    "doc": "Randomizes the palette starting with the input color.\nMaintains the number of colors in the palette.\n\n- `seed`: The color to start with.\n- `options`: Options for randomizing the palette.\n\nReturns: A new palette with randomized colors."
+                },
+                {
+                    "name": "randomize",
+                    "doc": "Randomizes the whole palette.\nMaintains the number of colors in the palette."
+                },
+                { "name": "push", "doc": "Adds the specified color." },
+                { "name": "pushRandom", "doc": "Adds a random color." },
+                { "name": "popOldest", "doc": "Drops the oldest color." },
+                {
+                    "name": "rotateOn",
+                    "doc": "Drops the oldest color and pushes the new color."
+                },
+                {
+                    "name": "rotateRandomOn",
+                    "doc": "Drops the oldest color and adds a random color."
+                }
+            ]
+        },
+        "InterpolationMode": {
+            "code": "type InterpolationMode =\n    | 'rgb'\n    | 'lab'\n    | 'lrgb'\n    | 'hsl'\n    | 'lch'\n    | 'hsv'\n    | 'hsi'\n    | 'hcl'\n    | 'oklab'\n    | 'oklch';",
+            "doc": "Supported interpolation modes.",
+            "fields": []
+        },
+        "InitialThemeColors": {
+            "code": "type InitialThemeColors =\n    | {\n          palette?: ColorPalette;\n      }\n    | {\n          colors?: ColorInput[];\n      }\n    | {\n          nColors?: number;\n          minBrightness?: number;\n      };",
+            "doc": "",
+            "fields": [
+                {
+                    "name": "palette",
+                    "doc": "The initial color palette.\nTakes precedence over colors and nColors."
+                },
+                {
+                    "name": "colors",
+                    "doc": "The initial colors in the palette."
+                },
+                {
+                    "name": "nColors",
+                    "doc": "The initial number of colors in the palette.\nN random colors will be generated if colors is not provided.\nDefaults to 5."
+                },
+                {
+                    "name": "minBrightness",
+                    "doc": "The minimum brightness for the random colors.\nScale from 0 to 1.\nDefaults to 0."
+                }
+            ]
+        },
+        "BrightnessMode": {
+            "code": "type BrightnessMode = 'darken' | 'linear';",
+            "doc": "Supported brightness modes.",
+            "fields": [
+                {
+                    "name": "darken",
+                    "doc": "Darkens colors in CIELAB space. Colors keep some luminance at brightness 0."
+                },
+                {
+                    "name": "linear",
+                    "doc": "Scales the RGB channels linearly. Brightness 0 is black (LEDs off)\nand 0.5 is half output."
+                }
+            ]
+        },
+        "ThemeConfig": {
+            "code": "type ThemeConfig = InitialThemeColors & {\n    nSteps?: number;\n    mode?: InterpolationMode;\n    deltaEThreshold?: number;\n    maxNumberOfColors?: number;\n    random?: RandomFunction;\n    brightnessMode?: BrightnessMode;\n};",
+            "doc": "",
+            "fields": [
+                {
+                    "name": "nSteps",
+                    "doc": "The number of steps in the color scale.\nDefaults to 2048."
+                },
+                {
+                    "name": "mode",
+                    "doc": "The color interpolation mode to use between colors in the palette.\nDefaults to RGB."
+                },
+                {
+                    "name": "deltaEThreshold",
+                    "doc": "The minimum threshold for the CIEDE2000 color distance between colors in the palette.\nDefaults to 20."
+                },
+                {
+                    "name": "maxNumberOfColors",
+                    "doc": "Max number of colors in the palette.\nDefaults to 8."
+                },
+                {
+                    "name": "random",
+                    "doc": "Random number generator used when generating random colors.\nSupply a seeded generator for reproducible palettes.\nDefaults to Math.random."
+                },
+                {
+                    "name": "brightnessMode",
+                    "doc": "How brightness is applied to colors.\n'darken' (the default) darkens in CIELAB space, so colors keep some\nluminance even at brightness 0. 'linear' scales the RGB channels, so\nbrightness 0 is black and 0.5 is half output."
+                }
+            ]
+        },
+        "ColorUpdateConfig": {
+            "code": "interface ColorUpdateConfig {\n    transitionSpeed?: number;\n    transitionDuration?: number;\n}",
+            "doc": "",
+            "fields": [
+                {
+                    "name": "transitionSpeed",
+                    "doc": "The speed of the transition between two palettes.\nShould be between 0 and 1. Will be clamped to this range.\nDefaults to 0.1.\nNaN is treated as not given.\nThe higher the value, the faster the transition: a typical palette\nchange takes about 45 / speed ticks (0.1: about 10 s at 60 ticks a\nsecond; 0.01: about 75 s; 0.001: about 12 minutes). For an exact\nlength, use transitionDuration.\nThe transition ends once the colors stop changing within 0.5 CIEDE2000\nof the target, averaged over a sample of the scale colors (single\ncolors can be a little further off), or once 99.9999 % of the mix is\ndone.\nA speed of 0 makes no progress, so the transition is treated as\nsettled and the target palette is applied on the second tick. The same\ngoes for a speed too small to move the colors at all (about 5e-16 or\nless).\nIgnored when transitionDuration is a finite number.\nAn update to the palette the theme is already transitioning to does not\nchange the transition's speed."
+                },
+                {
+                    "name": "transitionDuration",
+                    "doc": "How many ticks the transition takes, instead of a transitionSpeed.\nA tick is one call to tick(), whatever its n: 6 * 60 is 6 seconds when\ntick() is called 60 times a second.\n\nThe colors ease in and out (smoothstep) from where they are, and become\nexactly the target palette on the last tick. A fractional duration ends\non the next whole tick (2.5 ends on tick 3), and a value within one part\nin a billion of a whole number counts as that number (1.1 * 50 ends on\ntick 55). 0 or less applies the palette before the call returns,\nnotifying subscribers once, with isTransitioning false. Anything that is\nnot a finite number is ignored, and transitionSpeed applies instead.\n\nFor the palette the theme is already transitioning to (including a call\nthat leaves it unchanged, such as pushing a color onto a full palette):\n- The same duration changes nothing and keeps the current end, so an\n  update can safely be re-sent every tick.\n- A different duration re-times the transition to end that many ticks\n  from now, continuing from the current colors without notifying\n  subscribers. The easing starts again from rest, so re-send the same\n  duration rather than a countdown of the ticks left.\n- 0 or less finishes the transition."
+                }
+            ]
+        },
+        "ThemeUpdateEvent": {
+            "code": "interface ThemeUpdateEvent {\n    palette: Readonly<ColorPalette>;\n    isTransitioning: boolean;\n    colors: Color[];\n    mode: InterpolationMode;\n    brightness: number;\n}",
+            "doc": "",
+            "fields": [
+                { "name": "palette", "doc": "The current color palette." },
+                {
+                    "name": "isTransitioning",
+                    "doc": "Is the theme transitioning between palettes."
+                },
+                {
+                    "name": "colors",
+                    "doc": "The colors in the wheel of the active palette (the target palette\nwhile transitioning): the palette colors and the interpolated colors\nbetween them."
+                },
+                { "name": "mode", "doc": "The current interpolation mode." },
+                {
+                    "name": "brightness",
+                    "doc": "The current brightness factor (0-1)."
+                }
+            ]
+        },
+        "ThemeUpdateCallback": {
+            "code": "type ThemeUpdateCallback = (event: ThemeUpdateEvent) => void;",
+            "doc": "",
+            "fields": []
+        },
+        "Theme": {
+            "code": "class Theme {\n    readonly nSteps: number;\n    readonly maxNumberOfColors: number;\n    readonly brightnessMode: BrightnessMode;\n    palette: ColorPalette;\n    targetPalette?: ColorPalette;\n    mode: InterpolationMode;\n    constructor(config?: ThemeConfig);\n    static random(config: ThemeConfig & { nColors: number }): Theme;\n    get transitionDistance(): number | undefined;\n    get isTransitioning(): boolean;\n    get activePalette(): Readonly<ColorPalette>;\n    get activePaletteHexes(): string[];\n    get brightness(): number;\n    set brightness(brightness: number);\n    subscribe(callback: ThemeUpdateCallback): ThemeUpdateEvent;\n    unsubscribe(callback: ThemeUpdateCallback): void;\n    getColor(index?: number, options?: { brightness?: number }): Color;\n    update(\n        options: {\n            colors: ColorInput[];\n            mode?: InterpolationMode;\n        } & ColorUpdateConfig,\n    ): void;\n    setMode(mode?: InterpolationMode, options?: ColorUpdateConfig): void;\n    rotateMode(options?: ColorUpdateConfig): void;\n    setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig): void;\n    randomFrom(\n        color: ColorInput,\n        options?: ColorUpdateConfig & RandomPaletteConfig,\n    ): void;\n    randomTheme(options?: ColorUpdateConfig & RandomPaletteConfig): void;\n    normalizeIndex(index?: number): number;\n    pushNewColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    pushRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    popOldestColor(options?: ColorUpdateConfig): void;\n    rotateColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    finishTransition(): void;\n    tick(n?: number): void;\n}",
+            "doc": "A dynamic color theme that can be updated and transitioned between different color palettes.",
+            "fields": [
+                {
+                    "name": "nSteps",
+                    "doc": "The number of steps in the color scale.\nDefaults to 2048."
+                },
+                {
+                    "name": "maxNumberOfColors",
+                    "doc": "Max number of colors allowed in the theme's palettes.\nDefaults to 8."
+                },
+                {
+                    "name": "brightnessMode",
+                    "doc": "How brightness is applied to colors.\nDefaults to 'darken'."
+                },
+                {
+                    "name": "palette",
+                    "doc": "The active palette to use for color generation."
+                },
+                {
+                    "name": "targetPalette",
+                    "doc": "The target palette to transition to."
+                },
+                {
+                    "name": "mode",
+                    "doc": "The interpolation mode to use between colors in the palette."
+                },
+                {
+                    "name": "transitionDistance",
+                    "doc": "The average distance between the colors in the current and target palettes.\nMeasured in CIEDE2000 color distance.\nRanges from 0 (identical) to 100 (maximally different).\nEstimated from an evenly spaced sample of the scale colors.\nReturns undefined if there is no target palette.\nDuring a transitionSpeed transition, this is the distance measured at the\nstart of the last tick, and undefined until the first tick after the\ntarget changed. During a transitionDuration transition, it is measured\nfrom the current colors when read."
+                },
+                {
+                    "name": "isTransitioning",
+                    "doc": "Whether the theme is transitioning to a target palette."
+                },
+                {
+                    "name": "activePalette",
+                    "doc": "The active palette to use for color generation."
+                },
+                {
+                    "name": "activePaletteHexes",
+                    "doc": "The hex values of the colors in the active palette."
+                },
+                {
+                    "name": "brightness",
+                    "doc": "The relative brightness of the theme.\n0 is the darkest, 1 is the brightest.\nSet the relative brightness of the theme.\n0 is the darkest, 1 is the brightest.\nSubscribers are notified when the value changes.\nNaN is ignored."
+                },
+                {
+                    "name": "subscribe",
+                    "doc": "Subscribe to get updates when the theme changes.\nCallbacks will receive a ThemeUpdateEvent.\n\nReturns: An event object with the current theme status."
+                },
+                {
+                    "name": "unsubscribe",
+                    "doc": "Unsubscribe a given callback from theme updates."
+                },
+                {
+                    "name": "getColor",
+                    "doc": "Get the color at the given index in the theme.\n\n- `index`: The index of the color to get.\n- `options`: Options for the color generation.\n- `options.brightness`: Optionally adjust the brightness of the color. 0-1, defaults to 1. NaN counts as 1.\n\nReturns: The color at the given index."
+                },
+                {
+                    "name": "update",
+                    "doc": "Update the theme to a new set of colors and, optionally, interpolation mode.\nThe mode defaults to the current mode."
+                },
+                {
+                    "name": "setMode",
+                    "doc": "Set the interpolation mode of the theme."
+                },
+                {
+                    "name": "rotateMode",
+                    "doc": "Rotate the interpolation mode of the theme."
+                },
+                { "name": "setColors", "doc": "Set the colors of the theme." },
+                {
+                    "name": "randomFrom",
+                    "doc": "Randomize the colors of the theme based on a seed color.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected."
+                },
+                {
+                    "name": "randomTheme",
+                    "doc": "Randomize the colors of the theme.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected."
+                },
+                {
+                    "name": "normalizeIndex",
+                    "doc": "Get the color at the given index in the theme.\nRounds and normalizes the index so that it is within the bounds of the color scale.\nAn index that is not a finite number (NaN, Infinity) counts as 0."
+                },
+                {
+                    "name": "pushNewColor",
+                    "doc": "Push a new color to the end of the palette."
+                },
+                {
+                    "name": "pushRandomColor",
+                    "doc": "Push a random color to the end of the palette."
+                },
+                {
+                    "name": "popOldestColor",
+                    "doc": "Pop the oldest color from the palette."
+                },
+                {
+                    "name": "rotateColor",
+                    "doc": "Drops the oldest color and pushes the new color."
+                },
+                {
+                    "name": "rotateRandomColor",
+                    "doc": "Drops the oldest color and pushes a random color."
+                },
+                {
+                    "name": "finishTransition",
+                    "doc": "Finish the current transition now: the target palette is applied exactly,\nand subscribers are notified as when a transition ends on its own.\nWorks for transitionSpeed and transitionDuration transitions alike.\nDoes nothing when the theme is not transitioning."
+                },
+                {
+                    "name": "tick",
+                    "doc": "Move the color index by n steps.\nCan be negative to move backwards.\nCan be fractional: fractions add up, and colors are read at the nearest whole step.\n\nAlso advances the transition to the target palette by one tick, if one is\nset. This is not affected by the n parameter, so tick(0) advances a\ntransition without rotating the wheel.\nAn n that is not a finite number (NaN, Infinity) does not move the index."
+                }
+            ]
+        }
+    }
+}

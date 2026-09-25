@@ -200,7 +200,10 @@ const theme = new Theme({
 ```bash
 npm test          # unit tests (watch mode)
 npm run bench     # benchmarks: palette building, getColor, transition ticks, LED frames
+npm run docs:api  # regenerate the docs site's API reference (Node 22.18 or later)
 ```
+
+The docs site shows each method's signature and every exported type, generated from the source into `docs/src/generated/api.json`. A test fails when a public signature or its JSDoc changes until the reference is regenerated.
 
 To check a change for speed, save a baseline on `main` and compare your branch against it (the file is written under `tests/`):
 

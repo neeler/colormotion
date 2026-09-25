@@ -1,3 +1,4 @@
+import { TYPE_SECTIONS, typeAnchor } from '~/components/api/api';
 import { L1MenuItem } from '~/components/sideMenu/L1MenuItem';
 import { L2MenuItem } from '~/components/sideMenu/L2MenuItem';
 
@@ -131,6 +132,20 @@ export function SideMenu({
                         href="#theme-unsubscribe"
                         title="theme.unsubscribe"
                     />
+                </L1MenuItem>
+                <L1MenuItem
+                    colorOffset={24 * colorSpace}
+                    href="#types"
+                    title="Types"
+                >
+                    {TYPE_SECTIONS.map((name, i) => (
+                        <L2MenuItem
+                            key={name}
+                            colorOffset={(25 + i) * colorSpace}
+                            href={`#${typeAnchor(name)}`}
+                            title={name}
+                        />
+                    ))}
                 </L1MenuItem>
             </ul>
         </div>
