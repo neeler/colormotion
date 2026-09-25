@@ -206,6 +206,59 @@ test('always respects max number of colors', () => {
     expect(theme2.activePalette.maxNumberOfColors).toBe(3);
 });
 
+describe('a color list longer than maxNumberOfColors', () => {
+    // cut to 3, the list ends on its first color, which stays a color of its own
+    const COLORS = ['red', 'blue', 'red', 'green'];
+    const CUT = ['#ff0000', '#0000ff', '#ff0000'];
+
+    test('keeps the same colors through the constructor, update and setColors', () => {
+        const constructed = new Theme({ colors: COLORS, maxNumberOfColors: 3 });
+        expect(constructed.activePaletteHexes).toEqual(CUT);
+
+        const updated = new Theme({ colors: ['white'], maxNumberOfColors: 3 });
+        updated.update({ colors: COLORS });
+        expect(updated.activePaletteHexes).toEqual(CUT);
+
+        const set = new Theme({ colors: ['white'], maxNumberOfColors: 3 });
+        set.setColors(COLORS);
+        expect(set.activePaletteHexes).toEqual(CUT);
+    });
+
+    test.each([0, NaN])(
+        'keeps what update keeps with maxNumberOfColors %s',
+        (maxNumberOfColors) => {
+            const set = new Theme({ colors: ['white'], maxNumberOfColors });
+            set.setColors(['red', 'blue']);
+            const updated = new Theme({ colors: ['white'], maxNumberOfColors });
+            updated.update({ colors: ['red', 'blue'] });
+            expect(set.activePaletteHexes).toEqual(updated.activePaletteHexes);
+            // setColors used to cut the list to nothing and fall back to green
+            expect(set.activePaletteHexes).not.toEqual(['#008000']);
+        },
+    );
+
+    test('changes nothing when its first colors are the current palette', () => {
+        const longer = ['red', 'orange', 'yellow', 'green'];
+        const changes = [
+            (theme: Theme) => theme.update({ colors: longer }),
+            (theme: Theme) => theme.setColors(longer),
+        ];
+        for (const change of changes) {
+            const theme = new Theme({
+                colors: ['red', 'orange', 'yellow'],
+                maxNumberOfColors: 3,
+            });
+            const palette = theme.palette;
+            const events: boolean[] = [];
+            theme.subscribe((event) => events.push(event.isTransitioning));
+            change(theme);
+            expect(theme.isTransitioning).toBe(false);
+            expect(theme.palette).toBe(palette);
+            expect(events).toEqual([]);
+        }
+    });
+});
+
 test('transitions to a new palette and clears transition state', () => {
     const theme = new Theme({ colors: ['red', 'green', 'blue'], nSteps: 64 });
     const events: boolean[] = [];
@@ -509,6 +562,41 @@ test('darken brightness mode is the default and unchanged', () => {
     expect(theme.getColor(0).hex()).toBe(chroma('white').darken(3).hex());
     theme.brightness = 0.5;
     expect(theme.getColor(0).hex()).toBe(chroma('white').darken(1.5).hex());
+});
+
+test("both brightness modes keep a color's alpha", () => {
+    for (const brightnessMode of ['linear', 'darken'] as const) {
+        const theme = new Theme({
+            colors: ['rgba(255, 128, 0, 0.5)'],
+            nSteps: 64,
+            brightnessMode,
+        });
+        theme.brightness = 0.5;
+        expect(theme.getColor(0).alpha()).toBe(0.5);
+        expect(theme.getColor(0, { brightness: 0.5 }).alpha()).toBe(0.5);
+        theme.brightness = 0;
+        expect(theme.getColor(0).alpha()).toBe(0.5);
+    }
+
+    const theme = new Theme({
+        colors: ['rgba(255, 128, 0, 0.5)'],
+        nSteps: 64,
+        brightnessMode: 'linear',
+    });
+    theme.brightness = 0.5;
+    expect(theme.getColor(0).rgba(false)).toEqual([127.5, 64, 0, 0.5]);
+});
+
+test('colors without an alpha, such as chroma.oklch results, are opaque', () => {
+    // chroma's oklch and oklab constructors leave alpha NaN
+    const colors = [chroma.oklch(0.6, 0.15, 30), chroma.oklab(0.6, 0.1, 0.05)];
+    expect(colors.map((color) => color.alpha())).toEqual([NaN, NaN]);
+    for (const brightnessMode of ['linear', 'darken'] as const) {
+        const theme = new Theme({ colors, nSteps: 8, brightnessMode });
+        expect(theme.getColor(0).alpha()).toBe(1);
+        expect(theme.getColor(2).alpha()).toBe(1);
+        expect(theme.getColor(0, { brightness: 0.5 }).alpha()).toBe(1);
+    }
 });
 
 describe('transitions mix from the start colors at a tracked progress', () => {

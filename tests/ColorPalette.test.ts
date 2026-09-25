@@ -391,6 +391,40 @@ test('maxNumberOfColors', () => {
     expect(paletteAboveMax.hexes).toEqual(['#ff0000', '#008000', '#ff0000']);
 });
 
+test('newColors and newConfig cut a long color list as the constructor does', () => {
+    // cut to 3, the list ends on its first color, which stays a color of its own
+    const colors = ['red', 'blue', 'red', 'green'];
+    const config = { mode: 'rgb' as const, nSteps: 10, maxNumberOfColors: 3 };
+    const constructed = new ColorPalette({ ...config, colors });
+    expect(constructed.hexes).toEqual([
+        '#ff0000',
+        '#0000ff',
+        '#ff0000',
+        '#ff0000',
+    ]);
+
+    const other = new ColorPalette({ ...config, colors: ['white'] });
+    expect(other.newColors(colors).hexes).toEqual(constructed.hexes);
+    expect(other.newConfig({ ...config, colors }).hexes).toEqual(
+        constructed.hexes,
+    );
+    // with other settings, the list is cut to the new maxNumberOfColors
+    expect(
+        other.newConfig({ ...config, colors, maxNumberOfColors: 2, nSteps: 20 })
+            .hexes,
+    ).toEqual(['#ff0000', '#0000ff', '#ff0000']);
+    // and a raised maxNumberOfColors keeps colors the old one would have cut
+    expect(
+        other.newConfig({ ...config, colors, maxNumberOfColors: 4 }).hexes,
+    ).toEqual(['#ff0000', '#0000ff', '#ff0000', '#008000', '#ff0000']);
+
+    // a list whose first colors are the palette's gives back the same palette
+    expect(constructed.newColors([...colors, 'yellow'])).toBe(constructed);
+    expect(
+        constructed.newConfig({ ...config, colors: [...colors, 'yellow'] }),
+    ).toBe(constructed);
+});
+
 test('clampColors', () => {
     const colors = ['#000', '#fff', '#f00', '#0f0', '#00f'];
     const maxNumberOfColors = 3;

@@ -494,7 +494,12 @@ export class Theme {
         if (this.brightnessMode === BrightnessModes.linear) {
             const factor = Math.max(brightness, 0);
             const [r, g, b] = color.rgb(false);
-            return chroma.rgb(r * factor, g * factor, b * factor);
+            return chroma.rgb(
+                r * factor,
+                g * factor,
+                b * factor,
+                color.alpha(),
+            );
         }
         return color.darken(mapBrightnessToDarkenFactor(brightness));
     }
@@ -697,12 +702,8 @@ export class Theme {
      * Set the colors of the theme.
      */
     setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig) {
-        this.updateScale(
-            this.activePalette.newColors(
-                ColorPalette.clampColors(colorInputs, this.maxNumberOfColors),
-            ),
-            options,
-        );
+        // the palette cuts the colors to maxNumberOfColors, as the constructor and update do
+        this.updateScale(this.activePalette.newColors(colorInputs), options);
     }
 
     /**
