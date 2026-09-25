@@ -95,9 +95,9 @@ describe('a transitionSpeed transition', { timeout: 60_000 }, () => {
         }
     });
 
-    test('ends when the mode cannot reach the target colors', () => {
-        // mixing toward a color with no hue keeps the other color's chroma or saturation (as chroma.mix
-        // does): black in HCL and OKLCH, and in HSI white and pure reds, so the distance holds far above 0.5
+    test('ends toward colors with no hue', () => {
+        // chroma.mix never reaches black in HCL and OKLCH, or white in HSI; colormotion's mix does, and
+        // the 99.9999 % floor still ends any transition whose colors stop short
         const cases: [InterpolationMode, string[]][] = [
             ['hsi', ['#ff0000', '#000000']],
             ['hsi', ['#ffffff']],

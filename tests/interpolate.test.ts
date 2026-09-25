@@ -50,12 +50,38 @@ const colors = [...edgeColors, ...randomColors];
 // beyond [0, 1] mixes extrapolate out of gamut, which exercises clipping
 const fractions = [-0.5, 0, 0.001, 0.037, 0.5, 0.999, 1, 1.5];
 
+/**
+ * Where mixCoords departs from chroma.mix on purpose: mixing a color that has a hue toward a hue-less end
+ * that chroma's mix never reaches, black in LCH, HCL and OKLCH (lightness exactly 0) and white in HSI
+ * (intensity exactly 1).
+ */
+function departsFromChroma(a: Color, b: Color, mode: InterpolationMode) {
+    const unreachable = (c: Color) =>
+        mode === 'hsi'
+            ? c.hsi()[2] === 1
+            : mode === 'lch' || mode === 'hcl'
+              ? c.hcl()[2] === 0
+              : mode === 'oklch'
+                ? c.oklch()[0] === 0
+                : false;
+    const hasHue = (c: Color) => !isNaN(toModeCoords(c, mode)[0]!);
+    return (unreachable(a) && hasHue(b)) || (unreachable(b) && hasHue(a));
+}
+
+/** Every pair of test colors (each color with a few others), for the given mode. */
+function pairs() {
+    return colors.flatMap((a, i) =>
+        [3, 11, 29].map(
+            (k) => [a, colors[(i * 7 + k) % colors.length]!] as const,
+        ),
+    );
+}
+
 describe('mixCoords matches chroma.mix exactly', () => {
     for (const mode of Object.values(InterpolationModes)) {
         test(mode, () => {
-            for (let i = 0; i < colors.length; i++) {
-                const a = colors[i]!;
-                const b = colors[(i * 7 + 3) % colors.length]!;
+            for (const [a, b] of pairs()) {
+                if (departsFromChroma(a, b, mode)) continue;
                 const ca = toModeCoords(a, mode);
                 const cb = toModeCoords(b, mode);
                 for (const f of fractions) {
@@ -81,6 +107,122 @@ describe('mixCoords matches chroma.mix exactly', () => {
             );
             expect(state(mixed)).toEqual(state(chroma.mix(a, b, 0.25, mode)));
         }
+    });
+});
+
+describe('mixCoords reaches both ends', () => {
+    for (const mode of Object.values(InterpolationModes)) {
+        test(mode, () => {
+            for (const [a, b] of pairs()) {
+                const ca = toModeCoords(a, mode);
+                const cb = toModeCoords(b, mode);
+                const at = (f: number) => mixCoords(ca, cb, f, mode);
+                // within round-trip error (white reads as L 1.000001 in OKLCH), far under anything
+                // visible (1 ΔE); the misses this guards against were 5–70 ΔE
+                const limit = 0.05;
+                expect(chroma.deltaE(at(0), a), `${a.hex()} at 0`).toBeLessThan(
+                    limit,
+                );
+                expect(chroma.deltaE(at(1), b), `${b.hex()} at 1`).toBeLessThan(
+                    limit,
+                );
+            }
+        });
+    }
+
+    test('fades chroma out toward black and white instead of keeping it', () => {
+        const red = chroma('#ff0000');
+        const black = chroma('#000000');
+        // chroma.mix keeps red's full chroma toward black in OKLCH, and ends at a dark red (#100000)
+        expect(
+            chroma.deltaE(chroma.mix(red, black, 1, 'oklch'), black),
+        ).toBeGreaterThan(5);
+        const half = mixCoords(
+            toModeCoords(red, 'oklch'),
+            toModeCoords(black, 'oklch'),
+            0.5,
+            'oklch',
+        );
+        expect(half.oklch()[1]).toBeCloseTo(red.oklch()[1] / 2, 6);
+        // toward white in HSI, blue used to stay blue
+        const blue = chroma('#0000ff');
+        const white = chroma('#ffffff');
+        expect(
+            chroma.deltaE(chroma.mix(blue, white, 1, 'hsi'), white),
+        ).toBeGreaterThan(50);
+        expect(
+            chroma.deltaE(
+                mixCoords(
+                    toModeCoords(blue, 'hsi'),
+                    toModeCoords(white, 'hsi'),
+                    1,
+                    'hsi',
+                ),
+                white,
+            ),
+        ).toBeLessThan(1e-6);
+    });
+
+    test('keeps the hue of saturated reds in HSI', () => {
+        // halfway from red to black in HSI is (127.5, 1.4e-14, 0): chroma's arccosine sees 1.0000000000000002
+        // and returns no hue, as for a gray
+        const darkRed = chroma.mix('#ff0000', '#000000', 0.5, 'hsi');
+        expect(darkRed.hsi()[0]).toBeNaN();
+        expect(darkRed.hsi()[1]).toBe(1);
+        expect(toModeCoords(darkRed, 'hsi')[0]).toBeCloseTo(0, 6);
+        // so a mix toward it takes its hue, and gets there
+        const blue = chroma('#0000ff');
+        const mixed = mixCoords(
+            toModeCoords(blue, 'hsi'),
+            toModeCoords(darkRed, 'hsi'),
+            1,
+            'hsi',
+        );
+        expect(chroma.deltaE(mixed, darkRed)).toBeLessThan(1e-6);
+        expect(
+            chroma.deltaE(chroma.mix(blue, darkRed, 1, 'hsi'), darkRed),
+        ).toBeGreaterThan(20);
+    });
+
+    test('keeps the hue of saturated cyans in HSI', () => {
+        // the other side of the clamp: the arccosine sees -1.0000000000000002
+        const darkCyan = chroma(180, 0.9, 0.0075, 'hsi');
+        expect(darkCyan.hsi()[0]).toBeNaN();
+        expect(toModeCoords(darkCyan, 'hsi')[0]).toBeCloseTo(180, 6);
+    });
+
+    test('still dims linearly toward black in HSI and HSL, as chroma.mix does', () => {
+        // black looks the same at any saturation in HSI and HSL, so chroma's mix keeps the color's own and
+        // just dims it: halfway from red is rgb(127.5, 0, 0), as in RGB
+        const red = chroma('#ff0000');
+        const black = chroma('#000000');
+        for (const mode of ['hsi', 'hsl'] as const) {
+            const half = mixCoords(
+                toModeCoords(red, mode),
+                toModeCoords(black, mode),
+                0.5,
+                mode,
+            );
+            expect(state(half), mode).toEqual(
+                state(chroma.mix(red, black, 0.5, mode)),
+            );
+            const [r, g, b] = half.rgb(false);
+            expect(r, mode).toBeCloseTo(127.5, 6);
+            expect(g + b, mode).toBeCloseTo(0, 6);
+        }
+    });
+
+    test('never gives NaN channels in HSV', () => {
+        // a hue that lands a hair below 0 used to wrap to exactly 360, which chroma can't convert
+        const stops = ColorPalette.normalizeColors(['#261d23', '#3b7f2a']);
+        const expected = chromaScaleColors(stops, 'hsv', 37);
+        expect(expected.some((c) => c.rgb(false).some(Number.isNaN))).toBe(
+            true,
+        );
+        const sampled = sampleScale(stops, 'hsv', 37);
+        expect(sampled.every((c) => c.rgb(false).every(Number.isFinite))).toBe(
+            true,
+        );
     });
 });
 
@@ -167,7 +309,7 @@ describe('ColorPalette scale colors', () => {
         );
     });
 
-    test('come from chroma.scale for a fractional step count', () => {
+    test('match chroma.scale for a fractional step count', () => {
         // (1.3 + 1) - 1 !== 1.3, so chroma spaces these samples differently from step / nSteps
         const palette = new ColorPalette({
             colors: ['#e8b450', '#7a1a2b', '#2b1a12'],

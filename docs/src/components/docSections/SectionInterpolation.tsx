@@ -28,8 +28,11 @@ export function SectionInterpolation() {
                 <li>OKLCH</li>
             </UnorderedList>
             <Text>
-                <Code>colormotion</Code> leverages the scales feature of{' '}
-                <Code>chroma.js</Code> under the hood for interpolation.
+                <Code>colormotion</Code> uses the color spaces of{' '}
+                <Code>chroma.js</Code> and follows its interpolation, except
+                near colors without a hue: in LCH, HCL and OKLCH a mix toward
+                black, and in HSI a mix toward white, fades the chroma or
+                saturation so it actually arrives there.
             </Text>
         </>
     );
