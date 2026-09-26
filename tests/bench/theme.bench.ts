@@ -112,6 +112,25 @@ describe('transition tick', () => {
     }
 });
 
+// The same for a rotation: one color replaced in place, so the tick measures only the part of the wheel it
+// changes.
+describe('transition tick, rotation', () => {
+    for (const nSteps of STEP_COUNTS) {
+        for (const mode of MODES) {
+            const t = inTransition(() => {
+                const theme = new Theme({ colors: GOLD, mode, nSteps });
+                theme.rotateColor('#17a398', { transitionSpeed: 0.01 });
+                return theme;
+            });
+            bench(
+                `${mode}, ${nSteps} steps`,
+                () => (t.get() as Theme).tick(),
+                t.options,
+            );
+        }
+    }
+});
+
 // The same, for a transition timed with transitionDuration (long enough not to finish mid-run).
 // A timed tick only advances a counter: the colors are mixed when read, as in the LED frame benchmarks.
 describe('transition tick, timed', () => {

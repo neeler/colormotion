@@ -7,6 +7,33 @@ const DUSK = ['#6b2fa0', '#ff7a1a', '#3a1660', '#c0409a', '#1a0a2e'];
 const EMERALD = ['#2b8f6b', '#9fe0c0', '#0f4f4a', '#3fb28a', '#123024'];
 
 /**
+ * Runs a theme's transition to its end and reports how many ticks it took and how far (CIEDE2000) the
+ * colors jumped on the tick that ended it: on average over the sampled scale colors, and at most.
+ */
+function runToEnd(theme: Theme, samples: number[]) {
+    const target = theme.targetPalette!.scaleColors;
+    let ticks = 0;
+    let before = samples.map((i) => target[i]!);
+    while (theme.isTransitioning) {
+        before = samples.map((i) => theme.getColor(i));
+        theme.tick(0);
+        ticks++;
+        // the longest transition here takes about 4,300 ticks
+        if (ticks > 20_000) {
+            throw new Error('transition did not end');
+        }
+    }
+    const jumps = before.map((color, k) =>
+        chroma.deltaE(target[samples[k]!]!, color, 1, 1, 1),
+    );
+    return {
+        ticks,
+        lastJump: jumps.reduce((sum, jump) => sum + jump, 0) / jumps.length,
+        maxJump: Math.max(...jumps),
+    };
+}
+
+/**
  * Runs a transitionSpeed transition to its end and reports how many ticks it took and how far
  * (average CIEDE2000 over a sample of the scale colors) the colors jumped on the tick that ended it.
  */
@@ -21,25 +48,7 @@ function runTransition(
     const samples = Array.from({ length: nSteps / 4 }, (_, i) => i * 4);
     const theme = new Theme({ colors: from, mode, nSteps });
     theme.update({ colors: to, transitionSpeed });
-    const target = theme.targetPalette!.scaleColors;
-    let ticks = 0;
-    let before = samples.map((i) => target[i]!);
-    while (theme.isTransitioning) {
-        before = samples.map((i) => theme.getColor(i));
-        theme.tick(0);
-        ticks++;
-        // the longest transition here takes about 4,300 ticks
-        if (ticks > 20_000) {
-            throw new Error('transition did not end');
-        }
-    }
-    const lastJump =
-        before.reduce(
-            (sum, color, k) =>
-                sum + chroma.deltaE(target[samples[k]!]!, color, 1, 1, 1),
-            0,
-        ) / samples.length;
-    return { ticks, lastJump };
+    return runToEnd(theme, samples);
 }
 
 // slow transitions run for thousands of ticks
@@ -121,6 +130,29 @@ describe('a transitionSpeed transition', { timeout: 60_000 }, () => {
             theme.tick(0);
         }
         expect(theme.isTransitioning).toBe(true);
+    });
+
+    test('settles on the colors it changes, so a rotation ends as smoothly as a whole new palette', () => {
+        // a rotation changes a quarter of a wheel of eight colors; averaged over the whole wheel, the
+        // distance used to settle a third or more early, snapping the colors it changes by 3 ΔE or more
+        const EIGHT = [...GOLD, ...DUSK.slice(0, 3)];
+        const nSteps = 64;
+        const samples = Array.from({ length: nSteps }, (_, i) => i);
+        for (const [mode, speed] of [
+            ['rgb', 0.02],
+            ['oklch', 0.01],
+        ] as const) {
+            const rotated = new Theme({ colors: EIGHT, mode, nSteps });
+            rotated.rotateColor('#17a398', { transitionSpeed: speed });
+            const shifted = new Theme({ colors: EIGHT, mode, nSteps });
+            shifted.setColors([...EIGHT.slice(1), '#17a398'], {
+                transitionSpeed: speed,
+            });
+            const rotation = runToEnd(rotated, samples);
+            const shift = runToEnd(shifted, samples);
+            expect(rotation.maxJump, mode).toBeLessThan(1.5);
+            expect(rotation.ticks, mode).toBeGreaterThan(0.85 * shift.ticks);
+        }
     });
 
     test('keeps moving at a very slow speed instead of snapping', () => {

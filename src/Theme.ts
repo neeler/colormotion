@@ -36,6 +36,8 @@ const DEFAULT_TRANSITION_SPEED = 0.1;
 /**
  * A transitionSpeed transition snaps to its target once its colors stop changing, but only when they are
  * within this average CIEDE2000 distance of it: about half of the smallest difference the eye can see.
+ * The average is over the sampled colors the transition changes (see Theme.settleIndexes), so a change to
+ * part of the wheel, such as a rotation, is not diluted by the colors it leaves alone.
  * Stopping is not enough by itself: the distance can hold steady or rise before it falls, most often in
  * hue-based modes.
  */
@@ -187,9 +189,10 @@ export interface ColorUpdateConfig {
      * second; 0.01: about 75 s; 0.001: about 12 minutes). For an exact
      * length, use transitionDuration.
      * The transition ends once the colors stop changing within 0.5 CIEDE2000
-     * of the target, averaged over a sample of the scale colors (single
-     * colors can be a little further off), or once 99.9999 % of the mix is
-     * done.
+     * of the target, averaged over a sample of the scale colors that the
+     * transition changes (single colors can be a little further off), or
+     * once 99.9999 % of the mix is done. A change to part of the wheel, such
+     * as a rotation, ends as smoothly as a whole new palette.
      * A speed of 0 makes no progress, so the transition is treated as
      * settled and the target palette is applied on the second tick. The same
      * goes for a speed too small to move the colors at all (about 5e-16 or
@@ -360,7 +363,17 @@ export class Theme {
     private _mode: InterpolationMode;
     private transitionSpeed = 0;
     private iColor = 0;
+    /** transitionDistance during a transitionSpeed transition: the average over every sampled color. */
     private previousColorDistance?: number;
+    /** The distance the transitionSpeed transition settles on, measured at the start of the last tick. */
+    private previousSettleDistance?: number;
+    /**
+     * The sampled indexes a transitionSpeed transition settles on: those whose colors start more than
+     * colorDistanceThreshold from the target's, found on its first tick (all of them if none does).
+     * Averaging over the colors it leaves alone would let a change to part of the wheel snap to its
+     * target while the colors it changes are still visibly off.
+     */
+    private settleIndexes?: readonly number[];
     private readonly colorDistanceThreshold = 0.001;
     /**
      * The scale colors at rest, and where the current transition started from.
@@ -672,6 +685,9 @@ export class Theme {
      * Measured in CIEDE2000 color distance.
      * Ranges from 0 (identical) to 100 (maximally different).
      * Estimated from an evenly spaced sample of the scale colors.
+     * It averages over the whole wheel, so after a change to part of it, such as a rotation, the colors
+     * that change are further off than this; a transitionSpeed transition judges when to end by those
+     * colors alone.
      * Returns undefined if there is no target palette.
      * During a transitionSpeed transition, this is the distance measured at the
      * start of the most recent tick, before the colors moved (under chroma's Lab
@@ -808,15 +824,47 @@ export class Theme {
     }
 
     /**
+     * The sampled indexes whose colors are more than colorDistanceThreshold from the target's now, or all of
+     * them if none is.
+     */
+    private findChangingSamples(targetColors: Color[]) {
+        const changing = this.sampleIndexes.filter(
+            (iColor) =>
+                chroma.deltaE(
+                    targetColors[iColor] as Color,
+                    this.currentColor(iColor),
+                    1,
+                    1,
+                    1,
+                ) > this.colorDistanceThreshold,
+        );
+        return changing.length > 0 ? changing : this.sampleIndexes;
+    }
+
+    /**
      * The average distance between the current colors and the target palette's colors.
      * Measured in CIEDE2000 color distance.
      * Ranges from 0 (identical) to 100 (maximally different).
      * Estimated from an evenly spaced sample of the scale colors.
      */
     private calculateAverageTargetDistance(targetPalette: ColorPalette) {
-        const targetColors = targetPalette.scaleColors;
+        return (
+            this.sumTargetDistances(
+                targetPalette.scaleColors,
+                this.sampleIndexes,
+            ) / this.sampleIndexes.length
+        );
+    }
+
+    /**
+     * The sum of the CIEDE2000 distances between the current colors and the target colors at the indexes.
+     */
+    private sumTargetDistances(
+        targetColors: Color[],
+        indexes: readonly number[],
+    ) {
         let sum = 0;
-        for (const iColor of this.sampleIndexes) {
+        for (const iColor of indexes) {
             sum += chroma.deltaE(
                 targetColors[iColor] as Color,
                 this.currentColor(iColor),
@@ -825,7 +873,7 @@ export class Theme {
                 1,
             );
         }
-        return sum / this.sampleIndexes.length;
+        return sum;
     }
 
     /**
@@ -1154,6 +1202,8 @@ export class Theme {
         this.progressBase = 0;
         this._targetPalette = targetPalette;
         this.previousColorDistance = undefined;
+        this.previousSettleDistance = undefined;
+        this.settleIndexes = undefined;
         this.resetMixing();
         this.publish();
     }
@@ -1362,6 +1412,8 @@ export class Theme {
         this.colors = targetPalette.scaleColors;
         this._targetPalette = undefined;
         this.previousColorDistance = undefined;
+        this.previousSettleDistance = undefined;
+        this.settleIndexes = undefined;
         this.durationTicks = undefined;
         this.elapsedTicks = 0;
         this.progressBase = 0;
@@ -1424,24 +1476,34 @@ export class Theme {
             return;
         }
 
-        const averageColorDistance =
-            this.calculateAverageTargetDistance(targetPalette);
+        this.stepAtSpeed(targetPalette);
+    }
+
+    /**
+     * One tick of a transitionSpeed transition: a fraction of the way to the target, or the end of the
+     * transition once it has settled.
+     */
+    private stepAtSpeed(targetPalette: ColorPalette) {
+        const targetColors = targetPalette.scaleColors;
+        // on the first tick, the colors are still where the transition started
+        const settleIndexes = (this.settleIndexes ??=
+            this.findChangingSamples(targetColors));
+        const sum = this.sumTargetDistances(targetColors, settleIndexes);
+        const settleDistance = sum / settleIndexes.length;
 
         // Already there (or no measurable distance, e.g. a mode change on a
         // single-color palette): finish immediately rather than waiting for a
         // change in distance that will never come.
-        const isNegligible = !(
-            averageColorDistance > this.colorDistanceThreshold
-        );
+        const isNegligible = !(settleDistance > this.colorDistanceThreshold);
         // The distance has stopped changing, and what is left is too small to
         // see or the mix is all but done, so snap to the target. A speed that
         // cannot move the colors (0, or so small that 1 - speed rounds to 1)
         // settles regardless, so every transition ends.
         const hasSettled =
-            this.previousColorDistance !== undefined &&
-            Math.abs(this.previousColorDistance - averageColorDistance) <
+            this.previousSettleDistance !== undefined &&
+            Math.abs(this.previousSettleDistance - settleDistance) <
                 this.colorDistanceThreshold &&
-            (averageColorDistance < SETTLED_DISTANCE ||
+            (settleDistance < SETTLED_DISTANCE ||
                 this.remaining < SETTLED_REMAINING ||
                 1 - this.transitionSpeed === 1);
 
@@ -1450,7 +1512,9 @@ export class Theme {
             return;
         }
 
-        this.previousColorDistance = averageColorDistance;
+        this.previousSettleDistance = settleDistance;
+        // the samples left out are within colorDistanceThreshold of the target, so they add next to nothing
+        this.previousColorDistance = sum / this.sampleIndexes.length;
         this.remaining *= 1 - this.transitionSpeed;
         this.progress = 1 - this.remaining;
         this.tickCount++;

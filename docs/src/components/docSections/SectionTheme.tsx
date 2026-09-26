@@ -1127,7 +1127,13 @@ theme.tick(0); // Transition only`}
                 the full color wheel, and ignores{' '}
                 <TextLink href="#theme-brightness">brightness</TextLink> and the
                 color index. It is an average, so single colors can be further
-                off.
+                off, and it averages over the whole wheel: after a change to
+                part of it, such as a{' '}
+                <TextLink href="#theme-rotateColor">rotation</TextLink>, the
+                colors that change are further off than the average. A{' '}
+                <Code>transitionSpeed</Code> transition judges when to end by
+                the colors it changes alone, so it ends as smoothly after a
+                rotation as after a whole new palette.
             </Text>
             <Text>
                 It is <Code>undefined</Code> whenever{' '}
