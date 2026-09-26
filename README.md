@@ -184,6 +184,23 @@ const theme = new Theme({
 });
 ```
 
+To sample the whole color wheel into a float array on every frame, for a lookup table or an LED
+pipeline, use `fillRgb`. It writes the red, green and blue of every step, three numbers per color, and
+creates no color objects. The values are exactly those of `getColor(i).rgb(false)` divided by 255, so
+the color index, a transition in progress and the brightness apply as they do in `getColor`. Pass
+`max: 255` for the 0-255 values.
+
+```typescript
+const lut = new Float32Array(theme.nSteps * 3);
+
+function draw() {
+    theme.fillRgb(lut, { brightness: 0.8 });
+    // lut[3 * i], lut[3 * i + 1] and lut[3 * i + 2] are the red, green and blue
+    // of theme.getColor(i, { brightness: 0.8 }), from 0 to 1
+    theme.tick();
+}
+```
+
 Supply your own random number generator (any function returning a number
 in `[0, 1)`) to get reproducible random palettes, for example from a seeded
 PRNG:
@@ -199,7 +216,7 @@ const theme = new Theme({
 
 ```bash
 npm test          # unit tests (watch mode)
-npm run bench     # benchmarks: palette building, getColor, transition ticks, LED frames
+npm run bench     # benchmarks: palette building, getColor, fillRgb, transition ticks, LED frames
 npm run docs:api  # regenerate the docs site's API reference (Node 22.18 or later)
 ```
 

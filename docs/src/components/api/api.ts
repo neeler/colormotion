@@ -16,6 +16,7 @@ const TYPE_ORDER: TypeName[] = [
     'ThemeConfig',
     'InitialThemeColors',
     'ColorUpdateConfig',
+    'FillRgbOptions',
     'RandomPaletteConfig',
     'RandomColorConfig',
     'ThemeUpdateEvent',

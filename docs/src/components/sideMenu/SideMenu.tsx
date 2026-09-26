@@ -16,6 +16,7 @@ const THEME_SECTIONS: [string, string][] = [
     ['theme-brightnessMode', 'theme.brightnessMode'],
     ['theme-getColor', 'theme.getColor'],
     ['theme-normalizeIndex', 'theme.normalizeIndex'],
+    ['theme-fillRgb', 'theme.fillRgb'],
     ['theme-update', 'theme.update'],
     ['theme-setMode', 'theme.setMode'],
     ['theme-rotateMode', 'theme.rotateMode'],
