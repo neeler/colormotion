@@ -1031,14 +1031,14 @@ if (!theme.isTransitioning || (distance !== undefined && distance < 1)) {
 theme.subscribe(myCallback);`}
             </SyntaxHighlighter>
             <Text>
-                Here&apos;s an example of the actual React hook being used in
-                the demo above to show the currently selected interpolation
-                mode:
+                Here&apos;s a React hook like the one the demo above uses to
+                show the currently selected interpolation mode (the demo&apos;s
+                version also follows the playground when it rebuilds its theme):
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`import { ThemeUpdateCallback, ThemeUpdateEvent } from 'colormotion';
 import { useEffect, useState } from 'react';
-import { theme } from '~/components/theme/theme';
+import { theme } from './theme'; // your Theme instance
 
 export function useInterpolationMode() {
     const [mode, setMode] = useState<ThemeUpdateEvent['mode'] | undefined>(

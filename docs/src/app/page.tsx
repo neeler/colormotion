@@ -12,7 +12,6 @@ import { OpenSidebarButton } from '~/components/sideMenu/OpenSidebarButton';
 import { SideMenu } from '~/components/sideMenu/SideMenu';
 import { SidebarProvider } from '~/components/sideMenu/SidebarContext';
 import { ThemedSketch } from '~/components/sketches/ThemedSketch';
-import { fibonacciSpiralSketch } from '~/components/sketches/fibonacciSpiralSketch';
 
 export default function Home() {
     return (
@@ -56,7 +55,7 @@ export default function Home() {
                         <Text>
                             Compatible with Node.js and browser environments.
                         </Text>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                             <a
                                 href="https://github.com/neeler/colormotion"
                                 target="_blank"
@@ -79,7 +78,7 @@ export default function Home() {
                                 src="https://img.shields.io/bundlejs/size/colormotion"
                             />
                         </div>
-                        <ThemedSketch sketch={fibonacciSpiralSketch} />
+                        <ThemedSketch />
                         <SectionInstallation />
                         <SectionQuickStart />
                         <SectionInterpolation />

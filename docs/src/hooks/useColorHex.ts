@@ -1,9 +1,10 @@
 import { ThemeUpdateCallback } from '@colormotion';
 import { useEffect, useState } from 'react';
-import { theme } from '~/components/theme/theme';
+import { useTheme } from '~/hooks/useTheme';
 import { safeMod } from '~/lib/safeMod';
 
 export function useColorHex(index = 0) {
+    const theme = useTheme();
     const [color, setColor] = useState<string | undefined>(undefined);
 
     useEffect(() => {
@@ -18,7 +19,7 @@ export function useColorHex(index = 0) {
         return () => {
             theme.unsubscribe(updateColor);
         };
-    }, [index]);
+    }, [index, theme]);
 
     return color;
 }

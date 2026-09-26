@@ -1,8 +1,9 @@
 import { ThemeUpdateCallback, ThemeUpdateEvent } from '@colormotion';
 import { useEffect, useState } from 'react';
-import { theme } from '~/components/theme/theme';
+import { useTheme } from '~/hooks/useTheme';
 
 export function useInterpolationMode() {
+    const theme = useTheme();
     const [mode, setMode] = useState<ThemeUpdateEvent['mode'] | undefined>(
         undefined,
     );
@@ -17,7 +18,7 @@ export function useInterpolationMode() {
         return () => {
             theme.unsubscribe(updatePalette);
         };
-    }, []);
+    }, [theme]);
 
     return mode;
 }

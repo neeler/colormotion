@@ -1,5 +1,7 @@
+import { FRAME_RATE } from '~/components/playground/settings';
+import { tickTheme } from '~/components/playground/wheel';
 import { Sketch } from '~/components/sketches/lib';
-import { theme } from '~/components/theme/theme';
+import { getTheme } from '~/components/theme/theme';
 import { MovingObject } from '~/lib/MovingObject';
 import { MovingRandomNumber } from '~/lib/MovingRandomNumber';
 
@@ -37,10 +39,6 @@ export const fibonacciSpiralSketch = new Sketch({
                 min: 200,
                 max: 255,
             }),
-            colorTurnStep: new MovingRandomNumber({
-                min: 1,
-                max: 10,
-            }),
             iColorStep: new MovingRandomNumber({
                 min: 0,
                 max: 2,
@@ -67,6 +65,7 @@ export const fibonacciSpiralSketch = new Sketch({
             }),
         }),
     setup: (p5) => {
+        p5.frameRate(FRAME_RATE);
         p5.background(0);
     },
     draw: (
@@ -75,7 +74,6 @@ export const fibonacciSpiralSketch = new Sketch({
             movingState: {
                 bgOpacity,
                 shapeOpacity,
-                colorTurnStep,
                 iColorStep,
                 rColorStep,
                 angleColorStep,
@@ -85,6 +83,7 @@ export const fibonacciSpiralSketch = new Sketch({
             },
         },
     ) => {
+        const theme = getTheme();
         p5.background(0, 0, 0, bgOpacity);
 
         const midWidth = p5.width / 2;
@@ -119,6 +118,6 @@ export const fibonacciSpiralSketch = new Sketch({
         }
         p5.pop();
 
-        theme.tick(Math.round(colorTurnStep));
+        tickTheme();
     },
 });
