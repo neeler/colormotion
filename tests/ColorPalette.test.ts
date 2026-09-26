@@ -325,12 +325,15 @@ test('rotateOn', () => {
     expect(rotateOn.nColors).toBe(3);
     expect(palette.nColors).toBe(3);
     expect(palette.hexes).toEqual(['#ff0000', '#008000', '#0000ff', '#ff0000']);
+    // the oldest color, red, is replaced in its position
     expect(rotateOn.hexes).toEqual([
+        '#800080',
         '#008000',
         '#0000ff',
         '#800080',
-        '#008000',
     ]);
+    expect(rotateOn.ageOrder).toEqual([1, 2, 0]);
+    expect(palette.ageOrder).toEqual([0, 1, 2]);
 });
 
 test('rotateRandomOn', () => {
@@ -349,9 +352,11 @@ test('rotateRandomOn', () => {
     expect(rotateRandomOn.nColors).toBe(3);
     expect(palette.nColors).toBe(3);
     expect(palette.hexes).toEqual(['#ff0000', '#008000', '#0000ff', '#ff0000']);
-    expect(rotateRandomOn.hexes[0]).toEqual('#008000');
-    expect(rotateRandomOn.hexes[1]).toEqual('#0000ff');
-    expect(rotateRandomOn.hexes[3]).toEqual('#008000');
+    // the oldest color, red, is replaced in its position
+    expect(rotateRandomOn.hexes[1]).toEqual('#008000');
+    expect(rotateRandomOn.hexes[2]).toEqual('#0000ff');
+    expect(rotateRandomOn.hexes[3]).toEqual(rotateRandomOn.hexes[0]);
+    expect(rotateRandomOn.ageOrder).toEqual([1, 2, 0]);
 });
 
 test('static random', () => {

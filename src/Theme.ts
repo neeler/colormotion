@@ -20,6 +20,7 @@ import {
 } from './interpolate';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
+import { sameOrder } from './sameOrder';
 
 /**
  * Maximum number of scale colors sampled when estimating the distance to the
@@ -86,14 +87,17 @@ export type InitialThemeColors =
           /**
            * The initial color palette.
            * Takes precedence over colors and nColors.
-           * The theme builds its own copy from the palette's colors, with the theme's nSteps and any
-           * mode, maxNumberOfColors, deltaEThreshold or random option given in place of the palette's.
+           * The theme uses a copy of the palette with the theme's nSteps and any mode, maxNumberOfColors,
+           * deltaEThreshold or random option given in place of the palette's (the palette itself when none
+           * of them differs). The copy keeps the colors' positions and ages (see ColorPalette.ageOrder).
            */
           palette?: ColorPalette;
       }
     | {
           /**
            * The initial colors in the palette.
+           * Their order is also their age order: rotations replace them from the first (see
+           * ColorPalette.ageOrder).
            */
           colors?: ColorInput[];
       }
@@ -209,7 +213,9 @@ export interface ColorUpdateConfig {
      * not a finite number is ignored, and transitionSpeed applies instead.
      *
      * For the palette the theme is already transitioning to (including a call
-     * that leaves it unchanged, such as pushing a color onto a full palette):
+     * that leaves it unchanged, such as pushing a color onto a full palette,
+     * or one that changes only the ages of its colors, such as rotating in
+     * the color the oldest already has):
      * - The same duration changes nothing and keeps the current end, so an
      *   update can safely be re-sent every tick.
      * - A different duration re-times the transition to end that many ticks
@@ -434,7 +440,8 @@ export class Theme {
             config?.deltaEThreshold ?? initialPalette?.deltaEThreshold;
 
         if (initialPalette) {
-            this._palette = new ColorPalette({
+            // newConfig keeps the colors' positions and ages
+            this._palette = initialPalette.newConfig({
                 colors: initialPalette.colors,
                 mode: config?.mode ?? initialPalette.mode,
                 nSteps: this.nSteps,
@@ -519,9 +526,11 @@ export class Theme {
     /**
      * Puts the theme at rest on the palette at once, ending any transition, and notifies subscribers:
      * the same as update with the palette's colors and mode and a transitionDuration of 0, except that
-     * the palette's deltaEThreshold and random are kept. Assigning the palette the theme is already at
-     * rest on changes nothing. A palette with a different nSteps or maxNumberOfColors from the theme's
-     * is rebuilt with the theme's, as the constructor does, so reading palette back gives that copy.
+     * the palette's deltaEThreshold, random and color ages (ageOrder) are kept. Assigning the palette the
+     * theme is already at rest on changes nothing, and so does a palette with the same colors, settings
+     * and ages; one that differs only in its ages takes its place, so the next rotations follow the
+     * assigned ages. A palette with a different nSteps or maxNumberOfColors from the theme's is rebuilt
+     * with the theme's, as the constructor does, so reading palette back gives that copy.
      */
     set palette(palette: ColorPalette) {
         const adopted = this.adopt(palette);
@@ -542,9 +551,12 @@ export class Theme {
     /**
      * Transitions to the palette at the default speed, as update does, from wherever the colors are;
      * the palette it is already heading to changes nothing, and the palette it is at rest on changes
-     * nothing either. A palette with a different nSteps or maxNumberOfColors from the theme's is
-     * rebuilt with the theme's. So reading targetPalette back does not always give the palette
-     * assigned: it can be a copy, or undefined when nothing changed.
+     * nothing either (nor does a palette with the same colors, settings and ages as either). A palette
+     * with the colors and settings of the active palette but other ages takes its place without a
+     * transition: only the order of the next rotations changes, so the theme stays at rest, or its
+     * transition keeps going as it was. A palette with a different nSteps or maxNumberOfColors from the
+     * theme's is rebuilt with the theme's. So reading targetPalette back does not always give the palette
+     * assigned: it can be a copy, or undefined when the theme stays at rest.
      * undefined cancels a transition: the theme returns to palette, and mode to its mode, at once, and
      * notifies subscribers (finishTransition ends it at the target instead).
      */
@@ -574,8 +586,9 @@ export class Theme {
 
     /**
      * An assigned palette as the theme holds it: a copy with the theme's nSteps and maxNumberOfColors if
-     * it has others (as the constructor makes of a palette option), or the palette the theme is on or
-     * heading to if it has the same colors and settings, so it compares as update compares colors.
+     * it has others (as the constructor makes of a palette option), which keeps its colors' positions and
+     * ages, or the palette the theme is on or heading to if it has the same colors, settings and ages, so
+     * assigning an equal palette changes nothing.
      */
     private adopt(palette: ColorPalette): ColorPalette {
         let adopted = palette;
@@ -588,13 +601,12 @@ export class Theme {
             if (cached?.labWhitePoint === labWhitePoint) {
                 adopted = cached.copy;
             } else {
-                adopted = new ColorPalette({
+                // newConfig keeps the colors' positions and ages
+                adopted = palette.newConfig({
                     colors: palette.colors,
                     mode: palette.mode,
                     nSteps: this.nSteps,
                     maxNumberOfColors: this.maxNumberOfColors,
-                    deltaEThreshold: palette.deltaEThreshold,
-                    random: palette.random,
                 });
                 this.adoptedCopies.set(palette, {
                     copy: adopted,
@@ -605,17 +617,54 @@ export class Theme {
         for (const own of [this._targetPalette, this._palette]) {
             if (
                 own &&
-                own.key === adopted.key &&
-                own.mode === adopted.mode &&
-                own.nSteps === adopted.nSteps &&
-                own.maxNumberOfColors === adopted.maxNumberOfColors &&
-                own.deltaEThreshold === adopted.deltaEThreshold &&
-                own.random === adopted.random
+                Theme.haveSameColors(own, adopted) &&
+                sameOrder(own.ageOrder, adopted.ageOrder)
             ) {
                 return own;
             }
         }
         return adopted;
+    }
+
+    /**
+     * Whether two palettes have the same colors (by hex, as update compares them) and settings, whatever
+     * the ages of their colors.
+     */
+    private static haveSameColors(a: ColorPalette, b: ColorPalette) {
+        return (
+            a.key === b.key &&
+            a.mode === b.mode &&
+            a.nSteps === b.nSteps &&
+            a.maxNumberOfColors === b.maxNumberOfColors &&
+            a.deltaEThreshold === b.deltaEThreshold &&
+            a.random === b.random
+        );
+    }
+
+    /**
+     * Puts a palette with the active palette's colors and settings but other ages in its place, and returns
+     * whether it did. Only the order of the next rotations changes, so there is nothing to transition: at
+     * rest the theme stays at rest, and a transition keeps its progress, easing and pace.
+     */
+    private swapAges(palette: ColorPalette) {
+        const active = this._targetPalette ?? this._palette;
+        if (
+            palette === active ||
+            !Theme.haveSameColors(palette, active) ||
+            sameOrder(palette.ageOrder, active.ageOrder)
+        ) {
+            return false;
+        }
+        if (this._targetPalette) {
+            // equal hexes can hide differences below 8 bits, so mix toward the new target's own colors
+            this._targetPalette = palette;
+            this.toCoords = [];
+            this.tickCount++;
+        } else {
+            this._palette = palette;
+            this.colors = palette.scaleColors;
+        }
+        return true;
     }
 
     /**
@@ -663,7 +712,12 @@ export class Theme {
     }
 
     /**
-     * The hex values of the colors in the active palette.
+     * The hex values of the colors in the active palette, without the closing repeat of the first.
+     *
+     * A rotation or a push can leave a palette whose last color matches its first, such as blue, green,
+     * blue. Given back as colors (to setColors, update or the constructor), such a list loses its last
+     * color, which is taken for the closing repeat. To give a palette's colors back as they are, pass
+     * activePalette.hexes, which ends with the closing repeat, or activePalette.colors.
      */
     get activePaletteHexes() {
         const hexes = this.activePalette.hexes.slice();
@@ -1049,24 +1103,34 @@ export class Theme {
             transitionDuration,
         }: ColorUpdateConfig = {},
     ) {
+        // a palette that changes only the ages of the active palette's colors (a rotation onto the color the
+        // oldest already has) takes its place with no transition, and the rules below then see it as the
+        // palette the theme is on or heading to
+        const agesChanged = this.swapAges(targetPalette);
         // at rest, the palette the theme is on changes nothing; mid-transition it is a target like
         // any other (only the targetPalette setter passes the palette itself)
         if (targetPalette === this._palette && !this._targetPalette) {
+            if (agesChanged) {
+                this.publish();
+            }
             return;
         }
         const duration = normalizeDuration(transitionDuration);
         if (targetPalette === this._targetPalette) {
-            if (duration === undefined || duration === this.durationTicks) {
-                return;
-            }
             if (duration === 0) {
                 this.completeTransition(targetPalette);
                 return;
             }
-            // re-time from where the colors are: progress, start colors and caches stay, so nothing moves now
-            this.progressBase = this.progress;
-            this.elapsedTicks = 0;
-            this.durationTicks = duration;
+            if (duration !== undefined && duration !== this.durationTicks) {
+                // re-time from where the colors are: progress, start colors and caches stay, so nothing
+                // moves now
+                this.progressBase = this.progress;
+                this.elapsedTicks = 0;
+                this.durationTicks = duration;
+            }
+            if (agesChanged) {
+                this.publish();
+            }
             return;
         }
         if (duration === 0) {
@@ -1097,6 +1161,8 @@ export class Theme {
     /**
      * Update the theme to a new set of colors and, optionally, interpolation mode.
      * The mode defaults to the current mode.
+     * The list order of new colors is their age order, so rotations start again from the first; the
+     * active palette's own colors, given again, keep their ages (see ColorPalette.newConfig).
      */
     update({
         colors,
@@ -1136,6 +1202,8 @@ export class Theme {
 
     /**
      * Set the colors of the theme.
+     * The list order of new colors is their age order, so rotations start again from the first; the
+     * active palette's own colors, given again, keep their ages (see ColorPalette.newColors).
      */
     setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig) {
         // the palette cuts the colors to maxNumberOfColors, as the constructor and update do
@@ -1146,6 +1214,7 @@ export class Theme {
      * Randomize the colors of the theme based on a seed color.
      * Defaults to the same number of colors as the current palette.
      * Max number of colors defined in the theme config is respected.
+     * The seed color is the oldest, so rotations start again from it.
      */
     randomFrom(
         color: ColorInput,
@@ -1168,6 +1237,7 @@ export class Theme {
      * Randomize the colors of the theme.
      * Defaults to the same number of colors as the current palette.
      * Max number of colors defined in the theme config is respected.
+     * The new colors' order is their age order, so rotations start again from the first.
      */
     randomTheme({
         minBrightness = 0,
@@ -1198,14 +1268,18 @@ export class Theme {
     }
 
     /**
-     * Push a new color to the end of the palette.
+     * Push a new color to the end of the active palette, as its newest color (see ColorPalette.push),
+     * even one that matches the first (see activePaletteHexes).
+     * Adds nothing if the palette already has maxNumberOfColors colors.
      */
     pushNewColor(color: ColorInput, options?: ColorUpdateConfig) {
         this.updateScale(this.activePalette.push(color), options);
     }
 
     /**
-     * Push a random color to the end of the palette.
+     * Push a random color to the end of the active palette, as its newest color, drawn at least
+     * deltaEThreshold (CIEDE2000) from the current last color (see ColorPalette.pushRandom).
+     * Adds nothing if the palette already has maxNumberOfColors colors.
      */
     pushRandomColor({
         minBrightness,
@@ -1220,21 +1294,40 @@ export class Theme {
     }
 
     /**
-     * Pop the oldest color from the palette.
+     * Drop the oldest color from the active palette: the one at activePalette.ageOrder[0] (see
+     * ColorPalette.popOldest). The others keep their order and ages. Does nothing to a single color.
      */
     popOldestColor(options?: ColorUpdateConfig) {
         this.updateScale(this.activePalette.popOldest(), options);
     }
 
     /**
-     * Drops the oldest color and pushes the new color.
+     * Replace the oldest color of the active palette with the new color, in its position, as the newest
+     * (see ColorPalette.rotateOn). Every other color keeps its place on the wheel, so only the colors
+     * between the replaced color's two neighbours change. Successive calls replace the colors oldest first,
+     * in the order of activePalette.ageOrder: for colors set from a list, first in, first out.
+     * During a transition, this rotates the target palette, continuing from its ages.
+     * Rotating in the color the oldest already has changes only the ages, so it starts no transition:
+     * the theme stays at rest, or its transition keeps going as it was (see transitionDuration for the
+     * palette the theme is already transitioning to), and subscribers are notified once.
+     *
+     * To shift the colors instead, as rotateColor did before 4.0 (dropping the first color and appending
+     * the new one, so every color moves one place): setColors([...activePaletteHexes.slice(1), color]).
      */
     rotateColor(color: ColorInput, options?: ColorUpdateConfig) {
         this.updateScale(this.activePalette.rotateOn(color), options);
     }
 
     /**
-     * Drops the oldest color and pushes a random color.
+     * Replace the oldest color of the active palette with a random color, as rotateColor does, drawn at
+     * least deltaEThreshold (CIEDE2000) from both of the colors it will sit between on the wheel (see
+     * ColorPalette.rotateRandomOn).
+     *
+     * To shift the colors instead, as rotateRandomColor did before 4.0 (dropping the first color and
+     * appending a random color drawn deltaEThreshold from the last):
+     * setColors(activePalette.popOldest().pushRandom({ minBrightness }).colors, options). With the same
+     * random, it draws the same colors as before 4.0, as long as the colors are only ever set from lists,
+     * pushed or popped, so that their ages stay in list order; a single color gains a second.
      */
     rotateRandomColor({
         minBrightness,

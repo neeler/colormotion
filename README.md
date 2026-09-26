@@ -110,11 +110,24 @@ theme.randomFrom('#662c91');
 // Set a completely random palette
 theme.randomTheme();
 
-// Rotate a new color into the palette and drop the oldest color
+// Replace the oldest color with a new color, in its place on the wheel
 theme.rotateColor('#17a398');
 
-// Rotate a new random color into the palette and drop the oldest color
+// Replace the oldest color with a new random color
 theme.rotateRandomColor();
+```
+
+Rotating replaces one color in place: every other color keeps its place on the wheel, so only the colors
+between the replaced color's two neighbours change, and an LED that shows another part of the wheel keeps
+its color. Successive rotations replace the colors oldest first, starting from the first color of the list
+they were set from. `activePalette.ageOrder` lists the positions of the colors, oldest first, so its first
+entry is the color the next rotation replaces.
+
+```typescript
+const theme = new Theme({ colors: ['red', 'green', 'blue'] });
+theme.rotateColor('purple'); // purple, green, blue
+theme.rotateColor('orange'); // purple, orange, blue
+theme.activePalette.ageOrder; // [2, 0, 1]: blue is next
 ```
 
 Change the interpolation mode, generating a different set of intermediary colors,
@@ -211,6 +224,47 @@ const theme = new Theme({
     random: seededRandom(42),
 });
 ```
+
+## Upgrading to 4.0
+
+Rotating a color (`theme.rotateColor`, `theme.rotateRandomColor`, `palette.rotateOn` and
+`palette.rotateRandomOn`) replaces the oldest color in its position. Before 4.0, it dropped the first color
+and appended the new one, which moved every color one place along the wheel, so every part of the wheel
+changed color at once. To keep that behavior, shift the colors yourself:
+
+```typescript
+theme.setColors([...theme.activePaletteHexes.slice(1), color]);
+// or, for a ColorPalette
+palette.newColors([...palette.hexes.slice(1, -1), color]);
+```
+
+To shift in a random color, drawn at least `deltaEThreshold` from the last color as before 4.0, drop the
+oldest color and push a random one. With the same `random`, this draws the same colors as 3.x did, as long
+as the colors are only ever set from lists, pushed or popped (so their ages stay in list order); a palette
+of one color gains a second.
+
+```typescript
+theme.setColors(theme.activePalette.popOldest().pushRandom().colors);
+// or, for a ColorPalette
+palette.popOldest().pushRandom();
+```
+
+Also changed:
+
+- `popOldestColor` and `popOldest` drop the oldest color by age: the first color unless the palette has
+  been rotated.
+- `rotateRandomColor` and `rotateRandomOn` draw the new color at least `deltaEThreshold` from both of its
+  neighbours on the wheel, not from the last color, so a seeded `random` gives different colors than in 3.x.
+- Rotating and popping keep the other colors as they are, at full precision (they were rounded to 8-bit
+  hex). Rotating, pushing and popping never take a color that matches the first for the closing repeat of
+  the wheel: `pushNewColor` adds such a color, where it used to add nothing, and a rotation or a pop no
+  longer loses one.
+- A palette can now end on a color that matches its first (rotating blue into red, green, blue gives blue,
+  green, blue). `activePaletteHexes` leaves out the closing repeat, so given back as colors, such a list
+  loses its last color. To give a palette's colors back as they are, pass `activePalette.hexes` (which ends
+  with the closing repeat) or `activePalette.colors`.
+- A `palette` passed to the `Theme` constructor that already has the theme's settings is used as it is,
+  rather than copied. A copy, as for any other palette, keeps the colors' ages.
 
 ## Development
 
