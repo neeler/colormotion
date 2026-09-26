@@ -3,15 +3,21 @@ import { InterpolationMode } from './InterpolationMode';
 import { clamp } from './clamp';
 
 /**
- * A color's coordinates in the space an interpolation mode mixes in, as chroma-js reads them
- * (including any trailing alpha chroma returns). Converting once and reusing the coordinates is what
- * makes repeated mixing cheap: chroma.mix converts both colors on every call.
+ * A color's coordinates in the space an interpolation mode mixes in, as chroma-js reads them: three
+ * numbers, in the order its mix reads them, and never alpha, which mixCoords mixes on its own.
+ * Converting once and reusing the coordinates is what makes repeated mixing cheap: chroma.mix converts
+ * both colors on every call.
  */
 export type ModeCoords = number[];
 
 /**
- * The coordinates chroma.mix(color, ·, f, mode) would read from `color`, except that a saturated color
- * gets an HSI hue where chroma's rounding leaves none (see hsiHue).
+ * The coordinates chroma.mix(color, ·, f, mode) would read from `color`, with two departures:
+ * - Alpha is left out. chroma's lab, oklab, hcl and oklch getters add it after the coordinates when it
+ *   is below 1, and hsl's always; its mix reads only the first three, except in OKLCH, where it reverses
+ *   the whole array: a translucent color reads as [alpha, h, C, L], and its alpha is mixed as the hue
+ *   (halfway from a translucent red to a translucent blue is still red). Here a translucent color has
+ *   the same coordinates as the opaque one.
+ * - A saturated color gets an HSI hue where chroma's rounding leaves none (see hsiHue).
  */
 export function toModeCoords(
     color: Color,
@@ -22,11 +28,11 @@ export function toModeCoords(
         case 'lrgb':
             return color.rgb(false);
         case 'lab':
-            return color.lab();
+            return withoutAlpha(color.lab());
         case 'oklab':
-            return color.oklab();
+            return withoutAlpha(color.oklab());
         case 'hsl':
-            return color.hsl();
+            return withoutAlpha(color.hsl());
         case 'hsv':
             return color.hsv();
         case 'hsi': {
@@ -38,10 +44,21 @@ export function toModeCoords(
         }
         case 'lch':
         case 'hcl':
-            return color.hcl();
-        case 'oklch':
-            return color.oklch().reverse();
+            return withoutAlpha(color.hcl());
+        case 'oklch': {
+            const [l, c, h] = color.oklch() as [number, number, number];
+            return [h, c, l];
+        }
     }
+}
+
+/**
+ * A getter's coordinates without the alpha chroma may add after them. The array is the getter's own,
+ * so the alpha is popped off in place (setting its length to 3 would be much slower).
+ */
+function withoutAlpha(coords: number[]): ModeCoords {
+    if (coords.length > 3) coords.pop();
+    return coords;
 }
 
 /**
@@ -71,7 +88,9 @@ function hsiHue(color: Color) {
  * chroma.mix(color0, color1, f, mode), without converting either color.
  * Mirrors the arithmetic of chroma-js 3's interpolators (src/interpolator/*.js) expression for
  * expression and builds the same Color chroma.mix returns, so results are identical, not just close,
- * except where chroma's mix can't reach an endpoint (see mixHsx).
+ * except where chroma's mix can't reach an endpoint (see mixHsx) and for translucent colors in OKLCH,
+ * which mix as the opaque colors do (see toModeCoords). Alpha is mixed on its own, as chroma.mix
+ * mixes it: linearly, from alpha0 to alpha1.
  */
 export function mixCoords(
     xyz0: ModeCoords,

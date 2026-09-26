@@ -110,7 +110,9 @@ export class ColorPalette {
     /**
      * chroma-js's scale over the palette colors. The palette's own colors (scaleColors, and so a Theme's)
      * follow chroma's interpolation except near hue-less ends, where colormotion's mix reaches the end and
-     * chroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI.
+     * chroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI. And in OKLCH,
+     * where chroma's mix reads a translucent color's alpha as its hue, they mix translucent colors as the
+     * opaque ones, with alpha mixed on its own.
      */
     readonly scale: Scale;
     readonly scaleColors: Color[];
@@ -247,17 +249,24 @@ export class ColorPalette {
         // collapse adjacent steps for large nSteps. Each step is only
         // sampled once anyway.
         this.scale.cache(false);
+        // chroma.scale duplicates a single color. In OKLCH, where its mix
+        // would read a translucent color's alpha as the hue, the duplicate
+        // is sampled here instead.
+        const stops =
+            this.colors.length === 1 && mode === 'oklch'
+                ? [this.colors[0]!, this.colors[0]!]
+                : this.colors;
         if (
             Number.isFinite(nSteps) &&
             nSteps > 0 &&
-            this.colors.length > 1 &&
+            stops.length > 1 &&
             Object.prototype.hasOwnProperty.call(InterpolationModes, mode)
         ) {
             // The samples scale.colors would take, converting each palette
             // color once and mixing with colormotion's rules. chroma.scale
-            // still samples step counts of 0 or less, single colors (which it
-            // duplicates), and modes outside InterpolationModes.
-            this.scaleColors = sampleScale(this.colors, mode, nSteps);
+            // still samples step counts of 0 or less, single colors outside
+            // OKLCH, and modes outside InterpolationModes.
+            this.scaleColors = sampleScale(stops, mode, nSteps);
         } else {
             // Request Color objects directly rather than hex strings,
             // which would quantize the scale to 8 bits per channel.

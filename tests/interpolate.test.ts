@@ -105,7 +105,15 @@ describe('mixCoords matches chroma.mix exactly', () => {
                 a.alpha(),
                 b.alpha(),
             );
-            expect(state(mixed)).toEqual(state(chroma.mix(a, b, 0.25, mode)));
+            // except in OKLCH, where chroma mixes a translucent color's alpha as its hue (see toModeCoords):
+            // there, the colors mix as chroma mixes the opaque ones, and alpha as it mixes alpha in any mode
+            const expected =
+                mode === 'oklch'
+                    ? chroma
+                          .mix(a.alpha(1), b.alpha(1), 0.25, mode)
+                          .alpha(chroma.mix(a, b, 0.25, 'rgb').alpha())
+                    : chroma.mix(a, b, 0.25, mode);
+            expect(state(mixed), mode).toEqual(state(expected));
         }
     });
 });
@@ -226,6 +234,79 @@ describe('mixCoords reaches both ends', () => {
     });
 });
 
+describe('translucent colors mix as their opaque selves, with alpha on its own', () => {
+    // equal and unequal alphas, and the ends: chroma's getters add alpha to the coordinates only below 1
+    const alphas = [
+        [0.5, 0.5],
+        [0.3, 0.9],
+        [0, 1],
+        [1, 0.25],
+    ] as const;
+
+    test('toModeCoords reads three coordinates, never alpha', () => {
+        for (const mode of Object.values(InterpolationModes)) {
+            for (const color of colors) {
+                const opaque = toModeCoords(color, mode);
+                expect(opaque, `${mode}, ${color.hex()}`).toHaveLength(3);
+                for (const alpha of [0, 0.5, 0.999]) {
+                    expect(
+                        toModeCoords(color.alpha(alpha), mode),
+                        `${mode}, ${color.hex()} at alpha ${alpha}`,
+                    ).toEqual(opaque);
+                }
+            }
+        }
+    });
+
+    for (const mode of Object.values(InterpolationModes)) {
+        test(`in mixCoords (${mode})`, () => {
+            for (const [a, b] of pairs()) {
+                const ca = toModeCoords(a, mode);
+                const cb = toModeCoords(b, mode);
+                for (const [alpha0, alpha1] of alphas) {
+                    const ta = toModeCoords(a.alpha(alpha0), mode);
+                    const tb = toModeCoords(b.alpha(alpha1), mode);
+                    for (const f of fractions) {
+                        expect(
+                            state(mixCoords(ta, tb, f, mode, alpha0, alpha1)),
+                            `${a.hex()} to ${b.hex()} at ${f}, alphas ${alpha0} and ${alpha1}`,
+                        ).toEqual(
+                            state(
+                                mixCoords(ca, cb, f, mode).alpha(
+                                    alpha0 + f * (alpha1 - alpha0),
+                                ),
+                            ),
+                        );
+                    }
+                }
+            }
+        });
+    }
+
+    test('halfway from a translucent red to a translucent blue in oklch', () => {
+        // chroma reverses a translucent color's oklch coordinates with the alpha on the end, [alpha, h, C, L],
+        // and mixes alpha as the hue: its mix is still red, #ff000080
+        const red = chroma('#ff000080');
+        const blue = chroma('#0000ff80');
+        expect(chroma.mix(red, blue, 0.5, 'oklch').hex()).toBe('#ff000080');
+        const half = mixCoords(
+            toModeCoords(red, 'oklch'),
+            toModeCoords(blue, 'oklch'),
+            0.5,
+            'oklch',
+            red.alpha(),
+            blue.alpha(),
+        );
+        expect(half.hex()).toBe(
+            chroma
+                .mix('#ff0000', '#0000ff', 0.5, 'oklch')
+                .alpha(red.alpha())
+                .hex(),
+        );
+        expect(half.hex()).toBe('#ba00c280');
+    });
+});
+
 /**
  * What ColorPalette sampled before sampleScale: every color of the chroma scale but the last.
  */
@@ -239,6 +320,29 @@ function chromaScaleColors(
     const sampled = scale.colors(nSteps + 1, null);
     sampled.pop();
     return sampled;
+}
+
+/**
+ * chromaScaleColors, except in OKLCH, where chroma mixes a translucent color's alpha as its hue (see
+ * toModeCoords): there, the scale of the opaque colors, with the alphas chroma's scale gives in any mode,
+ * and the stops themselves where a sample lands on one.
+ */
+function expectedScaleColors(
+    stops: Color[],
+    mode: InterpolationMode,
+    nSteps: number,
+) {
+    if (mode !== 'oklch' || stops.every((stop) => stop.alpha() === 1)) {
+        return chromaScaleColors(stops, mode, nSteps);
+    }
+    const opaque = stops.map((stop) => stop.alpha(1));
+    const alphas = chromaScaleColors(stops, 'rgb', nSteps).map((c) =>
+        c.alpha(),
+    );
+    return chromaScaleColors(opaque, mode, nSteps).map((color, i) => {
+        const stop = opaque.indexOf(color);
+        return stop >= 0 ? stops[stop]! : color.alpha(alphas[i]!);
+    });
 }
 
 function expectSameScale(actual: Color[], expected: Color[], stops: Color[]) {
@@ -275,7 +379,7 @@ describe('sampleScale matches chroma.scale exactly', () => {
                 for (const nSteps of [1, 2, 3, 7, 49, 100, 256]) {
                     expectSameScale(
                         sampleScale(stops, mode, nSteps),
-                        chromaScaleColors(stops, mode, nSteps),
+                        expectedScaleColors(stops, mode, nSteps),
                         stops,
                     );
                 }
@@ -337,6 +441,25 @@ describe('ColorPalette scale colors', () => {
         );
     });
 
+    test('match chroma.scale for a single opaque normalized color in oklch', () => {
+        // sampled here as the two stops chroma.scale makes of it, including a color whose alpha
+        // chroma.oklch leaves unset
+        for (const color of [...colors, chroma.oklch(0.6, 0.15, 30)]) {
+            for (const nSteps of [1, 7, 100.5]) {
+                const palette = new ColorPalette({
+                    normalizedColors: [color],
+                    mode: 'oklch',
+                    nSteps,
+                });
+                expectSameScale(
+                    palette.scaleColors,
+                    chromaScaleColors([color], 'oklch', nSteps),
+                    [color],
+                );
+            }
+        }
+    });
+
     test('come from chroma.scale for modes outside InterpolationModes', () => {
         // untyped callers can pass modes chroma supports but InterpolationMode doesn't list ('hcg'),
         // or none at all (chroma.mix falls back to lrgb)
@@ -356,5 +479,73 @@ describe('ColorPalette scale colors', () => {
                 palette.colors,
             );
         }
+    });
+
+    test('of translucent colors are those of the opaque colors, with their alpha', () => {
+        // a gray (no hue) and colors all around the wheel, at one alpha and at several
+        const opaque = ['#e8b450', '#808080', '#1a0a2e', '#00ffff', '#ff0000'];
+        const cases = [
+            opaque.map((hex) => `${hex}80`),
+            opaque.map(
+                (hex, i) => `${hex}${['40', '80', 'ff', '00', 'cc'][i]}`,
+            ),
+        ];
+        for (const mode of Object.values(InterpolationModes)) {
+            const expected = new ColorPalette({
+                colors: opaque,
+                mode,
+                nSteps: 60,
+            });
+            for (const colors of cases) {
+                const palette = new ColorPalette({ colors, mode, nSteps: 60 });
+                // the alphas as chroma mixes them, in a mode where alpha stays out of the coordinates
+                const alphas = chromaScaleColors(palette.colors, 'rgb', 60).map(
+                    (c) => c.alpha(),
+                );
+                palette.scaleColors.forEach((color, i) => {
+                    expect(color.rgb(false), `${mode}, step ${i}`).toEqual(
+                        expected.scaleColors[i]!.rgb(false),
+                    );
+                    expect(color.alpha(), `${mode}, step ${i}`).toBe(alphas[i]);
+                });
+            }
+        }
+    });
+
+    test('of a single translucent normalized color are those of the opaque color, with its alpha', () => {
+        // chroma.scale samples a single color as two stops, and in OKLCH its mix reads the alpha as the hue
+        for (const mode of Object.values(InterpolationModes)) {
+            for (const hex of ['#0000ff', '#808080', '#e8b450', '#000000']) {
+                const translucent = chroma(`${hex}80`);
+                const expected = new ColorPalette({
+                    normalizedColors: [chroma(hex)],
+                    mode,
+                    nSteps: 16,
+                });
+                const palette = new ColorPalette({
+                    normalizedColors: [translucent],
+                    mode,
+                    nSteps: 16,
+                });
+                palette.scaleColors.forEach((color, i) => {
+                    expect(
+                        color.rgb(false),
+                        `${mode}, ${hex}, step ${i}`,
+                    ).toEqual(expected.scaleColors[i]!.rgb(false));
+                    expect(color.alpha(), `${mode}, ${hex}, step ${i}`).toBe(
+                        translucent.alpha(),
+                    );
+                });
+            }
+        }
+        // chroma.scale's translucent blue is red past the first step
+        const blue = new ColorPalette({
+            normalizedColors: [chroma('#0000ff80')],
+            mode: 'oklch',
+            nSteps: 6,
+        });
+        expect(blue.scaleColors.map((color) => color.hex())).toEqual(
+            Array(6).fill('#0000ff80'),
+        );
     });
 });
