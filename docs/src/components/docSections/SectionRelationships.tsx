@@ -92,7 +92,10 @@ analysis.picks[4].role; // 'muted': the umber follows the oxblood`}
                 the number of groups: groups are never drawn close enough to
                 merge, nor a group&apos;s colors far enough apart to split, nor
                 a muted color far from its group, and where the theme sits near
-                a threshold, no group can move across it.
+                a threshold, no group can move across it (narrowing the chroma
+                too, where the colors&apos; chroma alone could move it). That
+                holds for colors as drawn: rounded to 8 bits, a hue can move by
+                a degree or so, and more for a muted color.
             </Text>
             <Text>
                 With <Code>nColors</Code>, it grows a few picks into more slots.
@@ -148,13 +151,14 @@ theme.rotateRandomColor({
                 bridge a bridge. Each attempt draws the anchor, whether to
                 mirror, and a color per slot, each kept{' '}
                 <Code>deltaEThreshold</Code> from the one before it and the last
-                from the first. The palette is analyzed again and redrawn until
-                it matches (up to <Code>attempts</Code>); otherwise the closest
-                comes back with <Code>verified: false</Code>. The{' '}
-                <Code>anchor</Code> option fixes the anchor or gives the arcs to
-                draw it from, and with <Code>avoid</Code> no slot is centered in
-                the hues avoided. Keep the <Code>constraints</Code> it returns
-                to roll single colors in the new shape.
+                from the first. The palette is analyzed again, as drawn and
+                rounded to 8 bits, and redrawn until it matches (up to{' '}
+                <Code>attempts</Code>); otherwise the closest comes back with{' '}
+                <Code>verified: false</Code>. The <Code>anchor</Code> option
+                fixes the anchor or gives the arcs to draw it from, and with{' '}
+                <Code>avoid</Code> no slot is centered in the hues avoided. Keep
+                the <Code>constraints</Code> it returns to roll single colors in
+                the new shape.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const anchor = analysis.anchor ?? 0;
