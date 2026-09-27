@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
     ColorConstraint,
     RelationshipTemplate,
+    TemplateSlot,
     ThemeAnalysis,
     adjacentConstraints,
     analyzeTheme,
@@ -81,6 +82,28 @@ function lifted(colors: string[], floor = FLOOR) {
             (rgb[2]! * floor) / value,
             1,
         );
+    });
+}
+
+/** A color at an OKLCH hue and relative chroma, at full precision. */
+function at(hue: number, chroma: number, brightness = 0.8) {
+    return colorFromHue({ hue, brightness, chroma });
+}
+
+/**
+ * A color within a constraint, brightness from FLOOR to 1: half the time at a corner of it (an end of its arc
+ * of hue, and an end of its band of chroma), and anywhere within it otherwise.
+ */
+function atCorner(constraint: ColorConstraint, random: () => number) {
+    const arc = constraint.hues?.[0];
+    if (!arc || arc.width >= 360 || random() < 0.5) {
+        return randomColor({ random, minBrightness: FLOOR, constraint });
+    }
+    return colorFromHue({
+        hue: arc.center + ((random() < 0.5 ? -1 : 1) * arc.width) / 2,
+        brightness: FLOOR + random() * (1 - FLOOR),
+        chroma:
+            random() < 0.5 ? constraint.chroma!.min! : constraint.chroma!.max!,
     });
 }
 
@@ -298,6 +321,46 @@ describe('relationshipTemplate, from an analysis', () => {
         }
     });
 
+    test('keeps a muted color within attachWithin of a structural slot, narrowing the nearest when it must', () => {
+        // a muted color 42° from the vivid one it follows: with the vivid slot ±15°, the vivid color could be
+        // drawn 57° away, and the muted one would go off on its own
+        const analysis = analyzeTheme([at(145, 0.37), at(187, 0.9)], {
+            minBrightness: FLOOR,
+        });
+        expect(analysis.relationship).toBe('family');
+        expect(analysis.picks.map((pick) => pick.role)).toEqual([
+            'muted',
+            'structural',
+        ]);
+        const { attachWithin } = analysis.options;
+        const random = seededRandom(23);
+        for (const hueWidth of [8, 12]) {
+            const template = relationshipTemplate(analysis, {
+                hueWidth,
+                nColors: 5,
+            });
+            // the vivid pick's own slot narrows; its extras don't have to
+            const vivid = template.slots[template.pickSlots![1]!]!;
+            expect(42 + vivid.hueWidth / 2).toBeLessThan(attachWithin);
+            expect(
+                template.slots.filter(
+                    (slot) => slot.role === 'structural' && slot.hueWidth > 24,
+                ),
+            ).toHaveLength(2);
+            for (let i = 0; i < 300; i++) {
+                const constraints = templateConstraints(
+                    template,
+                    random() * 360,
+                    { mirrored: random() < 0.5 },
+                );
+                const palette = constraints.map((constraint) =>
+                    atCorner(constraint, random),
+                );
+                expect(keepsShape(palette, analysis)).toBe(true);
+            }
+        }
+    });
+
     test('keeps a tinted neutral near its tint, and never rotates or mirrors a neutral slot', () => {
         // a warm grey keeps its tint; white is any hue
         const analysis = analyzeTheme(['#ff0000', '#948f88', '#ffffff']);
@@ -331,6 +394,88 @@ describe('relationshipTemplate, from an analysis', () => {
                 { chroma: { min: 0, max: 0.08 } },
             ]);
         }
+    });
+
+    test('gives each color the same slot whatever the order of the colors, and turns the slots with them', () => {
+        const random = seededRandom(27);
+        const sets = [
+            // a muted color between two groups: its reach from one's structural slot ends exactly where its
+            // reach from the other's begins
+            {
+                colors: ['#f15193', '#6d5b53', '#86572a', '#9a6793'],
+                nColors: 6,
+                angle: 129.8537134565413,
+            },
+            ...Array.from({ length: 1500 }, (_, s) => ({
+                colors: Array.from({ length: 1 + (s % 6) }, () =>
+                    (s % 2
+                        ? randomColor({ random })
+                        : randomColor({ random, constraint: {} })
+                    ).hex(),
+                ),
+                nColors: 1 + (s % 6) + Math.floor(random() * 3),
+                angle: random() * 360,
+            })),
+        ];
+        const same = (a: TemplateSlot, b: TemplateSlot) => {
+            expect(a.hueWidth).toBeCloseTo(b.hueWidth, 6);
+            expect(a.chroma.min!).toBeCloseTo(b.chroma.min!, 6);
+            expect(a.chroma.max!).toBeCloseTo(b.chroma.max!, 6);
+        };
+        let compared = 0;
+        for (const { colors, nColors, angle } of sets) {
+            const analysis = analyzeTheme(colors, { minBrightness: FLOOR });
+            // the extra slots go to the earlier of two colors of equal chroma (as vivid as sRGB allows, say),
+            // which a turn can tip by a hair
+            const chromas = analysis.picks
+                .filter((pick) => pick.role !== 'neutral')
+                .map((pick) => pick.chroma);
+            if (
+                nColors > colors.length &&
+                chromas.some((c, i) =>
+                    chromas.some((d, j) => j > i && Math.abs(c - d) < 1e-6),
+                )
+            ) {
+                continue;
+            }
+            compared++;
+            const template = relationshipTemplate(analysis, { nColors });
+            // in another order: each color's own slot is the same
+            const order = colors.map((_, i) => i);
+            for (let i = order.length - 1; i > 0; i--) {
+                const j = Math.floor(random() * (i + 1));
+                [order[i], order[j]] = [order[j]!, order[i]!];
+            }
+            const shuffled = relationshipTemplate(
+                analyzeTheme(
+                    order.map((i) => colors[i]!),
+                    { minBrightness: FLOOR },
+                ),
+                { nColors },
+            );
+            order.forEach((i, k) => {
+                same(
+                    shuffled.slots[shuffled.pickSlots![k]!]!,
+                    template.slots[template.pickSlots![i]!]!,
+                );
+            });
+            // every hue turned by the same angle: the same slots
+            const turned = relationshipTemplate(
+                analyzeTheme(
+                    analysis.picks.map(({ hue, brightness, chroma }) =>
+                        colorFromHue({
+                            hue: (hue ?? 0) + angle,
+                            brightness,
+                            chroma: hue === null ? 0 : chroma,
+                        }),
+                    ),
+                    { minBrightness: FLOOR },
+                ),
+                { nColors },
+            );
+            turned.slots.forEach((slot, i) => same(slot, template.slots[i]!));
+        }
+        expect(compared).toBeGreaterThan(1400);
     });
 
     test('is plain JSON', () => {

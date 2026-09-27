@@ -511,9 +511,9 @@ function halfWidths(
     });
 
     // muted slots that follow a group stay within attachWithin of a structural hue, wherever it lands
-    slots.forEach((a, i) => {
-        if (!follower(a)) return;
-        // the stretches around a within attachWithin of a structural hue, however far it moves in its slot
+    const attached = (a: SlotDraft) => {
+        // how far a's hue can move and stay within attachWithin of a structural hue, however far each moves
+        // in its slot; null when a's own hue is not sure to
         const reached = slots
             .map((b, j) => ({ b, j }))
             .filter(({ b }) => structural(b))
@@ -527,7 +527,9 @@ function halfWidths(
         let low = Infinity;
         let high = -Infinity;
         for (const [from, to] of reached) {
-            if (from <= high) {
+            // stretches that meet join (the ends of two of them often meet exactly: at the default
+            // thresholds, attachWithin is half of contrastFrom)
+            if (from <= high + 1e-9) {
                 high = Math.max(high, to);
             } else if (high >= 0) {
                 break;
@@ -536,7 +538,37 @@ function halfWidths(
                 high = to;
             }
         }
-        cap(i, low <= 0 && high >= 0 ? Math.min(-low, high) : 0);
+        return low <= 0 && high >= 0 ? Math.min(-low, high) : null;
+    };
+    // where no structural slot is sure to stay near enough, however narrow the muted slot is, the nearest
+    // one narrows until it is (all at once, so the order of the slots doesn't matter), and the muted one
+    // keeps its hue
+    const narrowing = slots.map((a) => {
+        if (!follower(a) || attached(a) !== null) return null;
+        let nearest = -1;
+        slots.forEach((b, j) => {
+            if (
+                structural(b) &&
+                (nearest < 0 || distance(a, b) < distance(a, slots[nearest]!))
+            ) {
+                nearest = j;
+            }
+        });
+        return nearest < 0
+            ? null
+            : {
+                  nearest,
+                  half:
+                      attachWithin -
+                      distance(a, slots[nearest]!) -
+                      2 * CAP_MARGIN,
+              };
+    });
+    narrowing.forEach((narrow) => {
+        if (narrow) cap(narrow.nearest, narrow.half);
+    });
+    slots.forEach((a, i) => {
+        if (follower(a)) cap(i, attached(a) ?? 0);
     });
 
     return halves;
@@ -839,8 +871,9 @@ function templateFromKind(
  * - A structural slot reaches no more than (d − familyJoin) / 2, where d is the distance to the nearest
  *   structural color of another group, so two groups never merge. The colors that chain a group, taken in
  *   hue order, stay less than familyJoin apart, so no group splits.
- * - A muted color that follows a group stays within attachWithin of a structural color; a group of muted
- *   colors on their own stays further than attachWithin from every one.
+ * - A muted color that follows a group stays within attachWithin of a structural color (the nearest
+ *   structural slot narrows too, where it has to); a group of muted colors on their own stays further than
+ *   attachWithin from every one.
  * - Where the theme sits near a threshold of its relationship (contrastFrom between two groups; for three,
  *   half the wheel, and contrastFrom for the span or the gaps), a group's center, the mean of its hues
  *   weighted by chroma, cannot move across it. (When the weights alone could move it across, the slots keep
