@@ -6,6 +6,7 @@ import {
 } from './InterpolationMode';
 import { clamp } from './clamp';
 import { sampleScale } from './interpolate';
+import { sameOrder } from './sameOrder';
 
 /**
  * String or chroma-js color.
@@ -19,7 +20,8 @@ export type ColorInput = string | Color;
 export type RandomFunction = () => number;
 
 /**
- * Default minimum CIEDE2000 distance between consecutive random colors.
+ * Default minimum CIEDE2000 distance between a random color and the colors it is drawn away from: the
+ * color before it in a random palette or when pushed, and both of its neighbours when rotated in.
  */
 export const DEFAULT_DELTA_E_THRESHOLD = 20;
 
@@ -42,6 +44,7 @@ export type ColorPaletteColors =
     | {
           /**
            * The colors to use in the palette.
+           * Their order is also their age order: the first is the oldest (see ColorPalette.ageOrder).
            */
           colors: ColorInput[];
           normalizedColors?: never;
@@ -51,6 +54,7 @@ export type ColorPaletteColors =
           /**
            * The normalized colors to use in the palette.
            * Don't use this unless you know what you're doing.
+           * As with colors, their order is their age order.
            */
           normalizedColors: Color[];
       };
@@ -127,16 +131,14 @@ export class ColorPalette {
     readonly maxNumberOfColors: number;
     readonly deltaEThreshold: number;
     readonly random: RandomFunction;
+    /** Backs ageOrder: frozen, so palettes can share it. */
+    private _ageOrder: readonly number[];
 
     /**
      * Normalizes the input colors to chroma-js colors.
      */
     static normalizeColors(colorInputs: ColorInput[]) {
-        const colors = colorInputs.map((value) => {
-            const color = chroma(value);
-            // chroma's oklch and oklab constructors leave alpha undefined (NaN): such a color is opaque
-            return Number.isNaN(color.alpha()) ? color.alpha(1) : color;
-        });
+        const colors = colorInputs.map(ColorPalette.normalizeColor);
 
         // Ensure that the palette has colors
         const firstColor = colors[0] ?? chroma('green');
@@ -154,6 +156,15 @@ export class ColorPalette {
         colors.push(firstColor);
 
         return colors;
+    }
+
+    /**
+     * A chroma-js color for the input. chroma's oklch and oklab constructors leave alpha undefined (NaN):
+     * such a color is opaque.
+     */
+    private static normalizeColor(value: ColorInput) {
+        const color = chroma(value);
+        return Number.isNaN(color.alpha()) ? color.alpha(1) : color;
     }
 
     static clampColors(colors: ColorInput[], maxNumberOfColors: number) {
@@ -208,7 +219,7 @@ export class ColorPalette {
         const colors = [lastColor];
 
         while (colors.length < nColors) {
-            const nextColor = ColorPalette.getNewRandomColor(lastColor, {
+            const nextColor = ColorPalette.getNewRandomColor([lastColor], {
                 minBrightness,
                 deltaEThreshold,
                 random,
@@ -244,6 +255,10 @@ export class ColorPalette {
 
         // Don't count the duplicate color at the end of the wheel
         this.nColors = this.colors.length - 1;
+        // a list's order is its age order (derived palettes set their own)
+        this._ageOrder = Object.freeze(
+            Array.from({ length: this.nColors }, (_, i) => i),
+        );
 
         this.hexes = this.colors.map((c) => c.hex());
         this.key = this.hexes.join(':');
@@ -285,6 +300,60 @@ export class ColorPalette {
     }
 
     /**
+     * The positions of the palette's colors (indexes into colors and hexes), oldest first: the order in
+     * which rotations replace them. rotateOn and rotateRandomOn replace the color at ageOrder[0] in its
+     * position, which moves to the end; popOldest drops the color at ageOrder[0]; push adds its new
+     * position at the end. So the next rotations replace ageOrder[0], ageOrder[1] and so on, in turn.
+     *
+     * A palette built from a list (the constructor, newColors, newConfig with other colors, randomize,
+     * randomizeFrom and ColorPalette.random) takes the list order: the first color is the oldest, so its
+     * rotations go first in, first out. newMode, rotateMode and newConfig with the same colors keep the
+     * ages, and so does any method that gives back this palette. The array is frozen.
+     */
+    get ageOrder(): readonly number[] {
+        return this._ageOrder;
+    }
+
+    /**
+     * A palette of these colors, in these positions and with these ages (positions, oldest first), with this
+     * palette's settings and the given mode. The colors are used as they are: unlike a list given to the
+     * constructor, a last color equal to the first is not taken for the closing repeat and dropped.
+     * Gives back this palette when the colors, ages and mode are all this palette's.
+     */
+    private derive(
+        colors: Color[],
+        ageOrder: readonly number[],
+        mode = this.mode,
+    ) {
+        const palette = new ColorPalette({
+            ...this.derivedConfig,
+            mode,
+            normalizedColors: colors.concat(colors[0]!),
+        });
+        palette.inheritAgeOrder(ageOrder);
+        if (
+            palette.key === this.key &&
+            palette.mode === this.mode &&
+            sameOrder(palette._ageOrder, this._ageOrder)
+        ) {
+            return this;
+        }
+        return palette;
+    }
+
+    /**
+     * Sets the ages of a palette just built from colors whose ages are known, keeping the positions the
+     * constructor kept if it cut the colors to maxNumberOfColors.
+     */
+    private inheritAgeOrder(ageOrder: readonly number[]) {
+        this._ageOrder = Object.freeze(
+            ageOrder.length > this.nColors
+                ? ageOrder.filter((position) => position < this.nColors)
+                : ageOrder,
+        );
+    }
+
+    /**
      * The settings that derived palettes inherit from this one.
      */
     private get derivedConfig() {
@@ -300,6 +369,8 @@ export class ColorPalette {
     /**
      * Creates a new palette with the specified configuration.
      * Options not provided are inherited from this palette.
+     * The same colors keep their positions and ages (a lower maxNumberOfColors keeps those of the colors it
+     * keeps); other colors take their list order as their age order, as in newColors.
      */
     newConfig({
         colors,
@@ -334,7 +405,7 @@ export class ColorPalette {
             return this.newMode(mode);
         }
 
-        return new ColorPalette({
+        const palette = new ColorPalette({
             mode,
             nSteps,
             normalizedColors,
@@ -342,10 +413,18 @@ export class ColorPalette {
             deltaEThreshold,
             random,
         });
+        if (colorsAreSame) {
+            palette.inheritAgeOrder(this._ageOrder);
+        }
+        return palette;
     }
 
     /**
      * Gets a new palette with new colors but the same mode.
+     * The list order is the new colors' age order: the first is the oldest (see ageOrder), so new colors
+     * start the rotation order again from the first.
+     * The same colors, or a longer list whose first colors are the ones this palette keeps, give back this
+     * palette, ages included.
      */
     newColors(colors: ColorInput[]) {
         const { key, normalizedColors } = ColorPalette.analyzeColors(colors);
@@ -368,22 +447,23 @@ export class ColorPalette {
     }
 
     /**
-     * Gets a new palette with the same colors but a different mode.
+     * Gets a new palette with the same colors, in the same positions and with the same ages, but a different
+     * mode.
      */
     newMode(mode: InterpolationMode) {
         if (mode === this.mode) {
             return this;
         }
 
-        return new ColorPalette({
-            ...this.derivedConfig,
+        return this.derive(
+            this.colors.slice(0, this.nColors),
+            this._ageOrder,
             mode,
-            colors: this.colors,
-        });
+        );
     }
 
     /**
-     * Gets a new palette with the same colors but the next mode.
+     * Gets a new palette with the same colors and ages but the next mode.
      */
     rotateMode() {
         return this.newMode(getNextInterpolationMode(this.mode));
@@ -408,7 +488,7 @@ export class ColorPalette {
         const colors = [lastColor];
 
         while (colors.length < nColors) {
-            const nextColor = ColorPalette.getNewRandomColor(lastColor, {
+            const nextColor = ColorPalette.getNewRandomColor([lastColor], {
                 minBrightness,
                 deltaEThreshold: this.deltaEThreshold,
                 random: this.random,
@@ -435,15 +515,19 @@ export class ColorPalette {
     }
 
     /**
-     * Adds the specified color.
+     * Adds the color at the end, as the newest (the last position in ageOrder). Gives back this palette if
+     * it already has maxNumberOfColors colors.
      */
     push(color: ColorInput) {
         if (this.nColors >= this.maxNumberOfColors) {
             return this;
         }
 
-        return this.newColors(
-            this.colors.slice(0, this.nColors).concat(chroma(color)),
+        return this.derive(
+            this.colors
+                .slice(0, this.nColors)
+                .concat(ColorPalette.normalizeColor(color)),
+            this._ageOrder.concat(this.nColors),
         );
     }
 
@@ -465,12 +549,12 @@ export class ColorPalette {
     }
 
     /**
-     * Draws a random color at least deltaEThreshold away from previousColor.
-     * Gives up after a bounded number of attempts and returns the most
-     * distant candidate found, so a strict threshold can never hang.
+     * Draws a random color at least deltaEThreshold away from every one of the neighbours.
+     * Gives up after a bounded number of attempts and returns the candidate
+     * furthest from its nearest neighbour, so a strict threshold can never hang.
      */
     private static getNewRandomColor(
-        previousColor: Color,
+        neighbours: Color[],
         {
             minBrightness = 0,
             deltaEThreshold = 0,
@@ -485,7 +569,13 @@ export class ColorPalette {
 
         for (let attempt = 0; attempt < MAX_RANDOM_COLOR_ATTEMPTS; attempt++) {
             const candidate = ColorPalette.randomColor(random, minBrightness);
-            const distance = chroma.deltaE(previousColor, candidate, 1, 1, 1);
+            let distance = Infinity;
+            for (const neighbour of neighbours) {
+                distance = Math.min(
+                    distance,
+                    chroma.deltaE(neighbour, candidate, 1, 1, 1),
+                );
+            }
 
             if (distance >= deltaEThreshold) {
                 return candidate;
@@ -500,11 +590,12 @@ export class ColorPalette {
     }
 
     /**
-     * Adds a random color.
+     * Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the
+     * current last color.
      */
     pushRandom(randomColorConfig: RandomColorConfig = {}) {
         return this.push(
-            ColorPalette.getNewRandomColor(this.colors[this.nColors - 1]!, {
+            ColorPalette.getNewRandomColor([this.colors[this.nColors - 1]!], {
                 deltaEThreshold: this.deltaEThreshold,
                 random: this.random,
                 ...randomColorConfig,
@@ -513,37 +604,71 @@ export class ColorPalette {
     }
 
     /**
-     * Drops the oldest color.
+     * Drops the oldest color (the one at ageOrder[0]). The others keep their order and their ages, closing
+     * up the gap. Gives back this palette if it has only one color.
      */
     popOldest() {
         if (this.nColors < 2) {
             return this;
         }
 
-        return this.newColors(this.hexes.slice(1, this.hexes.length - 1));
+        const oldest = this._ageOrder[0]!;
+        const colors = this.colors.slice(0, this.nColors);
+        colors.splice(oldest, 1);
+        return this.derive(
+            colors,
+            this._ageOrder
+                .slice(1)
+                .map((position) =>
+                    position > oldest ? position - 1 : position,
+                ),
+        );
     }
 
     /**
-     * Drops the oldest color and pushes the new color.
+     * Replaces the oldest color (the one at ageOrder[0]) with the color, in its position, and makes the new
+     * color the newest. Every other color keeps its position, so the scale changes only between the
+     * replaced color's two neighbours around the wheel (for the first color, the last color and the
+     * second). Successive rotations of a palette built from a list replace its colors in list order: first
+     * in, first out. Replacing the oldest color with the same color still makes it the newest; only a
+     * single color replaced by itself gives back this palette.
+     *
+     * To shift the colors instead, as rotateOn did before 4.0 (dropping the first color and appending the
+     * new one, so every color moves one position): newColors([...hexes.slice(1, -1), color]).
      */
     rotateOn(color: ColorInput) {
-        const newColors: ColorInput[] = [
-            ...this.hexes.slice(1, this.hexes.length - 1),
-            color,
-        ];
-        return this.newColors(newColors);
+        const oldest = this._ageOrder[0]!;
+        const colors = this.colors.slice(0, this.nColors);
+        colors[oldest] = ColorPalette.normalizeColor(color);
+        return this.derive(colors, this._ageOrder.slice(1).concat(oldest));
     }
 
     /**
-     * Drops the oldest color and adds a random color.
+     * Replaces the oldest color with a random color, as rotateOn does. The new color is drawn at least
+     * deltaEThreshold (CIEDE2000) from both of the colors it will sit between around the wheel: in a
+     * palette of two, the other color, and in a palette of one, the color it replaces. If no candidate
+     * qualifies within a bounded number of draws, the one furthest from the nearer of them is used.
+     *
+     * To shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending
+     * a random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same
+     * random, it draws the same colors as before 4.0, for a palette of two or more colors whose ages are
+     * in list order (as they are when its colors are only ever set from lists, pushed or popped). A single
+     * color gains a second.
      */
     rotateRandomOn(options?: RandomColorConfig) {
+        const n = this.nColors;
+        const oldest = this._ageOrder[0]!;
+        const previous = this.colors[(oldest + n - 1) % n]!;
+        const next = this.colors[(oldest + 1) % n]!;
         return this.rotateOn(
-            ColorPalette.getNewRandomColor(this.colors[this.nColors - 1]!, {
-                deltaEThreshold: this.deltaEThreshold,
-                random: this.random,
-                ...options,
-            }),
+            ColorPalette.getNewRandomColor(
+                previous === next ? [previous] : [previous, next],
+                {
+                    deltaEThreshold: this.deltaEThreshold,
+                    random: this.random,
+                    ...options,
+                },
+            ),
         );
     }
 }

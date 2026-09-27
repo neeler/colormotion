@@ -32,3 +32,27 @@ describe('ColorPalette.random', () => {
         });
     });
 });
+
+// A rotation builds a new palette with one color replaced (rotateColor on a theme).
+describe('ColorPalette.rotateOn', () => {
+    for (const nSteps of STEP_COUNTS) {
+        const palette = new ColorPalette({
+            colors: GOLD,
+            mode: 'oklch',
+            nSteps,
+        });
+        bench(`oklch, ${nSteps} steps`, () => {
+            palette.rotateOn('#17a398');
+        });
+    }
+    const random = seeded(3);
+    const randomPalette = new ColorPalette({
+        colors: GOLD,
+        mode: 'oklch',
+        nSteps: 256,
+        random,
+    });
+    bench('rotateRandomOn, oklch, 256 steps', () => {
+        randomPalette.rotateRandomOn();
+    });
+});

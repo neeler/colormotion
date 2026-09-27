@@ -29,6 +29,9 @@
         "new ColorPalette": {
             "code": "new ColorPalette(options: ColorPaletteConfig);"
         },
+        "ColorPalette#ageOrder": {
+            "code": "get ageOrder(): readonly number[];"
+        },
         "ColorPalette#newConfig": {
             "code": "newConfig(options: {\n    colors: ColorInput[];\n    mode: InterpolationMode;\n    nSteps: number;\n    maxNumberOfColors?: number;\n    deltaEThreshold?: number;\n    random?: RandomFunction;\n}): ColorPalette;"
         },
@@ -162,11 +165,11 @@
             "fields": [
                 {
                     "name": "colors",
-                    "doc": "The colors to use in the palette."
+                    "doc": "The colors to use in the palette.\nTheir order is also their age order: the first is the oldest (see ColorPalette.ageOrder)."
                 },
                 {
                     "name": "normalizedColors",
-                    "doc": "The normalized colors to use in the palette.\nDon't use this unless you know what you're doing."
+                    "doc": "The normalized colors to use in the palette.\nDon't use this unless you know what you're doing.\nAs with colors, their order is their age order."
                 }
             ]
         },
@@ -221,7 +224,7 @@
             ]
         },
         "ColorPalette": {
-            "code": "class ColorPalette {\n    readonly colors: Color[];\n    readonly hexes: string[];\n    readonly key: string;\n    readonly nColors: number;\n    readonly mode: InterpolationMode;\n    readonly nSteps: number;\n    readonly scale: Scale;\n    readonly scaleColors: Color[];\n    readonly maxNumberOfColors: number;\n    readonly deltaEThreshold: number;\n    readonly random: RandomFunction;\n    static normalizeColors(colorInputs: ColorInput[]): Color[];\n    static clampColors(\n        colors: ColorInput[],\n        maxNumberOfColors: number,\n    ): ColorInput[];\n    static random(\n        options: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &\n            RandomPaletteConfig,\n    ): ColorPalette;\n    constructor(options: ColorPaletteConfig);\n    newConfig(options: {\n        colors: ColorInput[];\n        mode: InterpolationMode;\n        nSteps: number;\n        maxNumberOfColors?: number;\n        deltaEThreshold?: number;\n        random?: RandomFunction;\n    }): ColorPalette;\n    newColors(colors: ColorInput[]): ColorPalette;\n    newMode(mode: InterpolationMode): ColorPalette;\n    rotateMode(): ColorPalette;\n    randomizeFrom(\n        seed: ColorInput,\n        options?: RandomPaletteConfig,\n    ): ColorPalette;\n    randomize(options?: RandomPaletteConfig): ColorPalette;\n    push(color: ColorInput): ColorPalette;\n    pushRandom(randomColorConfig?: RandomColorConfig): ColorPalette;\n    popOldest(): ColorPalette;\n    rotateOn(color: ColorInput): ColorPalette;\n    rotateRandomOn(options?: RandomColorConfig): ColorPalette;\n}",
+            "code": "class ColorPalette {\n    readonly colors: Color[];\n    readonly hexes: string[];\n    readonly key: string;\n    readonly nColors: number;\n    readonly mode: InterpolationMode;\n    readonly nSteps: number;\n    readonly scale: Scale;\n    readonly scaleColors: Color[];\n    readonly maxNumberOfColors: number;\n    readonly deltaEThreshold: number;\n    readonly random: RandomFunction;\n    static normalizeColors(colorInputs: ColorInput[]): Color[];\n    static clampColors(\n        colors: ColorInput[],\n        maxNumberOfColors: number,\n    ): ColorInput[];\n    static random(\n        options: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &\n            RandomPaletteConfig,\n    ): ColorPalette;\n    constructor(options: ColorPaletteConfig);\n    get ageOrder(): readonly number[];\n    newConfig(options: {\n        colors: ColorInput[];\n        mode: InterpolationMode;\n        nSteps: number;\n        maxNumberOfColors?: number;\n        deltaEThreshold?: number;\n        random?: RandomFunction;\n    }): ColorPalette;\n    newColors(colors: ColorInput[]): ColorPalette;\n    newMode(mode: InterpolationMode): ColorPalette;\n    rotateMode(): ColorPalette;\n    randomizeFrom(\n        seed: ColorInput,\n        options?: RandomPaletteConfig,\n    ): ColorPalette;\n    randomize(options?: RandomPaletteConfig): ColorPalette;\n    push(color: ColorInput): ColorPalette;\n    pushRandom(randomColorConfig?: RandomColorConfig): ColorPalette;\n    popOldest(): ColorPalette;\n    rotateOn(color: ColorInput): ColorPalette;\n    rotateRandomOn(options?: RandomColorConfig): ColorPalette;\n}",
             "doc": "An immutable ColorPalette.",
             "fields": [
                 {
@@ -241,20 +244,24 @@
                     "doc": "Returns a new random palette with the specified number of colors.\nDefaults to 5 colors."
                 },
                 {
+                    "name": "ageOrder",
+                    "doc": "The positions of the palette's colors (indexes into colors and hexes), oldest first: the order in\nwhich rotations replace them. rotateOn and rotateRandomOn replace the color at ageOrder[0] in its\nposition, which moves to the end; popOldest drops the color at ageOrder[0]; push adds its new\nposition at the end. So the next rotations replace ageOrder[0], ageOrder[1] and so on, in turn.\n\nA palette built from a list (the constructor, newColors, newConfig with other colors, randomize,\nrandomizeFrom and ColorPalette.random) takes the list order: the first color is the oldest, so its\nrotations go first in, first out. newMode, rotateMode and newConfig with the same colors keep the\nages, and so does any method that gives back this palette. The array is frozen."
+                },
+                {
                     "name": "newConfig",
-                    "doc": "Creates a new palette with the specified configuration.\nOptions not provided are inherited from this palette."
+                    "doc": "Creates a new palette with the specified configuration.\nOptions not provided are inherited from this palette.\nThe same colors keep their positions and ages (a lower maxNumberOfColors keeps those of the colors it\nkeeps); other colors take their list order as their age order, as in newColors."
                 },
                 {
                     "name": "newColors",
-                    "doc": "Gets a new palette with new colors but the same mode."
+                    "doc": "Gets a new palette with new colors but the same mode.\nThe list order is the new colors' age order: the first is the oldest (see ageOrder), so new colors\nstart the rotation order again from the first.\nThe same colors, or a longer list whose first colors are the ones this palette keeps, give back this\npalette, ages included."
                 },
                 {
                     "name": "newMode",
-                    "doc": "Gets a new palette with the same colors but a different mode."
+                    "doc": "Gets a new palette with the same colors, in the same positions and with the same ages, but a different\nmode."
                 },
                 {
                     "name": "rotateMode",
-                    "doc": "Gets a new palette with the same colors but the next mode."
+                    "doc": "Gets a new palette with the same colors and ages but the next mode."
                 },
                 {
                     "name": "randomizeFrom",
@@ -264,16 +271,25 @@
                     "name": "randomize",
                     "doc": "Randomizes the whole palette.\nMaintains the number of colors in the palette."
                 },
-                { "name": "push", "doc": "Adds the specified color." },
-                { "name": "pushRandom", "doc": "Adds a random color." },
-                { "name": "popOldest", "doc": "Drops the oldest color." },
+                {
+                    "name": "push",
+                    "doc": "Adds the color at the end, as the newest (the last position in ageOrder). Gives back this palette if\nit already has maxNumberOfColors colors."
+                },
+                {
+                    "name": "pushRandom",
+                    "doc": "Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the\ncurrent last color."
+                },
+                {
+                    "name": "popOldest",
+                    "doc": "Drops the oldest color (the one at ageOrder[0]). The others keep their order and their ages, closing\nup the gap. Gives back this palette if it has only one color."
+                },
                 {
                     "name": "rotateOn",
-                    "doc": "Drops the oldest color and pushes the new color."
+                    "doc": "Replaces the oldest color (the one at ageOrder[0]) with the color, in its position, and makes the new\ncolor the newest. Every other color keeps its position, so the scale changes only between the\nreplaced color's two neighbours around the wheel (for the first color, the last color and the\nsecond). Successive rotations of a palette built from a list replace its colors in list order: first\nin, first out. Replacing the oldest color with the same color still makes it the newest; only a\nsingle color replaced by itself gives back this palette.\n\nTo shift the colors instead, as rotateOn did before 4.0 (dropping the first color and appending the\nnew one, so every color moves one position): newColors([...hexes.slice(1, -1), color])."
                 },
                 {
                     "name": "rotateRandomOn",
-                    "doc": "Drops the oldest color and adds a random color."
+                    "doc": "Replaces the oldest color with a random color, as rotateOn does. The new color is drawn at least\ndeltaEThreshold (CIEDE2000) from both of the colors it will sit between around the wheel: in a\npalette of two, the other color, and in a palette of one, the color it replaces. If no candidate\nqualifies within a bounded number of draws, the one furthest from the nearer of them is used.\n\nTo shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending\na random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same\nrandom, it draws the same colors as before 4.0, for a palette of two or more colors whose ages are\nin list order (as they are when its colors are only ever set from lists, pushed or popped). A single\ncolor gains a second."
                 }
             ]
         },
@@ -288,11 +304,11 @@
             "fields": [
                 {
                     "name": "palette",
-                    "doc": "The initial color palette.\nTakes precedence over colors and nColors.\nThe theme builds its own copy from the palette's colors, with the theme's nSteps and any\nmode, maxNumberOfColors, deltaEThreshold or random option given in place of the palette's."
+                    "doc": "The initial color palette.\nTakes precedence over colors and nColors.\nThe theme uses a copy of the palette with the theme's nSteps and any mode, maxNumberOfColors,\ndeltaEThreshold or random option given in place of the palette's (the palette itself when none\nof them differs). The copy keeps the colors' positions and ages (see ColorPalette.ageOrder)."
                 },
                 {
                     "name": "colors",
-                    "doc": "The initial colors in the palette."
+                    "doc": "The initial colors in the palette.\nTheir order is also their age order: rotations replace them from the first (see\nColorPalette.ageOrder)."
                 },
                 {
                     "name": "nColors",
@@ -354,11 +370,11 @@
             "fields": [
                 {
                     "name": "transitionSpeed",
-                    "doc": "The speed of the transition between two palettes.\nShould be between 0 and 1. Will be clamped to this range.\nDefaults to 0.1.\nNaN is treated as not given.\nThe higher the value, the faster the transition: a typical palette\nchange takes about 45 / speed ticks (0.1: about 10 s at 60 ticks a\nsecond; 0.01: about 75 s; 0.001: about 12 minutes). For an exact\nlength, use transitionDuration.\nThe transition ends once the colors stop changing within 0.5 CIEDE2000\nof the target, averaged over a sample of the scale colors (single\ncolors can be a little further off), or once 99.9999 % of the mix is\ndone.\nA speed of 0 makes no progress, so the transition is treated as\nsettled and the target palette is applied on the second tick. The same\ngoes for a speed too small to move the colors at all (about 5e-16 or\nless).\nIgnored when transitionDuration is a finite number.\nAn update to the palette the theme is already transitioning to does not\nchange the transition's speed."
+                    "doc": "The speed of the transition between two palettes.\nShould be between 0 and 1. Will be clamped to this range.\nDefaults to 0.1.\nNaN is treated as not given.\nThe higher the value, the faster the transition: a typical palette\nchange takes about 45 / speed ticks (0.1: about 10 s at 60 ticks a\nsecond; 0.01: about 75 s; 0.001: about 12 minutes). For an exact\nlength, use transitionDuration.\nThe transition ends once the colors stop changing within 0.5 CIEDE2000\nof the target, averaged over a sample of the scale colors that the\ntransition changes (single colors can be a little further off), or\nonce 99.9999 % of the mix is done. A change to part of the wheel, such\nas a rotation, ends as smoothly as a whole new palette.\nA speed of 0 makes no progress, so the transition is treated as\nsettled and the target palette is applied on the second tick. The same\ngoes for a speed too small to move the colors at all (about 5e-16 or\nless).\nIgnored when transitionDuration is a finite number.\nAn update to the palette the theme is already transitioning to does not\nchange the transition's speed."
                 },
                 {
                     "name": "transitionDuration",
-                    "doc": "How many ticks the transition takes, instead of a transitionSpeed.\nA tick is one call to tick(), whatever its n: 6 * 60 is 6 seconds when\ntick() is called 60 times a second.\n\nThe colors ease in and out (smoothstep) from where they are, and become\nexactly the target palette on the last tick. A fractional duration ends\non the next whole tick (2.5 ends on tick 3), and a value within one part\nin a billion of a whole number counts as that number (1.1 * 50 ends on\ntick 55). 0 or less applies the palette before the call returns,\nnotifying subscribers once, with isTransitioning false. Anything that is\nnot a finite number is ignored, and transitionSpeed applies instead.\n\nFor the palette the theme is already transitioning to (including a call\nthat leaves it unchanged, such as pushing a color onto a full palette):\n- The same duration changes nothing and keeps the current end, so an\n  update can safely be re-sent every tick.\n- A different duration re-times the transition to end that many ticks\n  from now, continuing from the current colors without notifying\n  subscribers. The easing starts again from rest, so re-send the same\n  duration rather than a countdown of the ticks left.\n- 0 or less finishes the transition."
+                    "doc": "How many ticks the transition takes, instead of a transitionSpeed.\nA tick is one call to tick(), whatever its n: 6 * 60 is 6 seconds when\ntick() is called 60 times a second.\n\nThe colors ease in and out (smoothstep) from where they are, and become\nexactly the target palette on the last tick. A fractional duration ends\non the next whole tick (2.5 ends on tick 3), and a value within one part\nin a billion of a whole number counts as that number (1.1 * 50 ends on\ntick 55). 0 or less applies the palette before the call returns,\nnotifying subscribers once, with isTransitioning false. Anything that is\nnot a finite number is ignored, and transitionSpeed applies instead.\n\nFor the palette the theme is already transitioning to (including a call\nthat leaves it unchanged, such as pushing a color onto a full palette,\nor one that changes only the ages of its colors, such as rotating in\nthe color the oldest already has):\n- The same duration changes nothing and keeps the current end, so an\n  update can safely be re-sent every tick.\n- A different duration re-times the transition to end that many ticks\n  from now, continuing from the current colors without notifying\n  subscribers. The easing starts again from rest, so re-send the same\n  duration rather than a countdown of the ticks left.\n- 0 or less finishes the transition."
                 }
             ]
         },
@@ -430,11 +446,11 @@
                 },
                 {
                     "name": "palette",
-                    "doc": "The palette the theme was last at rest on: the initial palette, the one most recently assigned,\nor the target of the most recent transition that finished (cancelling a transition leaves it\nunchanged). It does not change during a transition, when the colors are a mix that getColor\nreturns.\nPuts the theme at rest on the palette at once, ending any transition, and notifies subscribers:\nthe same as update with the palette's colors and mode and a transitionDuration of 0, except that\nthe palette's deltaEThreshold and random are kept. Assigning the palette the theme is already at\nrest on changes nothing. A palette with a different nSteps or maxNumberOfColors from the theme's\nis rebuilt with the theme's, as the constructor does, so reading palette back gives that copy."
+                    "doc": "The palette the theme was last at rest on: the initial palette, the one most recently assigned,\nor the target of the most recent transition that finished (cancelling a transition leaves it\nunchanged). It does not change during a transition, when the colors are a mix that getColor\nreturns.\nPuts the theme at rest on the palette at once, ending any transition, and notifies subscribers:\nthe same as update with the palette's colors and mode and a transitionDuration of 0, except that\nthe palette's deltaEThreshold, random and color ages (ageOrder) are kept. Assigning the palette the\ntheme is already at rest on changes nothing, and so does a palette with the same colors, settings\nand ages; one that differs only in its ages takes its place, so the next rotations follow the\nassigned ages. A palette with a different nSteps or maxNumberOfColors from the theme's is rebuilt\nwith the theme's, as the constructor does, so reading palette back gives that copy."
                 },
                 {
                     "name": "targetPalette",
-                    "doc": "The palette the theme is transitioning to, or undefined when it is not transitioning.\nTransitions to the palette at the default speed, as update does, from wherever the colors are;\nthe palette it is already heading to changes nothing, and the palette it is at rest on changes\nnothing either. A palette with a different nSteps or maxNumberOfColors from the theme's is\nrebuilt with the theme's. So reading targetPalette back does not always give the palette\nassigned: it can be a copy, or undefined when nothing changed.\nundefined cancels a transition: the theme returns to palette, and mode to its mode, at once, and\nnotifies subscribers (finishTransition ends it at the target instead)."
+                    "doc": "The palette the theme is transitioning to, or undefined when it is not transitioning.\nTransitions to the palette at the default speed, as update does, from wherever the colors are;\nthe palette it is already heading to changes nothing, and the palette it is at rest on changes\nnothing either (nor does a palette with the same colors, settings and ages as either). A palette\nwith the colors and settings of the active palette but other ages takes its place without a\ntransition: only the order of the next rotations changes, so the theme stays at rest, or its\ntransition keeps going as it was. A palette with a different nSteps or maxNumberOfColors from the\ntheme's is rebuilt with the theme's. So reading targetPalette back does not always give the palette\nassigned: it can be a copy, or undefined when the theme stays at rest.\nundefined cancels a transition: the theme returns to palette, and mode to its mode, at once, and\nnotifies subscribers (finishTransition ends it at the target instead)."
                 },
                 {
                     "name": "mode",
@@ -442,7 +458,7 @@
                 },
                 {
                     "name": "transitionDistance",
-                    "doc": "The average distance between the theme's colors (before brightness) and the target palette's.\nMeasured in CIEDE2000 color distance.\nRanges from 0 (identical) to 100 (maximally different).\nEstimated from an evenly spaced sample of the scale colors.\nReturns undefined if there is no target palette.\nDuring a transitionSpeed transition, this is the distance measured at the\nstart of the most recent tick, before the colors moved (under chroma's Lab\nwhite point then), and undefined until the first tick after the target\nchanged. During a transitionDuration\ntransition, it is measured from the current colors when read (once per\ntick, and again if chroma's Lab white point changes, as CIEDE2000 and\nthe colors depend on it)."
+                    "doc": "The average distance between the theme's colors (before brightness) and the target palette's.\nMeasured in CIEDE2000 color distance.\nRanges from 0 (identical) to 100 (maximally different).\nEstimated from an evenly spaced sample of the scale colors.\nIt averages over the whole wheel, so after a change to part of it, such as a rotation, the colors\nthat change are further off than this; a transitionSpeed transition judges when to end by those\ncolors alone.\nReturns undefined if there is no target palette.\nDuring a transitionSpeed transition, this is the distance measured at the\nstart of the most recent tick, before the colors moved (under chroma's Lab\nwhite point then), and undefined until the first tick after the target\nchanged. During a transitionDuration\ntransition, it is measured from the current colors when read (once per\ntick, and again if chroma's Lab white point changes, as CIEDE2000 and\nthe colors depend on it)."
                 },
                 {
                     "name": "isTransitioning",
@@ -454,7 +470,7 @@
                 },
                 {
                     "name": "activePaletteHexes",
-                    "doc": "The hex values of the colors in the active palette."
+                    "doc": "The hex values of the colors in the active palette, without the closing repeat of the first.\n\nA rotation or a push can leave a palette whose last color matches its first, such as blue, green,\nblue. Given back as colors (to setColors, update or the constructor), such a list loses its last\ncolor, which is taken for the closing repeat. To give a palette's colors back as they are, pass\nactivePalette.hexes, which ends with the closing repeat, or activePalette.colors."
                 },
                 {
                     "name": "brightness",
@@ -478,7 +494,7 @@
                 },
                 {
                     "name": "update",
-                    "doc": "Update the theme to a new set of colors and, optionally, interpolation mode.\nThe mode defaults to the current mode."
+                    "doc": "Update the theme to a new set of colors and, optionally, interpolation mode.\nThe mode defaults to the current mode.\nThe list order of new colors is their age order, so rotations start again from the first; the\nactive palette's own colors, given again, keep their ages (see ColorPalette.newConfig)."
                 },
                 {
                     "name": "setMode",
@@ -488,14 +504,17 @@
                     "name": "rotateMode",
                     "doc": "Rotate the interpolation mode of the theme."
                 },
-                { "name": "setColors", "doc": "Set the colors of the theme." },
+                {
+                    "name": "setColors",
+                    "doc": "Set the colors of the theme.\nThe list order of new colors is their age order, so rotations start again from the first; the\nactive palette's own colors, given again, keep their ages (see ColorPalette.newColors)."
+                },
                 {
                     "name": "randomFrom",
-                    "doc": "Randomize the colors of the theme based on a seed color.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected."
+                    "doc": "Randomize the colors of the theme based on a seed color.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe seed color is the oldest, so rotations start again from it."
                 },
                 {
                     "name": "randomTheme",
-                    "doc": "Randomize the colors of the theme.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected."
+                    "doc": "Randomize the colors of the theme.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe new colors' order is their age order, so rotations start again from the first."
                 },
                 {
                     "name": "normalizeIndex",
@@ -503,23 +522,23 @@
                 },
                 {
                     "name": "pushNewColor",
-                    "doc": "Push a new color to the end of the palette."
+                    "doc": "Push a new color to the end of the active palette, as its newest color (see ColorPalette.push),\neven one that matches the first (see activePaletteHexes).\nAdds nothing if the palette already has maxNumberOfColors colors."
                 },
                 {
                     "name": "pushRandomColor",
-                    "doc": "Push a random color to the end of the palette."
+                    "doc": "Push a random color to the end of the active palette, as its newest color, drawn at least\ndeltaEThreshold (CIEDE2000) from the current last color (see ColorPalette.pushRandom).\nAdds nothing if the palette already has maxNumberOfColors colors."
                 },
                 {
                     "name": "popOldestColor",
-                    "doc": "Pop the oldest color from the palette."
+                    "doc": "Drop the oldest color from the active palette: the one at activePalette.ageOrder[0] (see\nColorPalette.popOldest). The others keep their order and ages. Does nothing to a single color."
                 },
                 {
                     "name": "rotateColor",
-                    "doc": "Drops the oldest color and pushes the new color."
+                    "doc": "Replace the oldest color of the active palette with the new color, in its position, as the newest\n(see ColorPalette.rotateOn). Every other color keeps its place on the wheel, so only the colors\nbetween the replaced color's two neighbours change. Successive calls replace the colors oldest first,\nin the order of activePalette.ageOrder: for colors set from a list, first in, first out.\nDuring a transition, this rotates the target palette, continuing from its ages.\nRotating in the color the oldest already has changes only the ages, so it starts no transition:\nthe theme stays at rest, or its transition keeps going as it was (see transitionDuration for the\npalette the theme is already transitioning to), and subscribers are notified once.\n\nTo shift the colors instead, as rotateColor did before 4.0 (dropping the first color and appending\nthe new one, so every color moves one place): setColors([...activePaletteHexes.slice(1), color])."
                 },
                 {
                     "name": "rotateRandomColor",
-                    "doc": "Drops the oldest color and pushes a random color."
+                    "doc": "Replace the oldest color of the active palette with a random color, as rotateColor does, drawn at\nleast deltaEThreshold (CIEDE2000) from both of the colors it will sit between on the wheel (see\nColorPalette.rotateRandomOn).\n\nTo shift the colors instead, as rotateRandomColor did before 4.0 (dropping the first color and\nappending a random color drawn deltaEThreshold from the last):\nsetColors(activePalette.popOldest().pushRandom({ minBrightness }).colors, options). With the same\nrandom, it draws the same colors as before 4.0, as long as the colors are only ever set from lists,\npushed or popped, so that their ages stay in list order; a single color gains a second."
                 },
                 {
                     "name": "finishTransition",

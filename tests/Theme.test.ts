@@ -434,6 +434,37 @@ test('transitionDistance tracks the full average distance', () => {
     expect(Math.abs(theme.transitionDistance! - fullAverage)).toBeLessThan(0.5);
 });
 
+test('transitionDistance averages over the whole wheel after a rotation too', () => {
+    const theme = new Theme({ colors: ['red', 'green', 'blue', 'white'] });
+    theme.rotateColor('purple');
+    for (let k = 0; k < 10; k++) {
+        theme.tick(0);
+    }
+    const target = theme.targetPalette!;
+    let sum = 0;
+    let changed = 0;
+    let changedSum = 0;
+    for (let i = 0; i < theme.nSteps; i++) {
+        const distance = chroma.deltaE(
+            target.scaleColors[i]!,
+            theme.getColor(i),
+            1,
+            1,
+            1,
+        );
+        sum += distance;
+        if (distance > 0.001) {
+            changed++;
+            changedSum += distance;
+        }
+    }
+    // the rotation changes half of the wheel: the colors between white and green
+    expect(changed / theme.nSteps).toBeCloseTo(0.5, 1);
+    const fullAverage = sum / theme.nSteps;
+    expect(Math.abs(theme.transitionDistance! - fullAverage)).toBeLessThan(0.5);
+    expect(changedSum / changed).toBeGreaterThan(1.5 * fullAverage);
+});
+
 /**
  * Small seeded PRNG (mulberry32) for reproducible palettes in tests.
  */

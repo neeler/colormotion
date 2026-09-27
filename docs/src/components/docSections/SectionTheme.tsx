@@ -44,13 +44,16 @@ export function SectionTheme() {
             <Text>
                 The <Code>palette</Code> parameter allows you to pass in an
                 existing <Code>ColorPalette</Code> instance. This takes
-                precedence if provided. The theme builds its own copy from the
-                palette&apos;s colors: it uses the theme&apos;s{' '}
-                <Code>nSteps</Code> (2048 unless given, whatever the
-                palette&apos;s own), and any <Code>mode</Code>,{' '}
+                precedence if provided. The theme uses a copy of the palette
+                with the theme&apos;s <Code>nSteps</Code> (2048 unless given,
+                whatever the palette&apos;s own), and any <Code>mode</Code>,{' '}
                 <Code>maxNumberOfColors</Code>, <Code>deltaEThreshold</Code> or{' '}
                 <Code>random</Code> parameter given overrides the
-                palette&apos;s.
+                palette&apos;s. The copy keeps the colors in their positions,
+                with their ages (see{' '}
+                <TextLink href="#theme-rotateColor">theme.rotateColor</TextLink>
+                ). A palette that already has all of these settings is used as
+                it is.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const palette = new ColorPalette({
@@ -229,8 +232,8 @@ theme.palette.nSteps; // 2048`}
                 Every palette the <Code>Theme</Code> builds uses it, so{' '}
                 <Code>theme.activePalette.nSteps</Code> equals it, including the{' '}
                 <TextLink href="#theme-palette">copy</TextLink> made of a{' '}
-                <Code>palette</Code> passed to the constructor. Use a whole
-                number of 1 or more.
+                <Code>palette</Code> with another <Code>nSteps</Code> passed to
+                the constructor. Use a whole number of 1 or more.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const theme = new Theme({ colors: ['red', 'green', 'blue'] });
@@ -290,12 +293,28 @@ theme.pushNewColor('blue'); // No change: the palette is full`}
             <Signature of="Theme#activePaletteHexes" />
             <Text>
                 Returns the hex values of the active <Code>ColorPalette</Code>{' '}
-                of the <Code>Theme</Code>. If the <Code>Theme</Code> is
-                currently transitioning between palettes, this will return the
-                hex values of the palette that the theme is transitioning to.
+                of the <Code>Theme</Code>, without the closing repeat of the
+                first color. If the <Code>Theme</Code> is currently
+                transitioning between palettes, this will return the hex values
+                of the palette that the theme is transitioning to.
+            </Text>
+            <Text>
+                A rotation or a push can leave a palette whose last color
+                matches its first, such as blue, green, blue. Given back as
+                colors, to <Code>theme.setColors</Code>,{' '}
+                <Code>theme.update</Code> or the constructor, such a list loses
+                its last color, which is taken for the closing repeat. To give a
+                palette&apos;s colors back as they are, pass{' '}
+                <Code>theme.activePalette.hexes</Code>, which ends with the
+                closing repeat, or <Code>theme.activePalette.colors</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
-                {`const hexes = theme.activePaletteHexes;`}
+                {`const theme = new Theme({ colors: ['red', 'green', 'blue'] });
+const hexes = theme.activePaletteHexes; // ['#ff0000', '#008000', '#0000ff']
+
+theme.rotateColor('blue');
+theme.activePaletteHexes; // ['#0000ff', '#008000', '#0000ff']
+theme.setColors(theme.activePalette.hexes); // Keeps all three colors`}
             </SyntaxHighlighter>
             <Heading3 id="theme-palette">theme.palette</Heading3>
             <Signature of="Theme#palette" />
@@ -317,18 +336,21 @@ theme.pushNewColor('blue'); // No change: the palette is full`}
             </Text>
             <Text>
                 A <Code>palette</Code> passed to the constructor is copied with
-                the theme&apos;s settings, such as its <Code>nSteps</Code>, so{' '}
-                <Code>theme.palette</Code> is not that object.
+                the theme&apos;s settings, such as its <Code>nSteps</Code>, when
+                its own differ, so <Code>theme.palette</Code> is then not that
+                object. A copy keeps the colors&apos; positions and ages.
             </Text>
             <Text>
                 Assigning a palette puts the <Code>Theme</Code> at rest on it at
                 once, ending any transition, and notifies subscribers: the same
                 as <Code>theme.update</Code> with its colors and mode and a{' '}
                 <Code>transitionDuration</Code> of 0, except that the
-                palette&apos;s <Code>deltaEThreshold</Code> and{' '}
-                <Code>random</Code> are kept. Assigning the palette the{' '}
+                palette&apos;s <Code>deltaEThreshold</Code>, <Code>random</Code>{' '}
+                and color ages are kept. Assigning the palette the{' '}
                 <Code>Theme</Code> is already at rest on, or one with the same
-                colors and settings, changes nothing. A palette with a different{' '}
+                colors, settings and ages, changes nothing. One that differs
+                only in its ages takes its place, so the next rotations follow
+                the assigned ages. A palette with a different{' '}
                 <Code>nSteps</Code> or <Code>maxNumberOfColors</Code> from the
                 theme&apos;s is rebuilt with the theme&apos;s, as the
                 constructor does, so <Code>theme.palette</Code> is then a copy
@@ -388,14 +410,18 @@ theme.mode; // 'lab'`}
                 Assigning a palette starts a transition to it at the default
                 speed, as <Code>theme.update</Code> does, from wherever the
                 colors are. Assigning the palette it is already heading to, or
-                one with the same colors and settings, changes nothing and keeps
-                the transition&apos;s timing; so does assigning the palette it
-                is at rest on. A palette with a different <Code>nSteps</Code> or{' '}
-                <Code>maxNumberOfColors</Code> from the theme&apos;s is rebuilt
-                with the theme&apos;s. So reading{' '}
+                one with the same colors, settings and ages, changes nothing and
+                keeps the transition&apos;s timing; so does assigning the
+                palette it is at rest on. A palette with the colors and settings
+                of <Code>theme.activePalette</Code> but other ages takes its
+                place without a transition: only the order of the next rotations
+                changes, so the <Code>Theme</Code> stays at rest, or its
+                transition keeps going as it was. A palette with a different{' '}
+                <Code>nSteps</Code> or <Code>maxNumberOfColors</Code> from the
+                theme&apos;s is rebuilt with the theme&apos;s. So reading{' '}
                 <Code>theme.targetPalette</Code> back does not always give the
                 palette assigned: it can be a copy, or <Code>undefined</Code>{' '}
-                when nothing changed.
+                when the <Code>Theme</Code> stays at rest.
             </Text>
             <Text>
                 Assigning <Code>undefined</Code> cancels a transition: the{' '}
@@ -868,9 +894,10 @@ theme.randomTheme({
             <Heading3 id="theme-pushNewColor">theme.pushNewColor</Heading3>
             <Signature of="Theme#pushNewColor" />
             <Text>
-                Pushes a new color to the <Code>Theme</Code> palette. This will
-                set a target palette for the theme to transition to with the
-                same settings as the current palette other than the new colors.
+                Pushes a new color onto the end of the <Code>Theme</Code>{' '}
+                palette, as its newest color. This will set a target palette for
+                the theme to transition to with the same settings as the current
+                palette other than the new colors.
             </Text>
             <Text>
                 The input can be a <Code>chroma.js</Code> <Code>Color</Code>{' '}
@@ -899,10 +926,12 @@ theme.pushNewColor('red', {
             </Heading3>
             <Signature of="Theme#pushRandomColor" />
             <Text>
-                Pushes a new random color to the <Code>Theme</Code> palette.
-                This will set a target palette for the theme to transition to
-                with the same settings as the current palette other than the new
-                colors.
+                Pushes a new random color onto the end of the <Code>Theme</Code>{' '}
+                palette, as its newest color, drawn at least{' '}
+                <Code>deltaEThreshold</Code> (CIEDE2000) from the current last
+                color. This will set a target palette for the theme to
+                transition to with the same settings as the current palette
+                other than the new colors.
             </Text>
             <Text>
                 The transition will be completed gradually over time, with the
@@ -929,10 +958,14 @@ theme.pushRandomColor({
             <Heading3 id="theme-popOldestColor">theme.popOldestColor</Heading3>
             <Signature of="Theme#popOldestColor" />
             <Text>
-                Drops the oldest color from the <Code>Theme</Code> palette. This
-                will set a target palette for the theme to transition to with
-                the same settings as the current palette other than the new
-                colors.
+                Drops the oldest color from the <Code>Theme</Code> palette: the
+                first color of the list the colors were set from, or, once the
+                palette has been{' '}
+                <TextLink href="#theme-rotateColor">rotated</TextLink>, the
+                color the next rotation would replace. The other colors keep
+                their order. This will set a target palette for the theme to
+                transition to with the same settings as the current palette
+                other than the new colors.
             </Text>
             <Text>
                 The transition will be completed gradually over time, with the
@@ -950,10 +983,30 @@ theme.popOldestColor({
             <Heading3 id="theme-rotateColor">theme.rotateColor</Heading3>
             <Signature of="Theme#rotateColor" />
             <Text>
-                Drops the oldest color from the <Code>Theme</Code> palette and
-                adds the new color. This will set a target palette for the theme
-                to transition to with the same settings as the current palette
-                other than the new colors.
+                Replaces the oldest color in the <Code>Theme</Code> palette with
+                the new color, in its position. Every other color keeps its
+                place on the wheel, so only the colors between the replaced
+                color&apos;s two neighbours change: an LED that shows another
+                part of the wheel keeps its color. This will set a target
+                palette for the theme to transition to with the same settings as
+                the current palette other than the new colors.
+            </Text>
+            <Text>
+                Successive rotations replace the colors oldest first, starting
+                from the first color of the list the colors were set from, so
+                each color is replaced once before any is replaced again.{' '}
+                <Code>theme.activePalette.ageOrder</Code> lists the positions of
+                the colors, oldest first: its first entry is the color the next
+                rotation replaces. A color added with{' '}
+                <Code>theme.pushNewColor</Code> is the newest, so it is replaced
+                last. During a transition, rotating replaces the oldest color of
+                the target palette.
+            </Text>
+            <Text>
+                Rotating in the color the oldest already has changes only the
+                ages, so it starts no transition: the <Code>Theme</Code> stays
+                at rest, or its transition keeps going as it was, and
+                subscribers are notified once.
             </Text>
             <Text>
                 The input can be a <Code>chroma.js</Code> <Code>Color</Code>{' '}
@@ -968,20 +1021,34 @@ theme.popOldestColor({
                 as for <Code>theme.update</Code>.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
-                {`theme.rotateColor('red');
+                {`const theme = new Theme({ colors: ['red', 'green', 'blue'] });
+theme.rotateColor('purple'); // purple, green, blue
+theme.rotateColor('orange'); // purple, orange, blue
+theme.activePalette.ageOrder; // [2, 0, 1]: blue is next
 theme.rotateColor('red', {
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
+            </SyntaxHighlighter>
+            <Text>
+                Before version 4.0, rotating dropped the first color and
+                appended the new one, which moved every color one place along
+                the wheel. To shift the colors that way, set them yourself:
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`theme.setColors([...theme.activePaletteHexes.slice(1), 'red']);`}
             </SyntaxHighlighter>
             <Heading3 id="theme-rotateRandomColor">
                 theme.rotateRandomColor
             </Heading3>
             <Signature of="Theme#rotateRandomColor" />
             <Text>
-                Drops the oldest color from the <Code>Theme</Code> palette and
-                adds a random color. This will set a target palette for the
-                theme to transition to with the same settings as the current
-                palette other than the new colors.
+                Replaces the oldest color in the <Code>Theme</Code> palette with
+                a random color, as <Code>theme.rotateColor</Code> does. The new
+                color is drawn at least <Code>deltaEThreshold</Code> (CIEDE2000)
+                from both of the colors it will sit between on the wheel. This
+                will set a target palette for the theme to transition to with
+                the same settings as the current palette other than the new
+                colors.
             </Text>
             <Text>
                 The transition will be completed gradually over time, with the
@@ -1000,6 +1067,18 @@ theme.rotateRandomColor({
     minBrightness: 0.5, // Defaults to 0
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
+            </SyntaxHighlighter>
+            <Text>
+                Before version 4.0, it dropped the first color and appended a
+                random color drawn at least <Code>deltaEThreshold</Code> from
+                the last. To shift the colors that way, drop the oldest color
+                and push a random one. With the same <Code>random</Code>, this
+                draws the same colors as before, as long as the colors are only
+                ever set from lists, pushed or popped; a palette of one color
+                gains a second.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`theme.setColors(theme.activePalette.popOldest().pushRandom().colors);`}
             </SyntaxHighlighter>
             <Heading3 id="theme-tick">theme.tick</Heading3>
             <Signature of="Theme#tick" />
@@ -1048,7 +1127,13 @@ theme.tick(0); // Transition only`}
                 the full color wheel, and ignores{' '}
                 <TextLink href="#theme-brightness">brightness</TextLink> and the
                 color index. It is an average, so single colors can be further
-                off.
+                off, and it averages over the whole wheel: after a change to
+                part of it, such as a{' '}
+                <TextLink href="#theme-rotateColor">rotation</TextLink>, the
+                colors that change are further off than the average. A{' '}
+                <Code>transitionSpeed</Code> transition judges when to end by
+                the colors it changes alone, so it ends as smoothly after a
+                rotation as after a whole new palette.
             </Text>
             <Text>
                 It is <Code>undefined</Code> whenever{' '}
