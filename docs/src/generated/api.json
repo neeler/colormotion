@@ -164,6 +164,9 @@
         },
         "meetsConstraint": {
             "code": "function meetsConstraint(\n    color: ColorInput,\n    constraint: ColorConstraint,\n    options?: { minBrightness?: number; tolerance?: number },\n): boolean;"
+        },
+        "analyzeTheme": {
+            "code": "function analyzeTheme(\n    colors: readonly ColorInput[],\n    options?: AnalyzeOptions,\n): ThemeAnalysis;"
         }
     },
     "types": {
@@ -672,6 +675,132 @@
                 {
                     "name": "deltaEThreshold",
                     "doc": "The distance to keep from awayFrom. Defaults to DEFAULT_DELTA_E_THRESHOLD (20)."
+                }
+            ]
+        },
+        "Relationship": {
+            "code": "type Relationship =\n    | 'neutral'\n    | 'family'\n    | 'accent'\n    | 'contrast'\n    | 'bridge'\n    | 'pair-accent'\n    | 'triad'\n    | 'spectrum';",
+            "doc": "How a theme's hues relate, from the number of hue groups it has and the gaps between them (see\nanalyzeTheme):\n- `neutral`: no hue group; every color is a grey, white or black.\n- `family`: one group, or three packed into less than contrastFrom (a wide analogous run).\n- `accent`: two groups, less than contrastFrom (90°) apart.\n- `contrast`: two groups, contrastFrom or more apart.\n- `bridge`: three groups within half the wheel, spanning contrastFrom or more: the middle one bridges the\n  two ends.\n- `pair-accent`: three groups spread wider, two of them less than contrastFrom apart.\n- `triad`: three groups, every gap contrastFrom or more.\n- `spectrum`: four groups or more.",
+            "fields": []
+        },
+        "AnalyzeOptions": {
+            "code": "interface AnalyzeOptions {\n    minBrightness?: number;\n    neutralChroma?: number;\n    structuralChroma?: number;\n    familyJoin?: number;\n    attachWithin?: number;\n    contrastFrom?: number;\n    duplicateDeltaE?: number;\n}",
+            "doc": "Options for analyzeTheme: how colors are measured, and the thresholds of the analysis. A value that is\nnot a finite number counts as not given.",
+            "fields": [
+                {
+                    "name": "minBrightness",
+                    "doc": "Measure the colors as lifted to this brightness (HSV value), as measureColor does: as they show when a\ntheme lifts its colors to a floor. From 0 to 1; defaults to 0."
+                },
+                {
+                    "name": "neutralChroma",
+                    "doc": "Colors under this relative chroma are neutral: greys, whites and blacks, which take no part in the hue\nstructure. So are colors under brightness 0.02 (black, at a minBrightness of 0). Defaults to 0.12."
+                },
+                {
+                    "name": "structuralChroma",
+                    "doc": "Colors at or over this relative chroma are structural: they define the hue groups. Less saturated\ncolors are muted tints and tones that follow the groups. When no color reaches it (a theme of pastels),\nevery color that is not neutral is structural. Defaults to 0.75."
+                },
+                {
+                    "name": "familyJoin",
+                    "doc": "Structural hues closer than this, in degrees, chain into one group. Defaults to 30."
+                },
+                {
+                    "name": "attachWithin",
+                    "doc": "A muted color joins the group of the nearest structural color if that is within this many degrees;\nmuted colors no group takes form groups of their own. Defaults to 45."
+                },
+                {
+                    "name": "contrastFrom",
+                    "doc": "Two groups less than this many degrees apart are an accent, and this far or further a contrast. It\nalso bounds a bridge's span and a triad's gaps. Defaults to 90."
+                },
+                {
+                    "name": "duplicateDeltaE",
+                    "doc": "Pairs of colors closer than this (CIEDE2000) are reported as near-duplicates. Defaults to 3."
+                }
+            ]
+        },
+        "PickAnalysis": {
+            "code": "interface PickAnalysis extends ColorMeasure {\n    index: number;\n    role: 'structural' | 'muted' | 'neutral';\n    group: number | null;\n    offset: number | null;\n}",
+            "doc": "One of the analyzed colors, measured as shown (lifted to minBrightness), with its part in the theme.",
+            "fields": [
+                {
+                    "name": "index",
+                    "doc": "Its position in the colors analyzed."
+                },
+                {
+                    "name": "role",
+                    "doc": "`structural` colors define the hue groups, `muted` ones follow them, and `neutral` ones (greys, whites\nand blacks) take no part."
+                },
+                {
+                    "name": "group",
+                    "doc": "The index of its group in ThemeAnalysis.groups; null for a neutral color."
+                },
+                {
+                    "name": "offset",
+                    "doc": "Its hue's signed distance from the anchor, in degrees, over −180 up to 180; null for a neutral color."
+                },
+                {
+                    "name": "hue",
+                    "doc": "OKLCH hue in degrees, from 0 to 360. null for a color with no hue: an OKLCH chroma under 1e-4 (greys,\nwhite) or black."
+                },
+                {
+                    "name": "chroma",
+                    "doc": "Relative chroma, from 0 to 1: the color's OKLCH chroma as a fraction of the most any sRGB color has at\nits hue and brightness (see maxChroma). 0 is grey and 1 is as saturated as sRGB allows there.\nIn the 0.16° of hue just past blue's, where the colors of one brightness have no chroma between two\nvalues, the fraction leaves that gap out, so that every value from 0 to 1 is a color there too."
+                },
+                {
+                    "name": "brightness",
+                    "doc": "Brightness: HSV value, from 0 to 1 (the hottest channel), after any lift to minBrightness."
+                }
+            ]
+        },
+        "HueGroup": {
+            "code": "interface HueGroup {\n    center: number;\n    span: number;\n    members: number[];\n    weight: number;\n}",
+            "doc": "A group of related hues: structural colors chained less than familyJoin apart, and the muted colors that\nfollow them (or muted colors on their own, when no structural color is near).",
+            "fields": [
+                {
+                    "name": "center",
+                    "doc": "Its hue in degrees, 0 to 360: the mean of its structural members' hues, weighted by their relative\nchroma (for a group of muted colors on their own, the mean of theirs)."
+                },
+                {
+                    "name": "span",
+                    "doc": "Degrees from its first member's hue to its last's, muted members included."
+                },
+                {
+                    "name": "members",
+                    "doc": "The indexes of its colors, in hue order."
+                },
+                {
+                    "name": "weight",
+                    "doc": "The sum of its members' relative chroma."
+                }
+            ]
+        },
+        "ThemeAnalysis": {
+            "code": "interface ThemeAnalysis {\n    relationship: Relationship;\n    anchor: number | null;\n    groups: HueGroup[];\n    picks: PickAnalysis[];\n    neutrals: number[];\n    duplicates: [number, number][];\n    span: number;\n    options: Required<AnalyzeOptions>;\n}",
+            "doc": "A theme's hue relationship, as analyzeTheme finds it. Plain JSON: numbers, strings, arrays and null, with\nno NaN.",
+            "fields": [
+                {
+                    "name": "anchor",
+                    "doc": "The hue the theme is placed by: the center of its heaviest group (ties: the group holding the earliest\ncolor). null when every color is neutral."
+                },
+                {
+                    "name": "groups",
+                    "doc": "The hue groups: the anchor's first, then the others in hue order from it."
+                },
+                { "name": "picks", "doc": "Every color analyzed, in order." },
+                {
+                    "name": "neutrals",
+                    "doc": "The indexes of the neutral colors."
+                },
+                {
+                    "name": "duplicates",
+                    "doc": "Pairs of indexes of colors closer than duplicateDeltaE, each pair in order."
+                },
+                {
+                    "name": "span",
+                    "doc": "The arc of hue the groups occupy, in degrees: 360 less the largest gap between group centers. For a\nsingle group, its span; 0 when there is none."
+                },
+                {
+                    "name": "options",
+                    "doc": "The options the analysis used, defaults filled in, so templates and checks can use the same ones."
                 }
             ]
         }
