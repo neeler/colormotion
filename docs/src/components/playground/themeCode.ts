@@ -1,11 +1,14 @@
 import {
     BrightnessModes,
+    ColorConstraint,
     DEFAULT_DELTA_E_THRESHOLD,
     InterpolationMode,
 } from '@colormotion';
 import {
     FRAME_RATE,
+    OLIVE_AND_LIME,
     PlaygroundSettings,
+    randomConstraint,
     TransitionKinds,
     WHEEL_DRIFT,
 } from '~/components/playground/settings';
@@ -57,9 +60,12 @@ export function themeCode({
 }) {
     const colors = hexes.map((hex) => `'${hex}'`);
     const colorsLine = `    colors: [${colors.join(', ')}],`;
+    const constraint = randomConstraint(settings);
 
     const lines = [
-        "import { Theme } from 'colormotion';",
+        constraint?.avoid
+            ? "import { Theme, hueArc } from 'colormotion';"
+            : "import { Theme } from 'colormotion';",
         '',
         'const theme = new Theme({',
         ...(colorsLine.length <= MAX_LINE_LENGTH
@@ -112,6 +118,9 @@ export function themeCode({
         lines.push(`    theme.tick(${formatNumber(settings.wheelSpeed)});`);
     }
     lines.push('}', '', '// Change the palette, for example:');
+    if (constraint) {
+        lines.push(...constraintCode(constraint));
+    }
 
     const transition =
         settings.transitionKind === TransitionKinds.speed
@@ -123,6 +132,7 @@ export function themeCode({
         ...callWithOptions('theme.randomTheme', [
             `nColors: ${settings.nColors}`,
             `minBrightness: ${formatNumber(settings.minBrightness)}`,
+            ...(constraint ? ['constraints'] : []),
             transition,
         ]),
     );
@@ -132,4 +142,40 @@ export function themeCode({
     }
 
     return lines.join('\n');
+}
+
+/**
+ * The playground's constraint as a constant, one part to a line.
+ */
+function constraintCode({ hues, avoid, chroma }: ColorConstraint) {
+    const parts: string[] = [];
+    for (const { center, width } of hues ?? []) {
+        parts.push(
+            `hues: [{ center: ${formatNumber(center)}, width: ${formatNumber(width)} }],`,
+        );
+    }
+    if (avoid) {
+        parts.push(
+            `avoid: [hueArc(${OLIVE_AND_LIME.from}, ${OLIVE_AND_LIME.to})], // olive and lime`,
+        );
+    }
+    if (chroma) {
+        const bounds = [
+            chroma.min !== undefined && `min: ${formatNumber(chroma.min)}`,
+            chroma.max !== undefined && `max: ${formatNumber(chroma.max)}`,
+        ].filter(Boolean);
+        parts.push(`chroma: { ${bounds.join(', ')} },`);
+    }
+    if (parts.length === 0) {
+        return [
+            '// Drawn in OKLCH with no limits: every hue and chroma',
+            'const constraints = {};',
+        ];
+    }
+    return [
+        '// Drawn in OKLCH within these limits',
+        'const constraints = {',
+        ...parts.map((part) => `    ${part}`),
+        '};',
+    ];
 }

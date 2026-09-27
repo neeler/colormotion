@@ -3,6 +3,8 @@ import {
     DEFAULT_SETTINGS,
     getSettings,
     PlaygroundSettings,
+    RandomSpaces,
+    randomOptions,
     Range,
     RANGES,
     SketchViews,
@@ -69,6 +71,12 @@ const settingsParsers: {
     transitionSeconds: inRange(RANGES.transitionSeconds),
     nColors: inRange(RANGES.nColors),
     minBrightness: inRange(RANGES.minBrightness),
+    randomSpace: oneOf(RandomSpaces),
+    hueCenter: inRange(RANGES.hueCenter),
+    hueWidth: inRange(RANGES.hueWidth),
+    chromaMin: inRange(RANGES.chroma),
+    chromaMax: inRange(RANGES.chroma),
+    avoidOliveAndLime: boolean,
     wheelSpeed: inRange(RANGES.wheelSpeed),
     wheelDrift: boolean,
     paused: boolean,
@@ -164,7 +172,7 @@ export function applySharedState(hash: string) {
         }
     }
     updateSettings(settings as unknown as PlaygroundSettings);
-    const { nColors, minBrightness } = getSettings();
+    const { nColors } = getSettings();
 
     const colors = (params.get('colors') ?? '')
         .split(',')
@@ -190,7 +198,11 @@ export function applySharedState(hash: string) {
     const { theme, generator } = getThemeSnapshot();
     if (!colors.length && seed) {
         // the seed's first palette, so the link alone reproduces it
-        theme.randomTheme({ nColors, minBrightness, transitionDuration: 0 });
+        theme.randomTheme({
+            nColors,
+            ...randomOptions(),
+            transitionDuration: 0,
+        });
     }
     if (generator) {
         // carry on where the sharer's sequence was
@@ -231,7 +243,7 @@ export function resetPlayground() {
     theme.brightness = 1;
     theme.randomTheme({
         nColors: DEFAULT_SETTINGS.nColors,
-        minBrightness: DEFAULT_SETTINGS.minBrightness,
+        ...randomOptions(DEFAULT_SETTINGS),
     });
     clearSharedHash();
 }

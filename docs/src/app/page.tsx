@@ -5,6 +5,7 @@ import { Strong, Text, TextLink } from '~/components/catalyst/Text';
 import { SectionInstallation } from '~/components/docSections/SectionInstallation';
 import { SectionInterpolation } from '~/components/docSections/SectionInterpolation';
 import { SectionQuickStart } from '~/components/docSections/SectionQuickStart';
+import { SectionRandom } from '~/components/docSections/SectionRandom';
 import { SectionTheme } from '~/components/docSections/SectionTheme';
 import { SectionTypes } from '~/components/docSections/SectionTypes';
 import { MobileSidebar } from '~/components/sideMenu/MobileSidebar';
@@ -83,6 +84,7 @@ export default function Home() {
                         <SectionQuickStart />
                         <SectionInterpolation />
                         <SectionTheme />
+                        <SectionRandom />
                         <SectionTypes />
                     </div>
                 </div>

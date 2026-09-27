@@ -36,6 +36,17 @@ const THEME_SECTIONS: [string, string][] = [
     ['theme-unsubscribe', 'theme.unsubscribe'],
 ];
 
+/** The Random colors section's headings, in page order: [anchor id, title]. */
+const RANDOM_SECTIONS: [string, string][] = [
+    ['random-constraints', 'Constraints'],
+    ['random-randomColor', 'randomColor'],
+    ['random-hueArc', 'hueArc'],
+    ['random-meetsConstraint', 'meetsConstraint'],
+    ['random-measureColor', 'measureColor'],
+    ['random-colorFromHue', 'colorFromHue'],
+    ['random-maxChroma', 'maxChroma'],
+];
+
 export function SideMenu({
     colorSpace = 20,
     className,
@@ -77,6 +88,25 @@ export function SideMenu({
                 </L1MenuItem>
                 <L1MenuItem
                     colorOffset={(4 + THEME_SECTIONS.length) * colorSpace}
+                    href="#random-colors"
+                    title="Random colors"
+                >
+                    {RANDOM_SECTIONS.map(([id, title], i) => (
+                        <L2MenuItem
+                            key={id}
+                            colorOffset={
+                                (5 + THEME_SECTIONS.length + i) * colorSpace
+                            }
+                            href={`#${id}`}
+                            title={title}
+                        />
+                    ))}
+                </L1MenuItem>
+                <L1MenuItem
+                    colorOffset={
+                        (5 + THEME_SECTIONS.length + RANDOM_SECTIONS.length) *
+                        colorSpace
+                    }
                     href="#types"
                     title="Types"
                 >
@@ -84,7 +114,11 @@ export function SideMenu({
                         <L2MenuItem
                             key={name}
                             colorOffset={
-                                (5 + THEME_SECTIONS.length + i) * colorSpace
+                                (6 +
+                                    THEME_SECTIONS.length +
+                                    RANDOM_SECTIONS.length +
+                                    i) *
+                                colorSpace
                             }
                             href={`#${typeAnchor(name)}`}
                             title={name}

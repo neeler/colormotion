@@ -10,6 +10,7 @@ import {
 } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { clamp } from './clamp';
+import type { ColorConstraints } from './constraints';
 import { darkenScale, isD65WhitePoint } from './convert';
 import {
     ModeCoords,
@@ -117,6 +118,12 @@ export type InitialThemeColors =
            * Defaults to 0.
            */
           minBrightness?: number;
+          /**
+           * Limits on the random colors' OKLCH hue and relative chroma: one constraint for every color, or a
+           * list with one for each position (see RandomPaletteConfig.constraints and ColorPalette.random).
+           * Left out, the colors are drawn in HSV, as in 4.0.
+           */
+          constraints?: ColorConstraints;
       };
 
 /**
@@ -484,6 +491,10 @@ export class Theme {
                     config && 'minBrightness' in config
                         ? config.minBrightness
                         : 0;
+                const constraints =
+                    config && 'constraints' in config
+                        ? config.constraints
+                        : undefined;
                 this._palette = ColorPalette.random({
                     mode: this._mode,
                     nSteps: this.nSteps,
@@ -492,6 +503,7 @@ export class Theme {
                     random,
                     minBrightness,
                     nColors,
+                    constraints,
                 });
             }
         }
@@ -1265,12 +1277,15 @@ export class Theme {
      * Defaults to the same number of colors as the current palette.
      * Max number of colors defined in the theme config is respected.
      * The seed color is the oldest, so rotations start again from it.
+     * With constraints, the random color at position i (from 1) meets constraints[i]; the seed is kept as it
+     * is (see ColorPalette.randomizeFrom).
      */
     randomFrom(
         color: ColorInput,
         {
             minBrightness = 0,
             nColors = this.activePalette.nColors,
+            constraints,
             ...options
         }: ColorUpdateConfig & RandomPaletteConfig = {},
     ) {
@@ -1278,6 +1293,7 @@ export class Theme {
             this.activePalette.randomizeFrom(color, {
                 minBrightness,
                 nColors: Math.min(nColors, this.maxNumberOfColors),
+                constraints,
             }),
             options,
         );
@@ -1288,16 +1304,19 @@ export class Theme {
      * Defaults to the same number of colors as the current palette.
      * Max number of colors defined in the theme config is respected.
      * The new colors' order is their age order, so rotations start again from the first.
+     * With constraints, the color at position i meets constraints[i] (see ColorPalette.randomize).
      */
     randomTheme({
         minBrightness = 0,
         nColors = this.activePalette.nColors,
+        constraints,
         ...options
     }: ColorUpdateConfig & RandomPaletteConfig = {}) {
         this.updateScale(
             this.activePalette.randomize({
                 minBrightness,
                 nColors: Math.min(nColors, this.maxNumberOfColors),
+                constraints,
             }),
             options,
         );
@@ -1329,15 +1348,18 @@ export class Theme {
     /**
      * Push a random color to the end of the active palette, as its newest color, drawn at least
      * deltaEThreshold (CIEDE2000) from the current last color (see ColorPalette.pushRandom).
+     * With constraints, it meets the constraint for the position it takes, constraints[nColors].
      * Adds nothing if the palette already has maxNumberOfColors colors.
      */
     pushRandomColor({
         minBrightness,
+        constraints,
         ...options
     }: ColorUpdateConfig & RandomColorConfig = {}) {
         this.updateScale(
             this.activePalette.pushRandom({
                 minBrightness,
+                constraints,
             }),
             options,
         );
@@ -1371,7 +1393,8 @@ export class Theme {
     /**
      * Replace the oldest color of the active palette with a random color, as rotateColor does, drawn at
      * least deltaEThreshold (CIEDE2000) from both of the colors it will sit between on the wheel (see
-     * ColorPalette.rotateRandomOn).
+     * ColorPalette.rotateRandomOn). With constraints, it meets the constraint for the position it replaces,
+     * constraints[activePalette.ageOrder[0]].
      *
      * To shift the colors instead, as rotateRandomColor did before 4.0 (dropping the first color and
      * appending a random color drawn deltaEThreshold from the last):
@@ -1381,11 +1404,13 @@ export class Theme {
      */
     rotateRandomColor({
         minBrightness,
+        constraints,
         ...options
     }: ColorUpdateConfig & RandomColorConfig = {}) {
         this.updateScale(
             this.activePalette.rotateRandomOn({
                 minBrightness,
+                constraints,
             }),
             options,
         );
