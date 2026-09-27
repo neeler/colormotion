@@ -1,8 +1,9 @@
 import { ThemeUpdateCallback, ThemeUpdateEvent } from '@colormotion';
 import { useEffect, useState } from 'react';
-import { theme } from '~/components/theme/theme';
+import { useTheme } from '~/hooks/useTheme';
 
 export function useThemeScale() {
+    const theme = useTheme();
     const [palette, setPalette] = useState<
         Pick<ThemeUpdateEvent, 'palette' | 'colors'> | undefined
     >(undefined);
@@ -20,7 +21,7 @@ export function useThemeScale() {
         return () => {
             theme.unsubscribe(updatePalette);
         };
-    }, []);
+    }, [theme]);
 
     return palette;
 }

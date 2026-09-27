@@ -1,55 +1,59 @@
 import clsx from 'clsx';
-import { Sketch } from '~/components/sketches/lib/Sketch';
+import { CodeGroup } from '~/components/playground/CodeGroup';
+import { PaletteGroup } from '~/components/playground/PaletteGroup';
+import { RandomGroup } from '~/components/playground/RandomGroup';
+import { SketchToolbar } from '~/components/playground/SketchToolbar';
+import { TransitionBar } from '~/components/playground/TransitionBar';
+import { TransitionGroup } from '~/components/playground/TransitionGroup';
+import { WheelGroup } from '~/components/playground/WheelGroup';
+import { SketchViews } from '~/components/playground/settings';
+import { fibonacciSpiralSketch } from '~/components/sketches/fibonacciSpiralSketch';
+import { ledStripSketch } from '~/components/sketches/ledStripSketch';
 import { SketchWrapper } from '~/components/sketches/lib/SketchWrapper';
-import { AddRandomColorButton } from '~/components/theme/AddRandomColorButton';
-import { CurrentPalette } from '~/components/theme/CurrentPalette';
 import { CurrentThemeScale } from '~/components/theme/CurrentThemeScale';
-import { DropOldestColorButton } from '~/components/theme/DropOldestColorButton';
-import { ModeSelectors } from '~/components/theme/ModeSelectors';
-import { RandomThemeButton } from '~/components/theme/RandomThemeButton';
-import { RotateModeButton } from '~/components/theme/RotateModeButton';
-import { RotateRandomColorButton } from '~/components/theme/RotateRandomColorButton';
+import { ModeControl } from '~/components/theme/ModeControl';
+import { PaletteEditor } from '~/components/theme/PaletteEditor';
+import { ThemeActions } from '~/components/theme/ThemeActions';
+import { usePlaygroundSettings } from '~/hooks/usePlaygroundSettings';
+import { useSharedPlaygroundState } from '~/hooks/useSharedPlaygroundState';
 
-const minBrightness = 0.6;
-
-export function ThemedSketch<
-    TState = unknown,
-    TMovingState extends object = object,
->({
-    sketch,
-    className,
-}: {
-    sketch: Sketch<TState, TMovingState>;
-    className?: string;
-}) {
+/**
+ * The demo theme in a sketch, with controls for experimenting with it: the
+ * palette, its scale, updates, the interpolation mode, and collapsible groups
+ * for transitions, randomness, the wheel and brightness, and code.
+ */
+export function ThemedSketch({ className }: { className?: string }) {
+    useSharedPlaygroundState();
     return (
-        <div className={clsx('space-y-4', className)}>
-            <SketchWrapper sketch={sketch} className="h-100 w-full" />
-            <CurrentPalette className="max-lg:hidden" />
-            <CurrentThemeScale />
-            <div className="space-y-4 sm:flex sm:space-y-0 sm:space-x-4">
-                <div className="flex space-x-4 sm:grow">
-                    <RandomThemeButton
-                        minBrightness={minBrightness}
-                        className="grow"
-                    />
-                    <RotateRandomColorButton
-                        minBrightness={minBrightness}
-                        className="grow"
-                    />
-                </div>
-                <div className="flex space-x-4 sm:grow">
-                    <AddRandomColorButton
-                        minBrightness={minBrightness}
-                        className="grow"
-                    />
-                    <DropOldestColorButton className="grow" />
-                </div>
+        <div className={clsx('@container space-y-4', className)}>
+            <div className="relative">
+                <PlaygroundSketch />
+                <SketchToolbar className="absolute right-3 bottom-3" />
+                <TransitionBar className="absolute inset-x-px bottom-px" />
             </div>
-            <div className="flex space-x-4">
-                <RotateModeButton className="grow lg:grow-0" />
-                <ModeSelectors className="grow" />
+            <PaletteEditor />
+            <CurrentThemeScale />
+            <ThemeActions />
+            <ModeControl />
+            <div className="space-y-2">
+                <PaletteGroup />
+                <TransitionGroup />
+                <RandomGroup />
+                <WheelGroup />
+                <CodeGroup />
             </div>
         </div>
+    );
+}
+
+function PlaygroundSketch() {
+    const { view } = usePlaygroundSettings();
+    return view === SketchViews.strip ? (
+        <SketchWrapper sketch={ledStripSketch} className="h-100 w-full" />
+    ) : (
+        <SketchWrapper
+            sketch={fibonacciSpiralSketch}
+            className="h-100 w-full"
+        />
     );
 }
