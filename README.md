@@ -364,7 +364,9 @@ theme.rotateRandomColor({ minBrightness: 0.5, constraints: nearEachColor });
 The slots are narrowed where they have to be, so that no palette drawn within them changes the
 relationship or the number of groups: two groups are never drawn close enough to merge, a group's colors
 never far enough apart to split, a muted color never far enough from its group to go off on its own, and
-where a theme sits near a threshold (two groups nearly 90° apart, say), no group can move across it.
+where a theme sits near a threshold (two groups nearly 90° apart, say), no group can move across it (where
+the colors' chroma alone could move it, their chroma bands narrow too). That holds for colors as drawn:
+rounded to 8 bits, a hue can move by a degree or so, and more for a muted color.
 
 To grow a few picks into more colors, pass `nColors`. The extra slots go to the picks by relative chroma
 (neutral picks get none), in a run after each pick's own slot, `template.pickSlots[j]`:
@@ -400,9 +402,9 @@ template.slots.forEach((_, i) => {
 ```
 
 `randomLike(analysis)` draws a palette in the same relationship at another anchor hue, optionally mirrored:
-a contrast pair stays a contrast pair, a bridge a bridge. Each palette is analyzed again, and redrawn until
-it matches (up to `attempts`, 16 by default). Keep the `constraints` it returns to roll single colors in the
-new shape:
+a contrast pair stays a contrast pair, a bridge a bridge. Each palette is analyzed again, as drawn and
+rounded to 8 bits, and redrawn until it matches (up to `attempts`, 16 by default). Keep the `constraints` it
+returns to roll single colors in the new shape:
 
 ```typescript
 import { hueArc, randomLike } from 'colormotion';
