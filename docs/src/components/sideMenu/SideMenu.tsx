@@ -47,6 +47,15 @@ const RANDOM_SECTIONS: [string, string][] = [
     ['random-maxChroma', 'maxChroma'],
 ];
 
+/** The Theme relationships section's headings, in page order: [anchor id, title]. */
+const RELATIONSHIP_SECTIONS: [string, string][] = [
+    ['relationships-analyzeTheme', 'analyzeTheme'],
+    ['relationships-relationshipTemplate', 'relationshipTemplate'],
+    ['relationships-templateConstraints', 'templateConstraints'],
+    ['relationships-adjacentConstraints', 'adjacentConstraints'],
+    ['relationships-randomLike', 'randomLike'],
+];
+
 export function SideMenu({
     colorSpace = 20,
     className,
@@ -107,6 +116,32 @@ export function SideMenu({
                         (5 + THEME_SECTIONS.length + RANDOM_SECTIONS.length) *
                         colorSpace
                     }
+                    href="#relationships"
+                    title="Theme relationships"
+                >
+                    {RELATIONSHIP_SECTIONS.map(([id, title], i) => (
+                        <L2MenuItem
+                            key={id}
+                            colorOffset={
+                                (6 +
+                                    THEME_SECTIONS.length +
+                                    RANDOM_SECTIONS.length +
+                                    i) *
+                                colorSpace
+                            }
+                            href={`#${id}`}
+                            title={title}
+                        />
+                    ))}
+                </L1MenuItem>
+                <L1MenuItem
+                    colorOffset={
+                        (6 +
+                            THEME_SECTIONS.length +
+                            RANDOM_SECTIONS.length +
+                            RELATIONSHIP_SECTIONS.length) *
+                        colorSpace
+                    }
                     href="#types"
                     title="Types"
                 >
@@ -114,9 +149,10 @@ export function SideMenu({
                         <L2MenuItem
                             key={name}
                             colorOffset={
-                                (6 +
+                                (7 +
                                     THEME_SECTIONS.length +
                                     RANDOM_SECTIONS.length +
+                                    RELATIONSHIP_SECTIONS.length +
                                     i) *
                                 colorSpace
                             }
