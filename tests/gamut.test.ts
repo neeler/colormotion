@@ -315,6 +315,35 @@ describe('colorFromHue', () => {
         expect(worst.brightness).toBeLessThan(1e-9);
     }, 10_000);
 
+    test('near grey too, around the hue of white', () => {
+        // chroma-js's white has an OKLab lightness a hair over 1 (1.000001) and a trace of chroma (3.9e-5) at
+        // about 72°, so the palest colors around that hue have a lightness over 1
+        const [lightness, a, b] = chroma('#ffffff').oklab();
+        expect(lightness).toBeGreaterThan(1);
+        const whiteHue = (Math.atan2(b, a) * 180) / Math.PI;
+        const worst = roundTrip(
+            targets(10_000, 6, (random) => ({
+                hue:
+                    random() < 0.5
+                        ? whiteHue - 5 + 10 * random()
+                        : 360 * random(),
+                brightness: random() < 0.5 ? 1 : random(),
+                chroma: 1e-3 * random(),
+            })),
+        );
+        expect(worst.brightness).toBeLessThan(1e-9);
+        for (const hue of [whiteHue - 1, whiteHue, whiteHue + 1]) {
+            for (let fraction = 2.2e-4; fraction < 2.5e-4; fraction += 1e-6) {
+                const color = colorFromHue({
+                    hue,
+                    brightness: 1,
+                    chroma: fraction,
+                });
+                expect(valueOf(color)).toBeCloseTo(1, 12);
+            }
+        }
+    }, 10_000);
+
     test('the blue fold: every relative chroma is a color, and relative chroma runs on across it', () => {
         // just past blue's hue, the colors of one brightness leave out a band of chroma
         const worst = roundTrip(

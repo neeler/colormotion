@@ -40,6 +40,13 @@ export interface ColorMeasure {
 /** Iterations of each bisection: the edge search and the lightness search. */
 const ITERATIONS = 48;
 
+/**
+ * The top of the lightness search. The lightest colors lie a hair over 1: chroma-js's white has an OKLab
+ * lightness of 1.000001 (and a trace of chroma, 3.9e-5 at about 72°), so the palest colors around that hue
+ * need a lightness over 1. At 2, every chroma sRGB reaches has a channel far over 1 (8 or more).
+ */
+const MAX_LIGHTNESS = 2;
+
 /** Colors whose OKLCH chroma is under this have no hue. */
 const MIN_HUE_CHROMA = 1e-4;
 
@@ -441,7 +448,7 @@ export function colorFromHue(target: {
         const C = fromRelative(fraction, reach);
         const a = C * Math.cos(hue * DEG2RAD);
         const b = C * Math.sin(hue * DEG2RAD);
-        const lightness = bisect(0, 1, (mid) => {
+        const lightness = bisect(0, MAX_LIGHTNESS, (mid) => {
             oklabToLinear(mid, a, b);
             return Math.max(rgb[0]!, rgb[1]!, rgb[2]!) < 1;
         });
