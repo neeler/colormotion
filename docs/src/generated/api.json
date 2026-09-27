@@ -223,7 +223,11 @@
             "fields": [
                 {
                     "name": "scale",
-                    "doc": "chroma-js's scale over the palette colors. The palette's own colors (scaleColors, and so a Theme's)\nfollow chroma's interpolation except near hue-less ends, where colormotion's mix reaches the end and\nchroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI. And in OKLCH,\nwhere chroma's mix reads a translucent color's alpha as its hue, they mix translucent colors as the\nopaque ones, with alpha mixed on its own."
+                    "doc": "chroma-js's scale over the palette colors. The palette's own colors (scaleColors, and so a Theme's)\nfollow chroma's interpolation except near hue-less ends, where colormotion's mix reaches the end and\nchroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI. And in OKLCH,\nwhere chroma's mix reads a translucent color's alpha as its hue, they mix translucent colors as the\nopaque ones, with alpha mixed on its own.\nThe scale mixes when it is called, under chroma's Lab white point at the time."
+                },
+                {
+                    "name": "scaleColors",
+                    "doc": "The colors of the wheel, one per step, sampled from the scale once, when the palette is built.\nMixing in lab, lch, hcl, oklab and oklch depends on chroma's Lab white point (see\nchroma.setLabWhitePoint), and these keep the one set then: changing it later does not change them.\nnewColors, newMode and newConfig return this same palette when its colors, mode and settings would\nnot change, and build any other palette they return under the white point set at the time."
                 },
                 {
                     "name": "static normalizeColors",
@@ -303,7 +307,7 @@
             "fields": [
                 {
                     "name": "darken",
-                    "doc": "Darkens colors in CIELAB space, lowering the lightness by up to 54 (of 100) at brightness 0.\nColors lighter than lightness 54 keep some light at brightness 0 (white becomes #6d6d6d), and\nmany saturated colors keep a dim tint (#0000ff becomes #000069); mid and dark greys and dark,\nmuted colors reach black."
+                    "doc": "Darkens colors in CIELAB space, lowering the lightness by up to 54 (of 100) at brightness 0.\nColors lighter than lightness 54 keep some light at brightness 0 (white becomes #6d6d6d), and\nmany saturated colors keep a dim tint (#0000ff becomes #000069); mid and dark greys and dark,\nmuted colors reach black.\nColors are darkened as they are read, under chroma's Lab white point at the time."
                 },
                 {
                     "name": "linear",
@@ -417,7 +421,7 @@
                 },
                 {
                     "name": "transitionDistance",
-                    "doc": "The average distance between the theme's colors (before brightness) and the target palette's.\nMeasured in CIEDE2000 color distance.\nRanges from 0 (identical) to 100 (maximally different).\nEstimated from an evenly spaced sample of the scale colors.\nReturns undefined if there is no target palette.\nDuring a transitionSpeed transition, this is the distance measured at the\nstart of the most recent tick, before the colors moved, and undefined until\nthe first tick after the target changed. During a transitionDuration\ntransition, it is measured from the current colors when read."
+                    "doc": "The average distance between the theme's colors (before brightness) and the target palette's.\nMeasured in CIEDE2000 color distance.\nRanges from 0 (identical) to 100 (maximally different).\nEstimated from an evenly spaced sample of the scale colors.\nReturns undefined if there is no target palette.\nDuring a transitionSpeed transition, this is the distance measured at the\nstart of the most recent tick, before the colors moved (under chroma's Lab\nwhite point then), and undefined until the first tick after the target\nchanged. During a transitionDuration\ntransition, it is measured from the current colors when read (once per\ntick, and again if chroma's Lab white point changes, as CIEDE2000 and\nthe colors depend on it)."
                 },
                 {
                     "name": "isTransitioning",
@@ -445,7 +449,7 @@
                 },
                 {
                     "name": "getColor",
-                    "doc": "Get the color at the given index in the theme.\n\n- `index`: The index of the color to get.\n- `options`: Options for the color generation.\n- `options.brightness`: Optionally adjust the brightness of the color. 0-1, defaults to 1. NaN counts as 1.\n\nReturns: The color at the given index."
+                    "doc": "Get the color at the given index in the theme.\nDuring a transition, the color is mixed when read, under chroma's Lab white point as it is then (see\nchroma.setLabWhitePoint), which mixing in lab, lch, hcl, oklab and oklch depends on. The palettes'\nown scale colors, which the theme shows at rest, keep the white point each palette was built under.\nBrightness below 1 in 'darken' mode is applied when read too, in CIELAB under the white point then.\n\n- `index`: The index of the color to get.\n- `options`: Options for the color generation.\n- `options.brightness`: Optionally adjust the brightness of the color. 0-1, defaults to 1. NaN counts as 1.\n\nReturns: The color at the given index."
                 },
                 {
                     "name": "update",

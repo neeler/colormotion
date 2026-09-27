@@ -47,6 +47,9 @@ const SETTLED_REMAINING = 1e-6;
  */
 const WHOLE_TICK_TOLERANCE = 1e-9;
 
+/** chroma.getLabWhitePoint, looked up once rather than on every getColor during a transition. */
+const getLabWhitePoint = chroma.getLabWhitePoint;
+
 /**
  * 3x² − 2x³: eases in and out, starting and ending at rest.
  */
@@ -112,6 +115,7 @@ export const BrightnessModes = {
      * Colors lighter than lightness 54 keep some light at brightness 0 (white becomes #6d6d6d), and
      * many saturated colors keep a dim tint (#0000ff becomes #000069); mid and dark greys and dark,
      * muted colors reach black.
+     * Colors are darkened as they are read, under chroma's Lab white point at the time.
      */
     darken: 'darken',
     /**
@@ -290,7 +294,13 @@ export class Theme {
     private mixed: (Color | undefined)[] = [];
     /** The tick each entry in `mixed` was built on. */
     private mixedTick = new Int32Array(0);
+    /** Counts ticks, and every other change that leaves the colors mixed on this tick stale. */
     private tickCount = 0;
+    /**
+     * chroma's Lab white point (chroma.getLabWhitePoint()) that the cached coordinates and colors were read
+     * under: lab, lch, hcl, oklab and oklch coordinates depend on it.
+     */
+    private labWhitePoint: string = getLabWhitePoint();
     /** Ticks a timed transition takes; undefined at rest or for a transitionSpeed transition. */
     private durationTicks?: number;
     /** Ticks since the timed transition started or was re-timed. */
@@ -307,9 +317,13 @@ export class Theme {
     private readonly scrips = new SubscriptionManager<ThemeUpdateEvent>();
     /**
      * The copies adopt made of assigned palettes, so assigning the same palette again, for example on
-     * every frame, doesn't rebuild it.
+     * every frame, doesn't rebuild it, and chroma's Lab white point when each was made: a copy mixes its
+     * scale colors as it is built, so it is built again under another white point.
      */
-    private readonly adoptedCopies = new WeakMap<ColorPalette, ColorPalette>();
+    private readonly adoptedCopies = new WeakMap<
+        ColorPalette,
+        { copy: ColorPalette; labWhitePoint: string }
+    >();
 
     constructor(config?: ThemeConfig) {
         this.nSteps = config?.nSteps ?? 2048;
@@ -478,9 +492,12 @@ export class Theme {
             palette.nSteps !== this.nSteps ||
             palette.maxNumberOfColors !== this.maxNumberOfColors
         ) {
-            adopted =
-                this.adoptedCopies.get(palette) ??
-                new ColorPalette({
+            const labWhitePoint: string = getLabWhitePoint();
+            const cached = this.adoptedCopies.get(palette);
+            if (cached?.labWhitePoint === labWhitePoint) {
+                adopted = cached.copy;
+            } else {
+                adopted = new ColorPalette({
                     colors: palette.colors,
                     mode: palette.mode,
                     nSteps: this.nSteps,
@@ -488,7 +505,11 @@ export class Theme {
                     deltaEThreshold: palette.deltaEThreshold,
                     random: palette.random,
                 });
-            this.adoptedCopies.set(palette, adopted);
+                this.adoptedCopies.set(palette, {
+                    copy: adopted,
+                    labWhitePoint,
+                });
+            }
         }
         for (const own of [this._targetPalette, this._palette]) {
             if (
@@ -513,13 +534,18 @@ export class Theme {
      * Estimated from an evenly spaced sample of the scale colors.
      * Returns undefined if there is no target palette.
      * During a transitionSpeed transition, this is the distance measured at the
-     * start of the most recent tick, before the colors moved, and undefined until
-     * the first tick after the target changed. During a transitionDuration
-     * transition, it is measured from the current colors when read.
+     * start of the most recent tick, before the colors moved (under chroma's Lab
+     * white point then), and undefined until the first tick after the target
+     * changed. During a transitionDuration
+     * transition, it is measured from the current colors when read (once per
+     * tick, and again if chroma's Lab white point changes, as CIEDE2000 and
+     * the colors depend on it).
      */
     get transitionDistance() {
         const targetPalette = this._targetPalette;
         if (targetPalette && this.durationTicks !== undefined) {
+            // in every mode: CIEDE2000 reads the colors in Lab
+            this.syncLabWhitePoint();
             if (this.measuredDistanceTick !== this.tickCount) {
                 this.measuredDistance =
                     this.calculateAverageTargetDistance(targetPalette);
@@ -609,13 +635,15 @@ export class Theme {
     }
 
     /**
-     * The scale color at an index right now: at rest, or mixed at the transition's progress.
+     * The scale color at an index right now: at rest, or mixed at the transition's progress, under
+     * chroma's Lab white point as it is now.
      */
     private currentColor(index: number): Color {
         const targetPalette = this._targetPalette;
         if (!targetPalette || this.progress === 0) {
             return this.colors[index] as Color;
         }
+        this.syncLabWhitePoint();
         if (this.mixedTick[index] === this.tickCount) {
             return this.mixed[index] as Color;
         }
@@ -691,6 +719,10 @@ export class Theme {
 
     /**
      * Get the color at the given index in the theme.
+     * During a transition, the color is mixed when read, under chroma's Lab white point as it is then (see
+     * chroma.setLabWhitePoint), which mixing in lab, lch, hcl, oklab and oklch depends on. The palettes'
+     * own scale colors, which the theme shows at rest, keep the white point each palette was built under.
+     * Brightness below 1 in 'darken' mode is applied when read too, in CIELAB under the white point then.
      * @param index The index of the color to get.
      * @param options Options for the color generation.
      * @param options.brightness Optionally adjust the brightness of the color. 0-1, defaults to 1. NaN counts as 1.
@@ -952,6 +984,25 @@ export class Theme {
             this.mixedTick = new Int32Array(this.nSteps);
         }
         this.tickCount++;
+        this.labWhitePoint = getLabWhitePoint();
+    }
+
+    /**
+     * Drops the coordinates, colors and distance cached for the transition if chroma's Lab white point has
+     * changed (chroma.setLabWhitePoint) since they were read, so they are read again under the new one.
+     * chroma-js reads lab, lch and hcl coordinates relative to it, and oklab and oklch ones too: although
+     * OKLab is defined on D65, chroma-js 3 converts to and from it through its Lab white point.
+     * One comparison per call while nothing changes.
+     */
+    private syncLabWhitePoint() {
+        const labWhitePoint: string = getLabWhitePoint();
+        if (labWhitePoint !== this.labWhitePoint) {
+            this.labWhitePoint = labWhitePoint;
+            this.fromCoords = [];
+            this.toCoords = [];
+            // leaves the colors mixed and the distance measured on this tick stale
+            this.tickCount++;
+        }
     }
 
     private transitionPalette() {
