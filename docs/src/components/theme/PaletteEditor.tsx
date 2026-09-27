@@ -5,6 +5,7 @@ import { PlusIcon } from '~/components/icons/PlusIcon';
 import { XMarkIcon } from '~/components/icons/XMarkIcon';
 import {
     getSettings,
+    randomOptions,
     transitionOptions,
 } from '~/components/playground/settings';
 import { getTheme, MAX_NUMBER_OF_COLORS } from '~/components/theme/theme';
@@ -61,7 +62,7 @@ export function PaletteEditor({ className }: { className?: string }) {
                 onClick={() => {
                     const settings = getSettings();
                     getTheme().pushRandomColor({
-                        minBrightness: settings.minBrightness,
+                        ...randomOptions(settings),
                         ...transitionOptions(settings),
                     });
                     setPickIndex(hexes.length);

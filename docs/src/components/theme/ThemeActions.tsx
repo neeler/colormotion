@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { Button } from '~/components/catalyst/Button';
 import {
     getSettings,
+    randomOptions,
     transitionOptions,
 } from '~/components/playground/settings';
 import { getTheme, MAX_NUMBER_OF_COLORS } from '~/components/theme/theme';
@@ -22,7 +23,7 @@ export function ThemeActions({ className }: { className?: string }) {
                 const settings = getSettings();
                 getTheme().randomTheme({
                     nColors: settings.nColors,
-                    minBrightness: settings.minBrightness,
+                    ...randomOptions(settings),
                     ...transitionOptions(settings),
                 });
             },
@@ -33,7 +34,7 @@ export function ThemeActions({ className }: { className?: string }) {
             run: () => {
                 const settings = getSettings();
                 getTheme().rotateRandomColor({
-                    minBrightness: settings.minBrightness,
+                    ...randomOptions(settings),
                     ...transitionOptions(settings),
                 });
             },
@@ -45,7 +46,7 @@ export function ThemeActions({ className }: { className?: string }) {
             run: () => {
                 const settings = getSettings();
                 getTheme().pushRandomColor({
-                    minBrightness: settings.minBrightness,
+                    ...randomOptions(settings),
                     ...transitionOptions(settings),
                 });
             },
