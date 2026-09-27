@@ -1,7 +1,13 @@
 import chroma, { Color } from 'chroma-js';
 import { describe, expect, test } from 'vitest';
 import { ColorPalette, InterpolationMode, InterpolationModes } from '../src';
-import { mixCoords, sampleScale, toModeCoords } from '../src/interpolate';
+import {
+    mixCoords,
+    mixScaleRgb,
+    sampleScale,
+    scaleCoords,
+    toModeCoords,
+} from '../src/interpolate';
 
 function seeded(seed: number) {
     let a = seed >>> 0;
@@ -115,6 +121,73 @@ describe('mixCoords matches chroma.mix exactly', () => {
                     : chroma.mix(a, b, 0.25, mode);
             expect(state(mixed), mode).toEqual(state(expected));
         }
+    });
+});
+
+describe('mixScaleRgb matches mixCoords exactly', () => {
+    // including translucent colors, whose alpha is not written
+    const translucent = [
+        chroma('#e8b450').alpha(0.3),
+        chroma('#1a0a2e').alpha(0.9),
+        chroma('#00ff00').alpha(0),
+    ];
+    const all = pairs().concat(
+        translucent.flatMap((a) =>
+            colors.slice(0, 12).map((b) => [a, b] as const),
+        ),
+    );
+
+    for (const mode of Object.values(InterpolationModes)) {
+        test(mode, () => {
+            const from = scaleCoords(
+                all.map(([a]) => a),
+                mode,
+            );
+            const to = scaleCoords(
+                all.map(([, b]) => b),
+                mode,
+            );
+            const out = new Float64Array(all.length * 3);
+            for (const f of fractions) {
+                mixScaleRgb(from, to, f, mode, out);
+                // toEqual compares with Object.is: exact, down to the sign of zero
+                expect([...out], `f = ${f}`).toEqual(
+                    all.flatMap(([a, b]) =>
+                        mixCoords(
+                            toModeCoords(a, mode),
+                            toModeCoords(b, mode),
+                            f,
+                            mode,
+                            a.alpha(),
+                            b.alpha(),
+                        ).rgb(false),
+                    ),
+                );
+            }
+        });
+    }
+});
+
+describe('scaleCoords', () => {
+    test('holds the mode coordinates of every color', () => {
+        for (const mode of Object.values(InterpolationModes)) {
+            expect([...scaleCoords(colors, mode)], mode).toEqual(
+                colors.flatMap((c) => toModeCoords(c, mode)),
+            );
+        }
+    });
+
+    test('converts a list once per space', () => {
+        const list = colors.slice(0, 5);
+        expect(scaleCoords(list, 'oklch')).toBe(scaleCoords(list, 'oklch'));
+        // lrgb mixes rgb's coordinates, and lch hcl's
+        expect(scaleCoords(list, 'lrgb')).toBe(scaleCoords(list, 'rgb'));
+        expect(scaleCoords(list, 'lch')).toBe(scaleCoords(list, 'hcl'));
+        expect(scaleCoords(list, 'lab')).not.toBe(scaleCoords(list, 'hcl'));
+        // a list with the same colors is another list
+        expect(scaleCoords(list.slice(), 'oklch')).not.toBe(
+            scaleCoords(list, 'oklch'),
+        );
     });
 });
 

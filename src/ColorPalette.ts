@@ -113,8 +113,16 @@ export class ColorPalette {
      * chroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI. And in OKLCH,
      * where chroma's mix reads a translucent color's alpha as its hue, they mix translucent colors as the
      * opaque ones, with alpha mixed on its own.
+     * The scale mixes when it is called, under chroma's Lab white point at the time.
      */
     readonly scale: Scale;
+    /**
+     * The colors of the wheel, one per step, sampled from the scale once, when the palette is built.
+     * Mixing in lab, lch, hcl, oklab and oklch depends on chroma's Lab white point (see
+     * chroma.setLabWhitePoint), and these keep the one set then: changing it later does not change them.
+     * newColors, newMode and newConfig return this same palette when its colors, mode and settings would
+     * not change, and build any other palette they return under the white point set at the time.
+     */
     readonly scaleColors: Color[];
     readonly maxNumberOfColors: number;
     readonly deltaEThreshold: number;

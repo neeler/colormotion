@@ -599,6 +599,94 @@ theme.normalizeIndex(-11); // 99
 const color = theme.getColor(5);
 const sameColor = theme.activePalette.scaleColors[theme.normalizeIndex(5)];`}
             </SyntaxHighlighter>
+            <Heading3 id="theme-fillRgb">theme.fillRgb</Heading3>
+            <Signature of="Theme#fillRgb" />
+            <Text>
+                Writes every color of the color wheel into an array of numbers,
+                three per color (red, green and blue), without creating a{' '}
+                <Code>Color</Code> object for each: for filling a lookup table
+                on every frame. The values are exactly those of{' '}
+                <Code>
+                    theme.getColor(i, {'{'} brightness {'}'}).rgb(false)
+                </Code>{' '}
+                divided by 255, for each index <Code>i</Code> from 0 to{' '}
+                <Code>nSteps - 1</Code> in turn, so they run from 0 to 1. Pass{' '}
+                <Code>max: 255</Code> for the 0-255 channel values themselves.
+            </Text>
+            <Text>
+                As with{' '}
+                <TextLink href="#theme-getColor">theme.getColor</TextLink>, the
+                colors follow the color index that{' '}
+                <TextLink href="#theme-tick">theme.tick</TextLink> advances (the
+                first color written is the one at step{' '}
+                <Code>theme.normalizeIndex(0)</Code>), a transition in progress,
+                and the <TextLink href="#theme-brightness">brightness</TextLink>{' '}
+                and{' '}
+                <TextLink href="#theme-brightnessMode">
+                    brightness mode
+                </TextLink>
+                . The <Code>brightness</Code> option compounds with the{' '}
+                <Code>Theme</Code> brightness, as <Code>getColor</Code>&apos;s
+                does. Alpha is not written.
+            </Text>
+            <Text>
+                The array can be a <Code>Float32Array</Code>, a{' '}
+                <Code>Float64Array</Code> or a plain array of numbers, with room
+                for <Code>nSteps * 3</Code> values from <Code>offset</Code> (0
+                unless given). Values outside that range are left as they are,
+                and a <Code>Float32Array</Code> holds the values rounded to
+                single precision. <Code>theme.fillRgb</Code> returns the array,
+                and throws a <Code>RangeError</Code>, writing nothing, when the
+                array is too short or <Code>offset</Code> is not a whole number
+                of 0 or more.
+            </Text>
+            <Text>
+                At rest, it copies the colors from a buffer kept for each
+                palette. During a transition, it mixes the colors and converts
+                them to RGB in buffers the <Code>Theme</Code> reuses, once per
+                tick however many times it is called, with the same arithmetic
+                as <Code>chroma.js</Code>, which is how the values match{' '}
+                <Code>getColor</Code>&apos;s exactly. The first fill after the
+                palette changes converts the new colors once. In{' '}
+                <Code>linear</Code> brightness mode, that makes it about ten
+                times as fast as the same loop over <Code>getColor</Code>, or
+                more.
+            </Text>
+            <Text>
+                In <Code>darken</Code> mode, it keeps the colors darkened by the{' '}
+                <Code>Theme</Code> brightness, and those darkened by the most
+                recent <Code>brightness</Code> option, so an unchanging
+                brightness at rest costs nothing more. A <Code>brightness</Code>{' '}
+                option that changes from one call to the next, such as a fade or
+                two lookup tables at different brightnesses, darkens every color
+                again on each call, as every tick of a transition does: about
+                five times as fast as <Code>getColor</Code>, rather than ten or
+                more.
+            </Text>
+            <Text>
+                If <Code>chroma.setLabWhitePoint</Code> has moved{' '}
+                <Code>chroma.js</Code> off its default white point, D65, it
+                reads each color with <Code>getColor</Code> instead.
+            </Text>
+            <SyntaxHighlighter language="typescript" style={hybrid}>
+                {`const theme = new Theme({
+    colors: ['#e8b450', '#7a1a2b', '#2b1a12'],
+    nSteps: 256,
+    mode: 'oklch',
+    brightnessMode: 'linear',
+});
+const lut = new Float32Array(theme.nSteps * 3);
+
+// Once per frame
+theme.tick();
+theme.fillRgb(lut, { brightness: 0.8 });
+// lut[3 * i], lut[3 * i + 1] and lut[3 * i + 2] are the red, green
+// and blue of theme.getColor(i, { brightness: 0.8 }), from 0 to 1
+
+// The 0-255 channels, after 3 other values
+const channels = new Float64Array(3 + theme.nSteps * 3);
+theme.fillRgb(channels, { offset: 3, max: 255 });`}
+            </SyntaxHighlighter>
             <Heading3 id="theme-update">theme.update</Heading3>
             <Signature of="Theme#update" />
             <Text>
