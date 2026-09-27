@@ -134,6 +134,15 @@ describe('randomColor', () => {
         ).toEqual(
             colorFromHue({ hue: 36, brightness: 0.7, chroma: 0.9 }).rgb(false),
         );
+        // a minBrightness that is not a number counts as 0, as measureColor counts it
+        expectMeasure(
+            randomColor({
+                random: scripted(constrainedDraw(0.5, 0.5, 0.3)),
+                minBrightness: NaN,
+                constraint: {},
+            }),
+            { hue: 180, chroma: 0.3, brightness: 0.5 },
+        );
     });
 
     test('takes exactly three calls to random for each candidate', () => {
@@ -241,6 +250,25 @@ describe('randomColor', () => {
                 expect(meetsConstraint(color, constraint)).toBe(true);
             }
         }
+        // so is an avoid that takes out every hue together with other arcs: all of it, not only the full circle
+        const everyHueAndOlive = {
+            hues: [hueArc(100, 140)],
+            avoid: [hueArc(0, 360), olive],
+        };
+        const hueAt = (along: number) =>
+            measureColor(
+                randomColor({
+                    random: scripted(constrainedDraw(1, along, 1)),
+                    constraint: everyHueAndOlive,
+                }),
+            ).hue!;
+        expect(hueDifference(hueAt(0.25), 110)).toBeCloseTo(0, 6);
+        expect(
+            meetsConstraint(
+                colorFromHue({ hue: 110, brightness: 1, chroma: 1 }),
+                everyHueAndOlive,
+            ),
+        ).toBe(true);
     });
 
     test('zero-width arcs are single hues, drawn only when every arc has width 0', () => {
