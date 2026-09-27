@@ -46,6 +46,16 @@ export function SectionInterpolation() {
                 mixed on its own, where <Code>chroma.js</Code> would mix alpha
                 as the hue.
             </Text>
+            <Text>
+                LAB, LCH, HCL, OKLab and OKLCH mix through the Lab white point
+                of <Code>chroma.js</Code> (D65 unless{' '}
+                <Code>chroma.setLabWhitePoint</Code> changes it). A palette
+                mixes its colors when it is built and keeps them, whatever the
+                white point does later; a theme mixes its transitions as it
+                reads each color, under the white point set at the time. The{' '}
+                <Code>darken</Code> brightness mode works in CIELAB too, and
+                darkens each color as it is read, under the white point then.
+            </Text>
         </>
     );
 }
