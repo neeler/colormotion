@@ -411,3 +411,48 @@ describe('the other palette changes keep the ages', () => {
         expect(theme.palette.ageOrder).toEqual([1, 2, 3, 0]);
     });
 });
+
+describe('fillRgb through rotations', () => {
+    /** Mismatches between fillRgb and getColor, compared exactly. */
+    function mismatches(theme: Theme) {
+        const out = theme.fillRgb(new Float64Array(N_STEPS * 3));
+        const found: string[] = [];
+        for (let i = 0; i < N_STEPS; i++) {
+            const rgb = theme.getColor(i).rgb(false);
+            for (let k = 0; k < 3; k++) {
+                if (!Object.is(out[i * 3 + k], rgb[k]! / 255)) {
+                    found.push(`${i}.${k}`);
+                }
+            }
+        }
+        return found;
+    }
+
+    test.each(Object.values(InterpolationModes))(
+        'matches getColor exactly, at rest, mid-rotation and after a change of ages alone (%s)',
+        (mode) => {
+            for (const brightnessMode of ['linear', 'darken'] as const) {
+                const { theme } = makeTheme({ mode, brightnessMode });
+                theme.brightness = 0.7;
+                theme.rotateColor('#17a398', { transitionDuration: 10 });
+                theme.tick(3);
+                expect(mismatches(theme), `${brightnessMode} mid`).toEqual([]);
+                // the oldest color rotated in again: only the ages change
+                const active = theme.activePalette;
+                theme.rotateColor(active.colors[active.ageOrder[0]!]!, {
+                    transitionDuration: 10,
+                });
+                expect(mismatches(theme), `${brightnessMode} swap`).toEqual([]);
+                theme.tick(2);
+                expect(mismatches(theme), `${brightnessMode} tick`).toEqual([]);
+                theme.finishTransition();
+                const rest = theme.palette;
+                theme.rotateColor(rest.colors[rest.ageOrder[0]!]!);
+                expect(mismatches(theme), `${brightnessMode} rest`).toEqual([]);
+                theme.popOldestColor({ transitionDuration: 4 });
+                theme.tick(1);
+                expect(mismatches(theme), `${brightnessMode} pop`).toEqual([]);
+            }
+        },
+    );
+});
