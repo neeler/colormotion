@@ -963,7 +963,7 @@
                 },
                 {
                     "name": "verified",
-                    "doc": "Whether the colors have the source's relationship and number of groups. When no attempt did, the\nclosest is returned, with verified false."
+                    "doc": "Whether the colors have the source's relationship and number of groups, both as they are and rounded\nto 8 bits (as hex). When no attempt did, the closest is returned, with verified false."
                 }
             ]
         }

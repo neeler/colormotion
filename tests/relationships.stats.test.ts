@@ -243,8 +243,9 @@ describe('templates from a kind', () => {
     };
 
     test('classify as their kind: 1000 seeds × 7 kinds × 2–8 colors, all verified', () => {
-        // measured at the first attempt: 98.0 % (pair-accent, bridge) to 99.5 % (family); spectrum 91.1 %,
-        // every miss a near-black color (possible at a minBrightness of 0) that counts as neutral
+        // measured at the first attempt: 96.9 % (pair-accent) to 99.0 % (family); spectrum 89.9 %. Most
+        // misses hold a near-black color (possible at a minBrightness of 0) that counts as neutral; the others
+        // change once rounded to 8 bits, where a dark color's hue can move several degrees
         let first = 0;
         let total = 0;
         for (const kind of kinds) {

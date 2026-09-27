@@ -962,6 +962,40 @@ describe('randomLike', () => {
         expect(result.verified).toBe(false);
     });
 
+    test('verifies the palette rounded to 8 bits as well', () => {
+        // random picks placed as a wild roll would be: rounded to 8 bits, a muted color's hue can move a few
+        // degrees, which changes the relationship of about 1 in 130 of these palettes as drawn
+        const random = seededRandom(26);
+        let verified = 0;
+        for (let s = 0; s < 1500; s++) {
+            const picks = Array.from({ length: 1 + (s % 3) }, () =>
+                randomColor({ random, constraint: {} }).hex(),
+            );
+            const analysis = analyzeTheme(picks, { minBrightness: FLOOR });
+            if (analysis.anchor === null) continue;
+            const anchor = analysis.anchor;
+            const result = randomLike(analysis, {
+                random,
+                nColors: 5,
+                anchor: [
+                    hueArc(anchor + 30, anchor + 90),
+                    hueArc(anchor - 90, anchor - 30),
+                ],
+                avoid: [hueArc(95, 135)],
+            });
+            if (!result.verified) continue;
+            verified++;
+            expect(keepsShape(result.colors, analysis)).toBe(true);
+            expect(
+                keepsShape(
+                    result.colors.map((color) => color.hex()),
+                    analysis,
+                ),
+            ).toBe(true);
+        }
+        expect(verified).toBeGreaterThan(1400);
+    });
+
     test('draws the colors of the constraints it returns', () => {
         const random = seededRandom(16);
         for (const colors of Object.values(THEMES)) {

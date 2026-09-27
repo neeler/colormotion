@@ -173,8 +173,8 @@ export interface RandomLikeResult {
     /** The relationship the colors have, analyzed with the source's options. */
     relationship: Relationship;
     /**
-     * Whether the colors have the source's relationship and number of groups. When no attempt did, the
-     * closest is returned, with verified false.
+     * Whether the colors have the source's relationship and number of groups, both as they are and rounded
+     * to 8 bits (as hex). When no attempt did, the closest is returned, with verified false.
      */
     verified: boolean;
 }
@@ -922,7 +922,9 @@ function templateFromKind(
  *   their hue exactly, and their chroma bands narrow toward their colors' own until the weights can't.
  *   (Extra slots for nColors can move a center on their own, as they weigh one color of a group more than
  *   another: a group a degree or two from a threshold can then cross it however narrow its slots.)
- * A neutral slot stays neutral: any hue, or within 30° of its color's tint.
+ * A neutral slot stays neutral: any hue, or within 30° of its color's tint. The slots hold colors at full
+ * precision: rounded to 8 bits, a hue can move by a degree or so (several, for a muted color), so a theme
+ * within a few degrees of a threshold can cross it once rounded.
  *
  * With nColors greater than the number of colors analyzed, the extra slots go to the colors that are not
  * neutral, in proportion to their relative chroma (largest remainder; ties to the earlier color); if every
@@ -1079,9 +1081,11 @@ function clearAnchors(
  * call, if mirror is allowed), then one color per slot, within templateConstraints for that placement, in
  * slot order. Each color is kept deltaEThreshold from the one before it, and the last from the first as
  * well, as the wheel closes there (best effort, as for any random color). The palette is then analyzed
- * with the source's options: an attempt whose relationship and number of groups match the source's is
- * returned, verified. After `attempts` without one, the closest (the same relationship if any attempt had
- * it, then the nearest number of groups; the earliest of equals) is returned, with verified false.
+ * with the source's options, as drawn and rounded to 8 bits (hex), since rounding can move a hue by a
+ * degree or so, and more for a muted color: an attempt whose relationship and number of groups match the
+ * source's both ways is returned, verified. After `attempts` without one, the closest (the same relationship
+ * if any attempt had it, then the nearest number of groups, then one that keeps them once rounded; the
+ * earliest of equals) is returned, with verified false.
  *
  * With `avoid`, a drawn anchor never puts a rotating slot's hue inside the avoided hues, unless every anchor
  * allowed would; with a fixed anchor, mirroring is chosen to keep them out where it can. An analysis is
@@ -1185,9 +1189,15 @@ export function randomLike(
         });
         const colors = drawColors(constraints);
         const analysis = analyzeTheme(colors, options);
-        const verified =
-            analysis.relationship === template.relationship &&
-            analysis.groups.length === template.groups.length;
+        // as drawn, and as most colors are shown: rounded to 8 bits
+        const rounded = analyzeTheme(
+            colors.map((color) => color.hex()),
+            options,
+        );
+        const matches = ({ relationship, groups }: ThemeAnalysis) =>
+            relationship === template.relationship &&
+            groups.length === template.groups.length;
+        const verified = matches(analysis) && matches(rounded);
         const result = {
             colors,
             anchor: at,
@@ -1201,7 +1211,8 @@ export function randomLike(
         }
         const score =
             (analysis.relationship === template.relationship ? 0 : 1000) +
-            Math.abs(analysis.groups.length - template.groups.length);
+            Math.abs(analysis.groups.length - template.groups.length) +
+            (matches(rounded) ? 0 : 0.5);
         if (!best || score < best.score) {
             best = { ...result, score };
         }
