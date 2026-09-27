@@ -65,7 +65,8 @@ export interface TemplateSlot {
      * thresholds, so that a color rounded to 8 bits keeps its role too: with the defaults, 0.77–1 for
      * structural slots, 0.15–0.72 for muted ones and 0–0.08 for neutral ones. In a theme with no color at
      * structuralChroma (pastels, whose colors are all structural), structural slots take 0.15–0.72 as well,
-     * so none turns vivid.
+     * so none turns vivid. Narrower where a group sits near a threshold of the relationship (see
+     * relationshipTemplate).
      */
     chroma: ChromaRange;
     /** The index of the slot's group in the template's groups; null for a neutral slot. */
@@ -398,7 +399,9 @@ function meanReach(
  *   its own;
  * - no group's center, the mean of its slots' hues weighted by their chroma, can move across a threshold of
  *   the relationship (contrastFrom between two groups; for three, half the wheel, contrastFrom for the span
- *   or the gaps).
+ *   or the gaps). Where the weights alone could move it across, the slots keep their hue, and their chroma
+ *   bands narrow (in place) toward `own`, each slot's own relative chroma, until the weights can't, or as far
+ *   as they go.
  * A neutral slot's is 30° around its tint, or 180° (any hue).
  */
 function halfWidths(
@@ -406,6 +409,7 @@ function halfWidths(
     groups: readonly GroupDraft[],
     { familyJoin, attachWithin, contrastFrom }: Required<AnalyzeOptions>,
     o: ResolvedTemplateOptions,
+    own: readonly number[],
 ) {
     const rotates = (slot: SlotDraft) =>
         slot.offset !== null && slot.group !== null;
@@ -494,19 +498,48 @@ function halfWidths(
         contrastFrom,
     );
     groups.forEach((group, g) => {
-        if (!Number.isFinite(budgets[g]!)) return;
+        const budget = budgets[g]!;
+        if (!Number.isFinite(budget)) return;
         const members = slots
             .map((slot, i) => ({ slot, i }))
             .filter(({ slot }) => slot.group === g && defining(slot));
-        const reach = meanReach(
-            members.map(({ slot }) => ({
-                deviation: hueOffset(group.offset, slot.offset!),
-                low: slot.chroma.min ?? 0,
-                high: slot.chroma.max ?? 1,
-            })),
-        );
+        // each member's hue, and its chroma band narrowed by t (1: as it is) toward its own chroma
+        const weights = (t: number) =>
+            members.map(({ slot, i }) => {
+                const low = slot.chroma.min ?? 0;
+                const high = slot.chroma.max ?? 1;
+                const at = clamp(own[i]!, low, high);
+                return {
+                    deviation: hueOffset(group.offset, slot.offset!),
+                    low: at - t * (at - low),
+                    high: at + t * (high - at),
+                };
+            });
+        let reach = meanReach(weights(1));
+        if (
+            reach >= budget - CAP_MARGIN &&
+            meanReach(weights(0)) < budget - CAP_MARGIN
+        ) {
+            // the weights alone could move the center across: the bands narrow until they can't. (At their
+            // own chroma, the extra slots can already move it too far: then no band helps, and they stay.)
+            let within = 0;
+            let beyond = 1;
+            for (let k = 0; k < 40; k++) {
+                const t = (within + beyond) / 2;
+                if (meanReach(weights(t)) < budget - CAP_MARGIN) {
+                    within = t;
+                } else {
+                    beyond = t;
+                }
+            }
+            const narrowed = weights(within);
+            members.forEach(({ slot }, k) => {
+                slot.chroma = { min: narrowed[k]!.low, max: narrowed[k]!.high };
+            });
+            reach = meanReach(narrowed);
+        }
         for (const { i } of members) {
-            cap(i, budgets[g]! - reach - CAP_MARGIN);
+            cap(i, budget - reach - CAP_MARGIN);
         }
     });
 
@@ -635,12 +668,14 @@ function templateFromAnalysis(
             : picks.map(() => 0);
 
     const drafts: SlotDraft[] = [];
+    const own: number[] = [];
     const pickSlots: number[] = [];
     picks.forEach((pick, j) => {
         const draft = pickDraft(pick, resolved, o);
         pickSlots.push(drafts.length);
         for (let copy = 0; copy <= extras[j]!; copy++) {
             drafts.push({ ...draft, chroma: { ...draft.chroma } });
+            own.push(pick.chroma);
         }
     });
 
@@ -651,7 +686,7 @@ function templateFromAnalysis(
             (member) => picks[member]?.role === 'structural',
         ),
     }));
-    const halves = halfWidths(drafts, groups, resolved, o);
+    const halves = halfWidths(drafts, groups, resolved, o, own);
     return {
         relationship: analysis.relationship,
         groups: groups.map(({ offset, span }) => ({ offset, span })),
@@ -831,7 +866,14 @@ function templateFromKind(
         span: spans[g]!,
         loose: false,
     }));
-    const halves = halfWidths(drafts, groups, resolved, o);
+    // a slot's own chroma: the middle of its band
+    const halves = halfWidths(
+        drafts,
+        groups,
+        resolved,
+        o,
+        drafts.map(({ chroma }) => ((chroma.min ?? 0) + (chroma.max ?? 1)) / 2),
+    );
 
     // in hue order around the wheel, from the start of the anchor's group
     const start = -spans[0]! / 2 - 1e-9;
@@ -876,8 +918,10 @@ function templateFromKind(
  *   attachWithin from every one.
  * - Where the theme sits near a threshold of its relationship (contrastFrom between two groups; for three,
  *   half the wheel, and contrastFrom for the span or the gaps), a group's center, the mean of its hues
- *   weighted by chroma, cannot move across it. (When the weights alone could move it across, the slots keep
- *   their hue exactly.)
+ *   weighted by chroma, cannot move across it. When the weights alone could move it across, the slots keep
+ *   their hue exactly, and their chroma bands narrow toward their colors' own until the weights can't.
+ *   (Extra slots for nColors can move a center on their own, as they weigh one color of a group more than
+ *   another: a group a degree or two from a threshold can then cross it however narrow its slots.)
  * A neutral slot stays neutral: any hue, or within 30° of its color's tint.
  *
  * With nColors greater than the number of colors analyzed, the extra slots go to the colors that are not

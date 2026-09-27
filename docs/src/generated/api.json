@@ -838,7 +838,7 @@
                 },
                 {
                     "name": "chroma",
-                    "doc": "The relative chroma allowed, both bounds given: the color's own ± chromaWidth, within its role's\ninterval, so a color drawn in the slot keeps its role. The intervals sit a little inside the\nthresholds, so that a color rounded to 8 bits keeps its role too: with the defaults, 0.77–1 for\nstructural slots, 0.15–0.72 for muted ones and 0–0.08 for neutral ones. In a theme with no color at\nstructuralChroma (pastels, whose colors are all structural), structural slots take 0.15–0.72 as well,\nso none turns vivid."
+                    "doc": "The relative chroma allowed, both bounds given: the color's own ± chromaWidth, within its role's\ninterval, so a color drawn in the slot keeps its role. The intervals sit a little inside the\nthresholds, so that a color rounded to 8 bits keeps its role too: with the defaults, 0.77–1 for\nstructural slots, 0.15–0.72 for muted ones and 0–0.08 for neutral ones. In a theme with no color at\nstructuralChroma (pastels, whose colors are all structural), structural slots take 0.15–0.72 as well,\nso none turns vivid. Narrower where a group sits near a threshold of the relationship (see\nrelationshipTemplate)."
                 },
                 {
                     "name": "group",

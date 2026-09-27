@@ -361,6 +361,60 @@ describe('relationshipTemplate, from an analysis', () => {
         }
     });
 
+    test('narrows the chroma of a group whose weights alone could move its center across a threshold', () => {
+        // two pastels 21.5° apart, 87° from a third: a gap 3° under contrastFrom, with 1.5° for each center to
+        // move. Weighted by chroma anywhere in their bands (±0.2), the two could move theirs 3.8°.
+        const colors = [
+            at(270, 0.61, 1),
+            at(192.8, 0.49, 1),
+            at(291.5, 0.51, 1),
+        ];
+        const analysis = analyzeTheme(colors, { minBrightness: FLOOR });
+        expect(analysis.relationship).toBe('accent');
+        const template = relationshipTemplate(analysis);
+        for (const i of [0, 2]) {
+            const { chroma, hueWidth } = template.slots[i]!;
+            const own = analysis.picks[i]!.chroma;
+            expect(hueWidth).toBeLessThan(0.01);
+            expect(chroma.min!).toBeLessThanOrEqual(own);
+            expect(chroma.max!).toBeGreaterThanOrEqual(own);
+            expect(chroma.max! - chroma.min!).toBeLessThan(0.3);
+        }
+        // the third keeps its band, and a little hue
+        expect(template.slots[1]!.chroma).toEqual({
+            min: expect.closeTo(0.29, 9),
+            max: expect.closeTo(0.69, 9),
+        });
+        expect(template.slots[1]!.hueWidth).toBeGreaterThan(2);
+        const random = seededRandom(24);
+        for (let i = 0; i < 300; i++) {
+            const constraints = templateConstraints(template, random() * 360, {
+                mirrored: random() < 0.5,
+            });
+            const palette = constraints.map((constraint) =>
+                atCorner(constraint, random),
+            );
+            expect(keepsShape(palette, analysis)).toBe(true);
+        }
+    });
+
+    test('leaves the chroma of a group alone when its extra slots already move its center too far', () => {
+        // a contrast pair 3° over contrastFrom. With three slots, the anchor's group narrows its chroma; with
+        // four, the extra slot copies one of its two colors, which moves its center across at their own
+        // chroma: no band keeps it, and the bands stay as they are
+        const analysis = analyzeTheme(
+            [at(281.6, 0.836), at(261.4, 0.959), at(177.7, 0.952)],
+            { minBrightness: FLOOR },
+        );
+        expect(analysis.relationship).toBe('contrast');
+        const [first] = relationshipTemplate(analysis).slots;
+        expect(first!.chroma.max! - first!.chroma.min!).toBeLessThan(0.2);
+        for (const slot of relationshipTemplate(analysis, { nColors: 4 })
+            .slots) {
+            expect(slot.chroma).toEqual({ min: 0.77, max: 1 });
+        }
+    });
+
     test('keeps a tinted neutral near its tint, and never rotates or mirrors a neutral slot', () => {
         // a warm grey keeps its tint; white is any hue
         const analysis = analyzeTheme(['#ff0000', '#948f88', '#ffffff']);
@@ -586,9 +640,9 @@ describe('palettes filled around the picks', () => {
     }, 30_000);
 
     test('keep the relationship of random sets of 1–3 picks in at least 99.9 % of palettes', () => {
-        // measured: 99.95 % of 20,000 (and 99.99 % for picks drawn in HSV). Each miss is a group of two
-        // picks within a few degrees of contrastFrom from another, whose center the extras' chroma moves
-        // across it however narrow the slots.
+        // measured: 99.985 % of 20,000 (the same for picks drawn in HSV). Each miss is a group within a
+        // degree or two of contrastFrom from another, whose center its extra slots move across it, weighing
+        // one of its picks more than another, however narrow the slots.
         const random = seededRandom(3);
         const N = 6000;
         let kept = 0;
@@ -1115,4 +1169,45 @@ describe('palettes drawn within the slots', () => {
             }
         }
     });
+
+    test('keep the relationship of random sets of colors, at the ends of their slots too: 99.95 % or more', () => {
+        // one to five colors (drawn in OKLCH and in HSV), a slot each, adjacent and placed elsewhere.
+        // Measured: none of the 32,000 palettes here changes. Of 313,000 palettes of one to six colors,
+        // about 1 in 4,000 does, all from sets whose own colors sit within a degree of a threshold (0.2° from
+        // contrastFrom, say), where a color's chroma kept inside its role's interval (see TemplateSlot.chroma)
+        // already moves a group's center across.
+        const random = seededRandom(25);
+        let palettes = 0;
+        let kept = 0;
+        for (let s = 0; s < 1600; s++) {
+            const colors = Array.from({ length: 1 + (s % 5) }, () =>
+                (s % 2
+                    ? randomColor({ random })
+                    : randomColor({ random, constraint: {} })
+                ).hex(),
+            );
+            const analysis = analyzeTheme(colors, { minBrightness: FLOOR });
+            for (const hueWidth of [8, 12]) {
+                const template = relationshipTemplate(analysis, { hueWidth });
+                for (let i = 0; i < 10; i++) {
+                    const constraints =
+                        hueWidth === 12
+                            ? templateConstraints(
+                                  template,
+                                  analysis.anchor ?? 0,
+                              )
+                            : templateConstraints(template, random() * 360, {
+                                  mirrored: random() < 0.5,
+                              });
+                    const palette = constraints.map((constraint) =>
+                        atCorner(constraint, random),
+                    );
+                    palettes++;
+                    if (keepsShape(palette, analysis)) kept++;
+                }
+            }
+        }
+        expect(palettes).toBe(32_000);
+        expect(kept / palettes).toBeGreaterThanOrEqual(0.9995);
+    }, 30_000);
 });
