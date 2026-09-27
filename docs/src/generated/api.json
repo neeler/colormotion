@@ -146,7 +146,16 @@
             "code": "rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;"
         },
         "Theme#finishTransition": { "code": "finishTransition(): void;" },
-        "Theme#tick": { "code": "tick(n?: number): void;" }
+        "Theme#tick": { "code": "tick(n?: number): void;" },
+        "maxChroma": {
+            "code": "function maxChroma(hue: number, brightness: number): number;"
+        },
+        "measureColor": {
+            "code": "function measureColor(\n    color: ColorInput,\n    options?: { minBrightness?: number },\n): ColorMeasure;"
+        },
+        "colorFromHue": {
+            "code": "function colorFromHue(target: {\n    hue: number;\n    brightness: number;\n    chroma: number;\n}): Color;"
+        }
     },
     "types": {
         "ColorInput": {
@@ -547,6 +556,24 @@
                 {
                     "name": "tick",
                     "doc": "Move the color index by n steps.\nCan be negative to move backwards.\nCan be fractional: fractions add up, and colors are read at the nearest whole step.\n\nAlso advances the transition to the target palette by one tick, if one is\nset. This is not affected by the n parameter, so tick(0) advances a\ntransition without rotating the wheel.\nAn n that is not a finite number (NaN, Infinity) does not move the index."
+                }
+            ]
+        },
+        "ColorMeasure": {
+            "code": "interface ColorMeasure {\n    hue: number | null;\n    chroma: number;\n    brightness: number;\n}",
+            "doc": "The measures of a color.",
+            "fields": [
+                {
+                    "name": "hue",
+                    "doc": "OKLCH hue in degrees, from 0 to 360. null for a color with no hue: an OKLCH chroma under 1e-4 (greys,\nwhite) or black."
+                },
+                {
+                    "name": "chroma",
+                    "doc": "Relative chroma, from 0 to 1: the color's OKLCH chroma as a fraction of the most any sRGB color has at\nits hue and brightness (see maxChroma). 0 is grey and 1 is as saturated as sRGB allows there.\nIn the 0.16° of hue just past blue's, where the colors of one brightness have no chroma between two\nvalues, the fraction leaves that gap out, so that every value from 0 to 1 is a color there too."
+                },
+                {
+                    "name": "brightness",
+                    "doc": "Brightness: HSV value, from 0 to 1 (the hottest channel), after any lift to minBrightness."
                 }
             ]
         }
