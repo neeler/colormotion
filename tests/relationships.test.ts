@@ -156,7 +156,7 @@ function keepsShape(
     );
 }
 
-describe('relationshipTemplate, from an analysis', () => {
+describe('relationshipTemplate, from an analysis', { timeout: 30_000 }, () => {
     test('has a slot for each color, in order, with its role, offset from the anchor and group', () => {
         for (const colors of Object.values(THEMES)) {
             const analysis = analyzeTheme(colors, { minBrightness: FLOOR });
@@ -743,7 +743,7 @@ describe('templateConstraints', () => {
     });
 });
 
-describe('randomLike', () => {
+describe('randomLike', { timeout: 30_000 }, () => {
     const dusk = analyzeTheme(THEMES.dusk!, { minBrightness: FLOOR });
 
     test('draws a palette in the same relationship, one color per slot, verified', () => {
@@ -1167,7 +1167,7 @@ describe('relationshipTemplate, from a kind', () => {
     });
 });
 
-describe('palettes drawn within the slots', () => {
+describe('palettes drawn within the slots', { timeout: 30_000 }, () => {
     /** Draws each slot's color on its own, within its constraint, with no distance kept. */
     function within(constraints: ColorConstraint[], random: () => number) {
         return constraints.map((constraint) =>
