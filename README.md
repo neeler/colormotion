@@ -225,6 +225,87 @@ const theme = new Theme({
 });
 ```
 
+## Random colors within constraints
+
+Random colors are drawn uniformly in HSV by default: any hue, any saturation, and a brightness (HSV value)
+from `minBrightness` to 1. Uniform HSV hue is uneven to the eye, though: about 22 % of fully saturated draws
+land in the greens between OKLCH hues 120° and 150°, and about 4 % in each 30° of gold or cyan. Uniform
+saturation draws greys and pastels too: at a `minBrightness` of 0.537, about a quarter of draws are under
+relative chroma 0.35.
+
+Pass `constraints` to any random method to draw in OKLCH terms instead: the hue uniform over the OKLCH hues
+allowed, the relative chroma uniform within a range, and the brightness uniform from `minBrightness` to 1,
+as before. Relative chroma is a color's OKLCH chroma as a fraction of the most sRGB allows at its hue and
+brightness, so every value from 0 (grey) to 1 (as saturated as sRGB gets) is a color at every hue. Every
+color drawn meets its constraint.
+
+```typescript
+import { hueArc } from 'colormotion';
+
+// No greys or pastels, and no olive or lime
+theme.randomTheme({
+    minBrightness: 0.5,
+    constraints: { chroma: { min: 0.5 }, avoid: [hueArc(95, 135)] },
+});
+```
+
+A constraint has three optional parts:
+
+- `hues`: arcs of OKLCH hue, `{ center, width }` with the full width in degrees, or `hueArc(from, to)`, the
+  arc running up from one hue to the other (`hueArc(330, 30)` is the reds from 330° through 0° to 30°).
+  Left out, every hue.
+- `avoid`: arcs taken out of `hues`. They are ignored if they would leave no hue, so a color can always be
+  drawn.
+- `chroma`: `{ min, max }`, the relative chroma allowed, from 0 to 1.
+
+`constraints` is one constraint for every color, or a list with one for each position in the palette.
+`randomTheme` and `new Theme({ nColors, constraints })` draw the color at position `i` within
+`constraints[i]`; `randomFrom` keeps its seed at position 0 as it is and draws the rest from position 1;
+`pushRandomColor` draws within the constraint for the position it adds; and `rotateRandomColor` within the
+constraint for the position it replaces (the oldest, `activePalette.ageOrder[0]`). So a palette built from a
+few picks can roll one color at a time and keep each color near its pick:
+
+```typescript
+import { Theme, measureColor } from 'colormotion';
+
+const theme = new Theme({
+    colors: ['#e8b450', '#7a1a2b', '#2b8f6b'],
+    mode: 'oklch',
+});
+const nearEachPick = theme.activePaletteHexes.map((hex) => {
+    const { hue, chroma } = measureColor(hex);
+    return {
+        hues: hue === null ? [] : [{ center: hue, width: 24 }], // ± 12°
+        chroma: { min: chroma - 0.2, max: chroma + 0.2 },
+    };
+});
+
+// Replace the oldest color with one near the pick in its position
+theme.rotateRandomColor({ constraints: nearEachPick });
+```
+
+To draw one color, use `randomColor`. `awayFrom` keeps it at least `deltaEThreshold` (CIEDE2000, 20 by
+default) from other colors, as the random methods keep a new color from its neighbours: best effort, up to
+100 candidates, then the furthest of them.
+
+```typescript
+import { randomColor } from 'colormotion';
+
+const color = randomColor({
+    constraint: { hues: [hueArc(20, 60)], chroma: { min: 0.7 } },
+    minBrightness: 0.5,
+    awayFrom: ['#7a1a2b', '#e8b450'],
+    random: seededRandom(42),
+});
+```
+
+`measureColor(color)` gives a color's OKLCH hue, relative chroma and brightness (`hue` is `null` for greys),
+`colorFromHue({ hue, brightness, chroma })` gives the color at those measures, and
+`meetsConstraint(color, constraint)` checks a color against a constraint.
+
+Without `constraints` (for `randomColor`, without `constraint`), colors are drawn in HSV exactly as before,
+so a seeded `random` draws the same colors as in 4.0.
+
 ## Upgrading to 4.0
 
 Rotating a color (`theme.rotateColor`, `theme.rotateRandomColor`, `palette.rotateOn` and
@@ -270,7 +351,7 @@ Also changed:
 
 ```bash
 npm test          # unit tests (watch mode)
-npm run bench     # benchmarks: palette building, getColor, fillRgb, transition ticks, LED frames
+npm run bench     # benchmarks: palette building, getColor, fillRgb, transition ticks, LED frames, random draws
 npm run docs:api  # regenerate the docs site's API reference (Node 22.18 or later)
 ```
 

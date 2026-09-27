@@ -205,11 +205,16 @@ theme.palette.nSteps; // 2048`}
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the
                 random colors. Expects a value between 0 and 1. Defaults to 0.
+                With <Code>constraints</Code>, the colors are drawn within
+                limits on their OKLCH hue and chroma, the color at position{' '}
+                <Code>i</Code> within <Code>constraints[i]</Code> (see{' '}
+                <TextLink href="#random-colors">Random colors</TextLink>).
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const theme = Theme.random({
     nColors: 4,
     minBrightness: 0.5, // Defaults to 0
+    constraints: { chroma: { min: 0.5 } }, // Defaults to none: drawn in HSV
 });`}
             </SyntaxHighlighter>
             <Heading3 id="theme-nSteps">theme.nSteps</Heading3>
@@ -853,11 +858,17 @@ theme.setColors(['red', 'green', 'blue'], {
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
                 random colors. Expects a value between 0 and 1. Defaults to 0.
+                With <Code>constraints</Code>, the random colors are drawn
+                within limits on their OKLCH hue and chroma, the color at
+                position <Code>i</Code> (from 1) within{' '}
+                <Code>constraints[i]</Code>; the seed is kept as it is (see{' '}
+                <TextLink href="#random-colors">Random colors</TextLink>).
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.randomFrom('red');
 theme.randomFrom('red', {
     minBrightness: 0.5, // Defaults to 0
+    constraints: { chroma: { min: 0.5 } }, // Defaults to none: drawn in HSV
     nColors: 5, // Defaults to the number of colors in the current palette
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
@@ -882,11 +893,16 @@ theme.randomFrom('red', {
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
                 random colors. Expects a value between 0 and 1. Defaults to 0.
+                With <Code>constraints</Code>, the colors are drawn within
+                limits on their OKLCH hue and chroma, the color at position{' '}
+                <Code>i</Code> within <Code>constraints[i]</Code> (see{' '}
+                <TextLink href="#random-colors">Random colors</TextLink>).
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.randomTheme();
 theme.randomTheme({
     minBrightness: 0.5, // Defaults to 0
+    constraints: { chroma: { min: 0.5 } }, // Defaults to none: drawn in HSV
     nColors: 5, // Defaults to the number of colors in the current palette
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
@@ -947,11 +963,16 @@ theme.pushNewColor('red', {
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
                 random color. Expects a value between 0 and 1. Defaults to 0.
+                With <Code>constraints</Code>, it is drawn within limits on its
+                OKLCH hue and chroma: within <Code>constraints[nColors]</Code>,
+                the constraint for the position it takes (see{' '}
+                <TextLink href="#random-colors">Random colors</TextLink>).
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.pushRandomColor();
 theme.pushRandomColor({
     minBrightness: 0.5, // Defaults to 0
+    constraints: { chroma: { min: 0.5 } }, // Defaults to none: drawn in HSV
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
             </SyntaxHighlighter>
@@ -1060,11 +1081,17 @@ theme.rotateColor('red', {
             <Text>
                 You can explicitly set a <Code>minBrightness</Code> for the new
                 random color. Expects a value between 0 and 1. Defaults to 0.
+                With <Code>constraints</Code>, it is drawn within limits on its
+                OKLCH hue and chroma: within the constraint for the position it
+                replaces, <Code>constraints[activePalette.ageOrder[0]]</Code>,
+                so a palette of picks can roll each color near its own pick (see{' '}
+                <TextLink href="#random-colors">Random colors</TextLink>).
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`theme.rotateRandomColor();
 theme.rotateRandomColor({
     minBrightness: 0.5, // Defaults to 0
+    constraints: { chroma: { min: 0.5 } }, // Defaults to none: drawn in HSV
     transitionSpeed: 0.5, // Defaults to 0.1
 });`}
             </SyntaxHighlighter>

@@ -4,7 +4,8 @@ import {
     InterpolationModes,
     getNextInterpolationMode,
 } from './InterpolationMode';
-import { clamp } from './clamp';
+import type { ColorConstraints } from './constraints';
+import { constraintAt, drawAwayFrom, drawColor } from './draw';
 import { sampleScale } from './interpolate';
 import { sameOrder } from './sameOrder';
 
@@ -29,13 +30,6 @@ export const DEFAULT_DELTA_E_THRESHOLD = 20;
  * Default maximum number of colors in a palette.
  */
 export const DEFAULT_MAX_NUMBER_OF_COLORS = 8;
-
-/**
- * Maximum number of candidates drawn when searching for a random color
- * that satisfies the deltaE threshold. If none qualifies, the most
- * distant candidate is used.
- */
-const MAX_RANDOM_COLOR_ATTEMPTS = 100;
 
 /**
  * Exactly one of `colors` or `normalizedColors` must be provided.
@@ -94,11 +88,19 @@ export interface RandomPaletteConfig {
      * The minimum brightness for the colors.
      */
     minBrightness?: number;
+    /**
+     * Limits on the random colors' OKLCH hue and relative chroma (see ColorConstraint): one constraint for
+     * every color, or a list with one for each position in the palette (a missing entry counts as {}).
+     * Each method says which position a color it draws takes.
+     * Given (even {}), the colors are drawn in OKLCH, as randomColor draws them with a constraint. Left out,
+     * they are drawn in HSV exactly as in 4.0, so a seeded random draws the colors it drew then.
+     */
+    constraints?: ColorConstraints;
 }
 
 export interface RandomColorConfig extends Pick<
     RandomPaletteConfig,
-    'minBrightness'
+    'minBrightness' | 'constraints'
 > {}
 
 /**
@@ -204,10 +206,13 @@ export class ColorPalette {
     /**
      * Returns a new random palette with the specified number of colors.
      * Defaults to 5 colors.
+     * Each color after the first is drawn at least deltaEThreshold (CIEDE2000) from the one before it.
+     * The color at position i meets constraints[i] (or the one constraint given for every color).
      */
     static random({
         nColors = 5,
         minBrightness = 0,
+        constraints,
         ...config
     }: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &
         RandomPaletteConfig) {
@@ -215,14 +220,19 @@ export class ColorPalette {
         const deltaEThreshold =
             config.deltaEThreshold ?? DEFAULT_DELTA_E_THRESHOLD;
 
-        let lastColor = ColorPalette.randomColor(random, minBrightness);
+        let lastColor = drawColor(
+            constraintAt(constraints, 0),
+            random,
+            minBrightness,
+        );
         const colors = [lastColor];
 
         while (colors.length < nColors) {
-            const nextColor = ColorPalette.getNewRandomColor([lastColor], {
+            const nextColor = drawAwayFrom([lastColor], {
                 minBrightness,
                 deltaEThreshold,
                 random,
+                constraint: constraintAt(constraints, colors.length),
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -472,14 +482,21 @@ export class ColorPalette {
     /**
      * Randomizes the palette starting with the input color.
      * Maintains the number of colors in the palette.
+     * Each random color is drawn at least deltaEThreshold (CIEDE2000) from the one before it.
      *
-     * @param seed The color to start with.
-     * @param options Options for randomizing the palette.
+     * @param seed The color to start with, at position 0. It is kept as it is (it meets no constraint), lifted
+     * to minBrightness if it is darker.
+     * @param options Options for randomizing the palette. The random color at position i (from 1) meets
+     * constraints[i] (or the one constraint given for every color).
      * @returns A new palette with randomized colors.
      */
     randomizeFrom(
         seed: ColorInput,
-        { nColors = this.nColors, minBrightness = 0 }: RandomPaletteConfig = {},
+        {
+            nColors = this.nColors,
+            minBrightness = 0,
+            constraints,
+        }: RandomPaletteConfig = {},
     ) {
         let lastColor = chroma(seed);
         if (lastColor.get('hsv.v') < minBrightness) {
@@ -488,10 +505,11 @@ export class ColorPalette {
         const colors = [lastColor];
 
         while (colors.length < nColors) {
-            const nextColor = ColorPalette.getNewRandomColor([lastColor], {
+            const nextColor = drawAwayFrom([lastColor], {
                 minBrightness,
                 deltaEThreshold: this.deltaEThreshold,
                 random: this.random,
+                constraint: constraintAt(constraints, colors.length),
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -503,14 +521,17 @@ export class ColorPalette {
     /**
      * Randomizes the whole palette.
      * Maintains the number of colors in the palette.
+     * Draws the first color, then the others as randomizeFrom does. The color at position i meets
+     * constraints[i] (or the one constraint given for every color).
      */
     randomize({
         minBrightness = 0,
         nColors = this.nColors,
+        constraints,
     }: RandomPaletteConfig = {}) {
         return this.randomizeFrom(
-            ColorPalette.randomColor(this.random, minBrightness),
-            { nColors, minBrightness },
+            drawColor(constraintAt(constraints, 0), this.random, minBrightness),
+            { nColors, minBrightness, constraints },
         );
     }
 
@@ -532,73 +553,18 @@ export class ColorPalette {
     }
 
     /**
-     * Draws a random color with a brightness (HSV value) of at least minBrightness.
-     */
-    private static randomColor(random: RandomFunction, minBrightness = 0) {
-        const brightness = clamp(
-            random() * (1 - minBrightness) + minBrightness,
-            0,
-            1,
-        );
-
-        return chroma({
-            h: random() * 360,
-            s: random(),
-            v: brightness,
-        });
-    }
-
-    /**
-     * Draws a random color at least deltaEThreshold away from every one of the neighbours.
-     * Gives up after a bounded number of attempts and returns the candidate
-     * furthest from its nearest neighbour, so a strict threshold can never hang.
-     */
-    private static getNewRandomColor(
-        neighbours: Color[],
-        {
-            minBrightness = 0,
-            deltaEThreshold = 0,
-            random = Math.random,
-        }: RandomColorConfig & {
-            deltaEThreshold?: number;
-            random?: RandomFunction;
-        } = {},
-    ) {
-        let bestColor: Color | undefined;
-        let bestDistance = -Infinity;
-
-        for (let attempt = 0; attempt < MAX_RANDOM_COLOR_ATTEMPTS; attempt++) {
-            const candidate = ColorPalette.randomColor(random, minBrightness);
-            let distance = Infinity;
-            for (const neighbour of neighbours) {
-                distance = Math.min(
-                    distance,
-                    chroma.deltaE(neighbour, candidate, 1, 1, 1),
-                );
-            }
-
-            if (distance >= deltaEThreshold) {
-                return candidate;
-            }
-            if (distance > bestDistance) {
-                bestColor = candidate;
-                bestDistance = distance;
-            }
-        }
-
-        return bestColor ?? ColorPalette.randomColor(random, minBrightness);
-    }
-
-    /**
      * Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the
-     * current last color.
+     * current last color. The new color meets constraints[nColors], the constraint for the position it takes
+     * (or the one constraint given for every color).
      */
     pushRandom(randomColorConfig: RandomColorConfig = {}) {
+        const { constraints, ...config } = randomColorConfig;
         return this.push(
-            ColorPalette.getNewRandomColor([this.colors[this.nColors - 1]!], {
+            drawAwayFrom([this.colors[this.nColors - 1]!], {
                 deltaEThreshold: this.deltaEThreshold,
                 random: this.random,
-                ...randomColorConfig,
+                ...config,
+                constraint: constraintAt(constraints, this.nColors),
             }),
         );
     }
@@ -648,6 +614,8 @@ export class ColorPalette {
      * deltaEThreshold (CIEDE2000) from both of the colors it will sit between around the wheel: in a
      * palette of two, the other color, and in a palette of one, the color it replaces. If no candidate
      * qualifies within a bounded number of draws, the one furthest from the nearer of them is used.
+     * The new color meets constraints[ageOrder[0]], the constraint for the position it replaces (or the one
+     * constraint given for every color), so the colors a palette of picks rotates in stay near each pick.
      *
      * To shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending
      * a random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same
@@ -656,19 +624,18 @@ export class ColorPalette {
      * color gains a second.
      */
     rotateRandomOn(options?: RandomColorConfig) {
+        const { constraints, ...config } = options ?? {};
         const n = this.nColors;
         const oldest = this._ageOrder[0]!;
         const previous = this.colors[(oldest + n - 1) % n]!;
         const next = this.colors[(oldest + 1) % n]!;
         return this.rotateOn(
-            ColorPalette.getNewRandomColor(
-                previous === next ? [previous] : [previous, next],
-                {
-                    deltaEThreshold: this.deltaEThreshold,
-                    random: this.random,
-                    ...options,
-                },
-            ),
+            drawAwayFrom(previous === next ? [previous] : [previous, next], {
+                deltaEThreshold: this.deltaEThreshold,
+                random: this.random,
+                ...config,
+                constraint: constraintAt(constraints, oldest),
+            }),
         );
     }
 }

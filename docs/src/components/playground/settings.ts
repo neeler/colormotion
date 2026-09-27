@@ -1,4 +1,4 @@
-import { ColorUpdateConfig } from '@colormotion';
+import { ColorConstraint, ColorUpdateConfig, hueArc } from '@colormotion';
 import { MAX_NUMBER_OF_COLORS } from '~/components/theme/theme';
 
 /**
@@ -21,6 +21,23 @@ export const SketchViews = {
 } as const;
 
 export type SketchView = (typeof SketchViews)[keyof typeof SketchViews];
+
+/**
+ * How the random actions draw colors: in HSV, as without constraints, or in
+ * OKLCH, within the playground's hue and chroma limits.
+ */
+export const RandomSpaces = {
+    hsv: 'hsv',
+    oklch: 'oklch',
+} as const;
+
+export type RandomSpace = (typeof RandomSpaces)[keyof typeof RandomSpaces];
+
+/**
+ * The olive and lime hues, in OKLCH degrees: what the playground's avoid
+ * switch takes out.
+ */
+export const OLIVE_AND_LIME = { from: 95, to: 135 } as const;
 
 /**
  * transitionSpeed stops for the speed slider: 1-2-5 steps from 0.001 to 1.
@@ -63,6 +80,9 @@ export const RANGES = {
     pixelSpacing: { min: 0, max: 64, step: 1 },
     brightness: { min: 0, max: 1, step: 0.01 },
     deltaEThreshold: { min: 0, max: 50, step: 1 },
+    hueCenter: { min: 0, max: 355, step: 5 },
+    hueWidth: { min: 0, max: 360, step: 5 },
+    chroma: { min: 0, max: 1, step: 0.05 },
 } satisfies Record<string, Range>;
 
 /**
@@ -93,6 +113,18 @@ export interface PlaygroundSettings {
     nColors: number;
     /** minBrightness for the random actions. */
     minBrightness: number;
+    /** Whether the random actions draw in HSV, or in OKLCH within the limits below. */
+    randomSpace: RandomSpace;
+    /** The middle of the OKLCH hues allowed, in degrees. */
+    hueCenter: number;
+    /** How many degrees of OKLCH hue are allowed, around hueCenter; 360 for every hue. */
+    hueWidth: number;
+    /** The lowest relative chroma allowed. */
+    chromaMin: number;
+    /** The highest relative chroma allowed. */
+    chromaMax: number;
+    /** Takes the olive and lime hues out. */
+    avoidOliveAndLime: boolean;
     /** n for theme.tick(n), once a frame. */
     wheelSpeed: number;
     /** Lets the wheel speed wander within WHEEL_DRIFT of wheelSpeed. */
@@ -110,6 +142,12 @@ export const DEFAULT_SETTINGS: PlaygroundSettings = {
     transitionSeconds: 6,
     nColors: 5,
     minBrightness: 0.6,
+    randomSpace: RandomSpaces.hsv,
+    hueCenter: 30,
+    hueWidth: 360,
+    chromaMin: 0,
+    chromaMax: 1,
+    avoidOliveAndLime: false,
     wheelSpeed: 5,
     wheelDrift: true,
     paused: false,
@@ -147,4 +185,48 @@ export function transitionOptions({
     return transitionKind === TransitionKinds.duration
         ? { transitionDuration: transitionSeconds * FRAME_RATE }
         : { transitionSpeed };
+}
+
+/**
+ * The constraint the random actions draw within: undefined to draw in HSV.
+ * Only the limits set are given, so every hue and chroma is {}.
+ */
+export function randomConstraint({
+    randomSpace,
+    hueCenter,
+    hueWidth,
+    chromaMin,
+    chromaMax,
+    avoidOliveAndLime,
+}: PlaygroundSettings = settings): ColorConstraint | undefined {
+    if (randomSpace !== RandomSpaces.oklch) {
+        return undefined;
+    }
+    const constraint: ColorConstraint = {};
+    if (hueWidth < 360) {
+        constraint.hues = [{ center: hueCenter, width: hueWidth }];
+    }
+    if (avoidOliveAndLime) {
+        constraint.avoid = [hueArc(OLIVE_AND_LIME.from, OLIVE_AND_LIME.to)];
+    }
+    if (chromaMin > 0 || chromaMax < 1) {
+        constraint.chroma = {
+            ...(chromaMin > 0 && { min: chromaMin }),
+            ...(chromaMax < 1 && { max: chromaMax }),
+        };
+    }
+    return constraint;
+}
+
+/**
+ * minBrightness and constraints for the random actions.
+ */
+export function randomOptions(
+    playgroundSettings: PlaygroundSettings = settings,
+) {
+    const constraint = randomConstraint(playgroundSettings);
+    return {
+        minBrightness: playgroundSettings.minBrightness,
+        ...(constraint && { constraints: constraint }),
+    };
 }

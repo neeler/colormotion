@@ -146,7 +146,25 @@
             "code": "rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;"
         },
         "Theme#finishTransition": { "code": "finishTransition(): void;" },
-        "Theme#tick": { "code": "tick(n?: number): void;" }
+        "Theme#tick": { "code": "tick(n?: number): void;" },
+        "maxChroma": {
+            "code": "function maxChroma(hue: number, brightness: number): number;"
+        },
+        "measureColor": {
+            "code": "function measureColor(\n    color: ColorInput,\n    options?: { minBrightness?: number },\n): ColorMeasure;"
+        },
+        "colorFromHue": {
+            "code": "function colorFromHue(target: {\n    hue: number;\n    brightness: number;\n    chroma: number;\n}): Color;"
+        },
+        "hueArc": {
+            "code": "function hueArc(from: number, to: number): HueRange;"
+        },
+        "randomColor": {
+            "code": "function randomColor(options?: RandomColorOptions): Color;"
+        },
+        "meetsConstraint": {
+            "code": "function meetsConstraint(\n    color: ColorInput,\n    constraint: ColorConstraint,\n    options?: { minBrightness?: number; tolerance?: number },\n): boolean;"
+        }
     },
     "types": {
         "ColorInput": {
@@ -200,7 +218,7 @@
             ]
         },
         "RandomPaletteConfig": {
-            "code": "interface RandomPaletteConfig {\n    nColors?: number;\n    minBrightness?: number;\n}",
+            "code": "interface RandomPaletteConfig {\n    nColors?: number;\n    minBrightness?: number;\n    constraints?: ColorConstraints;\n}",
             "doc": "",
             "fields": [
                 {
@@ -210,16 +228,24 @@
                 {
                     "name": "minBrightness",
                     "doc": "The minimum brightness for the colors."
+                },
+                {
+                    "name": "constraints",
+                    "doc": "Limits on the random colors' OKLCH hue and relative chroma (see ColorConstraint): one constraint for\nevery color, or a list with one for each position in the palette (a missing entry counts as {}).\nEach method says which position a color it draws takes.\nGiven (even {}), the colors are drawn in OKLCH, as randomColor draws them with a constraint. Left out,\nthey are drawn in HSV exactly as in 4.0, so a seeded random draws the colors it drew then."
                 }
             ]
         },
         "RandomColorConfig": {
-            "code": "interface RandomColorConfig extends Pick<\n    RandomPaletteConfig,\n    'minBrightness'\n> {}",
+            "code": "interface RandomColorConfig extends Pick<\n    RandomPaletteConfig,\n    'minBrightness' | 'constraints'\n> {}",
             "doc": "",
             "fields": [
                 {
                     "name": "minBrightness",
                     "doc": "The minimum brightness for the colors."
+                },
+                {
+                    "name": "constraints",
+                    "doc": "Limits on the random colors' OKLCH hue and relative chroma (see ColorConstraint): one constraint for\nevery color, or a list with one for each position in the palette (a missing entry counts as {}).\nEach method says which position a color it draws takes.\nGiven (even {}), the colors are drawn in OKLCH, as randomColor draws them with a constraint. Left out,\nthey are drawn in HSV exactly as in 4.0, so a seeded random draws the colors it drew then."
                 }
             ]
         },
@@ -241,7 +267,7 @@
                 },
                 {
                     "name": "static random",
-                    "doc": "Returns a new random palette with the specified number of colors.\nDefaults to 5 colors."
+                    "doc": "Returns a new random palette with the specified number of colors.\nDefaults to 5 colors.\nEach color after the first is drawn at least deltaEThreshold (CIEDE2000) from the one before it.\nThe color at position i meets constraints[i] (or the one constraint given for every color)."
                 },
                 {
                     "name": "ageOrder",
@@ -265,11 +291,11 @@
                 },
                 {
                     "name": "randomizeFrom",
-                    "doc": "Randomizes the palette starting with the input color.\nMaintains the number of colors in the palette.\n\n- `seed`: The color to start with.\n- `options`: Options for randomizing the palette.\n\nReturns: A new palette with randomized colors."
+                    "doc": "Randomizes the palette starting with the input color.\nMaintains the number of colors in the palette.\nEach random color is drawn at least deltaEThreshold (CIEDE2000) from the one before it.\n\n- `seed`: The color to start with, at position 0. It is kept as it is (it meets no constraint), lifted\nto minBrightness if it is darker.\n- `options`: Options for randomizing the palette. The random color at position i (from 1) meets\nconstraints[i] (or the one constraint given for every color).\n\nReturns: A new palette with randomized colors."
                 },
                 {
                     "name": "randomize",
-                    "doc": "Randomizes the whole palette.\nMaintains the number of colors in the palette."
+                    "doc": "Randomizes the whole palette.\nMaintains the number of colors in the palette.\nDraws the first color, then the others as randomizeFrom does. The color at position i meets\nconstraints[i] (or the one constraint given for every color)."
                 },
                 {
                     "name": "push",
@@ -277,7 +303,7 @@
                 },
                 {
                     "name": "pushRandom",
-                    "doc": "Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the\ncurrent last color."
+                    "doc": "Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the\ncurrent last color. The new color meets constraints[nColors], the constraint for the position it takes\n(or the one constraint given for every color)."
                 },
                 {
                     "name": "popOldest",
@@ -289,7 +315,7 @@
                 },
                 {
                     "name": "rotateRandomOn",
-                    "doc": "Replaces the oldest color with a random color, as rotateOn does. The new color is drawn at least\ndeltaEThreshold (CIEDE2000) from both of the colors it will sit between around the wheel: in a\npalette of two, the other color, and in a palette of one, the color it replaces. If no candidate\nqualifies within a bounded number of draws, the one furthest from the nearer of them is used.\n\nTo shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending\na random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same\nrandom, it draws the same colors as before 4.0, for a palette of two or more colors whose ages are\nin list order (as they are when its colors are only ever set from lists, pushed or popped). A single\ncolor gains a second."
+                    "doc": "Replaces the oldest color with a random color, as rotateOn does. The new color is drawn at least\ndeltaEThreshold (CIEDE2000) from both of the colors it will sit between around the wheel: in a\npalette of two, the other color, and in a palette of one, the color it replaces. If no candidate\nqualifies within a bounded number of draws, the one furthest from the nearer of them is used.\nThe new color meets constraints[ageOrder[0]], the constraint for the position it replaces (or the one\nconstraint given for every color), so the colors a palette of picks rotates in stay near each pick.\n\nTo shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending\na random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same\nrandom, it draws the same colors as before 4.0, for a palette of two or more colors whose ages are\nin list order (as they are when its colors are only ever set from lists, pushed or popped). A single\ncolor gains a second."
                 }
             ]
         },
@@ -299,7 +325,7 @@
             "fields": []
         },
         "InitialThemeColors": {
-            "code": "type InitialThemeColors =\n    | {\n          palette?: ColorPalette;\n      }\n    | {\n          colors?: ColorInput[];\n      }\n    | {\n          nColors?: number;\n          minBrightness?: number;\n      };",
+            "code": "type InitialThemeColors =\n    | {\n          palette?: ColorPalette;\n      }\n    | {\n          colors?: ColorInput[];\n      }\n    | {\n          nColors?: number;\n          minBrightness?: number;\n          constraints?: ColorConstraints;\n      };",
             "doc": "",
             "fields": [
                 {
@@ -317,6 +343,10 @@
                 {
                     "name": "minBrightness",
                     "doc": "The minimum brightness for the random colors.\nScale from 0 to 1.\nDefaults to 0."
+                },
+                {
+                    "name": "constraints",
+                    "doc": "Limits on the random colors' OKLCH hue and relative chroma: one constraint for every color, or a\nlist with one for each position (see RandomPaletteConfig.constraints and ColorPalette.random).\nLeft out, the colors are drawn in HSV, as in 4.0."
                 }
             ]
         },
@@ -510,11 +540,11 @@
                 },
                 {
                     "name": "randomFrom",
-                    "doc": "Randomize the colors of the theme based on a seed color.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe seed color is the oldest, so rotations start again from it."
+                    "doc": "Randomize the colors of the theme based on a seed color.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe seed color is the oldest, so rotations start again from it.\nWith constraints, the random color at position i (from 1) meets constraints[i]; the seed is kept as it\nis (see ColorPalette.randomizeFrom)."
                 },
                 {
                     "name": "randomTheme",
-                    "doc": "Randomize the colors of the theme.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe new colors' order is their age order, so rotations start again from the first."
+                    "doc": "Randomize the colors of the theme.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe new colors' order is their age order, so rotations start again from the first.\nWith constraints, the color at position i meets constraints[i] (see ColorPalette.randomize)."
                 },
                 {
                     "name": "normalizeIndex",
@@ -526,7 +556,7 @@
                 },
                 {
                     "name": "pushRandomColor",
-                    "doc": "Push a random color to the end of the active palette, as its newest color, drawn at least\ndeltaEThreshold (CIEDE2000) from the current last color (see ColorPalette.pushRandom).\nAdds nothing if the palette already has maxNumberOfColors colors."
+                    "doc": "Push a random color to the end of the active palette, as its newest color, drawn at least\ndeltaEThreshold (CIEDE2000) from the current last color (see ColorPalette.pushRandom).\nWith constraints, it meets the constraint for the position it takes, constraints[nColors].\nAdds nothing if the palette already has maxNumberOfColors colors."
                 },
                 {
                     "name": "popOldestColor",
@@ -538,7 +568,7 @@
                 },
                 {
                     "name": "rotateRandomColor",
-                    "doc": "Replace the oldest color of the active palette with a random color, as rotateColor does, drawn at\nleast deltaEThreshold (CIEDE2000) from both of the colors it will sit between on the wheel (see\nColorPalette.rotateRandomOn).\n\nTo shift the colors instead, as rotateRandomColor did before 4.0 (dropping the first color and\nappending a random color drawn deltaEThreshold from the last):\nsetColors(activePalette.popOldest().pushRandom({ minBrightness }).colors, options). With the same\nrandom, it draws the same colors as before 4.0, as long as the colors are only ever set from lists,\npushed or popped, so that their ages stay in list order; a single color gains a second."
+                    "doc": "Replace the oldest color of the active palette with a random color, as rotateColor does, drawn at\nleast deltaEThreshold (CIEDE2000) from both of the colors it will sit between on the wheel (see\nColorPalette.rotateRandomOn). With constraints, it meets the constraint for the position it replaces,\nconstraints[activePalette.ageOrder[0]].\n\nTo shift the colors instead, as rotateRandomColor did before 4.0 (dropping the first color and\nappending a random color drawn deltaEThreshold from the last):\nsetColors(activePalette.popOldest().pushRandom({ minBrightness }).colors, options). With the same\nrandom, it draws the same colors as before 4.0, as long as the colors are only ever set from lists,\npushed or popped, so that their ages stay in list order; a single color gains a second."
                 },
                 {
                     "name": "finishTransition",
@@ -547,6 +577,101 @@
                 {
                     "name": "tick",
                     "doc": "Move the color index by n steps.\nCan be negative to move backwards.\nCan be fractional: fractions add up, and colors are read at the nearest whole step.\n\nAlso advances the transition to the target palette by one tick, if one is\nset. This is not affected by the n parameter, so tick(0) advances a\ntransition without rotating the wheel.\nAn n that is not a finite number (NaN, Infinity) does not move the index."
+                }
+            ]
+        },
+        "ColorMeasure": {
+            "code": "interface ColorMeasure {\n    hue: number | null;\n    chroma: number;\n    brightness: number;\n}",
+            "doc": "The measures of a color.",
+            "fields": [
+                {
+                    "name": "hue",
+                    "doc": "OKLCH hue in degrees, from 0 to 360. null for a color with no hue: an OKLCH chroma under 1e-4 (greys,\nwhite) or black."
+                },
+                {
+                    "name": "chroma",
+                    "doc": "Relative chroma, from 0 to 1: the color's OKLCH chroma as a fraction of the most any sRGB color has at\nits hue and brightness (see maxChroma). 0 is grey and 1 is as saturated as sRGB allows there.\nIn the 0.16° of hue just past blue's, where the colors of one brightness have no chroma between two\nvalues, the fraction leaves that gap out, so that every value from 0 to 1 is a color there too."
+                },
+                {
+                    "name": "brightness",
+                    "doc": "Brightness: HSV value, from 0 to 1 (the hottest channel), after any lift to minBrightness."
+                }
+            ]
+        },
+        "HueRange": {
+            "code": "interface HueRange {\n    center: number;\n    width: number;\n}",
+            "doc": "An arc of OKLCH hue (as measureColor measures it), centered on a hue. It wraps through 360.",
+            "fields": [
+                {
+                    "name": "center",
+                    "doc": "The hue in the middle of the arc, in degrees. Any finite number, wrapped. A center that is not a finite\nnumber makes the range ignored, unless it covers every hue."
+                },
+                {
+                    "name": "width",
+                    "doc": "The full width of the arc, in degrees: center ± width / 2. 0 is the one hue; 360 or more (Infinity\nincluded) is every hue. A negative width counts as 0, and NaN makes the range ignored."
+                }
+            ]
+        },
+        "ChromaRange": {
+            "code": "interface ChromaRange {\n    min?: number;\n    max?: number;\n}",
+            "doc": "Bounds on relative chroma (see ColorMeasure.chroma): fractions of the most chroma sRGB allows at a color's\nhue and brightness, so every value within them is a color at every hue and brightness. 0 is grey and 1 is\nas saturated as sRGB allows.",
+            "fields": [
+                {
+                    "name": "min",
+                    "doc": "The lowest relative chroma. Defaults to 0; clamped to 0–1; NaN counts as not given."
+                },
+                {
+                    "name": "max",
+                    "doc": "The highest relative chroma. Defaults to 1; clamped to 0–1; NaN counts as not given. A max below min swaps with it."
+                }
+            ]
+        },
+        "ColorConstraint": {
+            "code": "interface ColorConstraint {\n    hues?: readonly HueRange[];\n    avoid?: readonly HueRange[];\n    chroma?: ChromaRange;\n}",
+            "doc": "Limits on the OKLCH hue and relative chroma of a random color. Brightness is set by minBrightness, as for\nany random color. A color drawn within a constraint always meets it: no draw is rejected.",
+            "fields": [
+                {
+                    "name": "hues",
+                    "doc": "The hues allowed: the union of the arcs. Left out or empty (or with every range ignored): every hue."
+                },
+                {
+                    "name": "avoid",
+                    "doc": "Hues taken out of those allowed. Ignored when they would leave no hue, so a color can always be drawn."
+                },
+                {
+                    "name": "chroma",
+                    "doc": "The relative chroma allowed. Left out: from 0 to 1."
+                }
+            ]
+        },
+        "ColorConstraints": {
+            "code": "type ColorConstraints =\n    | ColorConstraint\n    | readonly (ColorConstraint | undefined)[];",
+            "doc": "Constraints on the colors of a random palette: one for every color, or a list with one for each position\nin the palette, in order (a missing entry, or an entry past the end, counts as {}: any color, drawn in\nOKLCH).",
+            "fields": []
+        },
+        "RandomColorOptions": {
+            "code": "interface RandomColorOptions {\n    random?: RandomFunction;\n    minBrightness?: number;\n    constraint?: ColorConstraint;\n    awayFrom?: readonly ColorInput[];\n    deltaEThreshold?: number;\n}",
+            "doc": "Options for randomColor.",
+            "fields": [
+                {
+                    "name": "random",
+                    "doc": "Random number generator. Defaults to Math.random. Supply a seeded generator for reproducible colors."
+                },
+                {
+                    "name": "minBrightness",
+                    "doc": "The lowest brightness (HSV value) the color can have, from 0 to 1. Defaults to 0."
+                },
+                {
+                    "name": "constraint",
+                    "doc": "Limits on the color's OKLCH hue and relative chroma. Given (even {}), the color is drawn in OKLCH:\nbrightness uniform from minBrightness to 1, hue uniform over the hues allowed, relative chroma uniform\nwithin its range. Left out, it is drawn in HSV (hue, saturation, and value from minBrightness to 1), as\nevery random method drew colors in 4.0, so a seeded random draws the colors it drew then."
+                },
+                {
+                    "name": "awayFrom",
+                    "doc": "Colors to keep deltaEThreshold (CIEDE2000) from: candidates are drawn until one is at least that far from\nevery one of them, up to 100 candidates; if none is, the one furthest from its nearest is used. The\nconstraint always holds; the distance is best effort."
+                },
+                {
+                    "name": "deltaEThreshold",
+                    "doc": "The distance to keep from awayFrom. Defaults to DEFAULT_DELTA_E_THRESHOLD (20)."
                 }
             ]
         }
