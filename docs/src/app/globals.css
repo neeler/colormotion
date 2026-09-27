@@ -27,3 +27,78 @@
         }
     }
 }
+
+@layer components {
+    /**
+    Range inputs: a thin track filled up to the value (--fill, set inline)
+    and a round thumb, on a 24px tall hit area.
+     */
+    .range {
+        --fill: 50%;
+        --track: linear-gradient(
+            to right,
+            var(--color-zinc-200) var(--fill),
+            rgb(255 255 255 / 0.15) var(--fill)
+        );
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+        display: block;
+        height: 1.5rem;
+        width: 100%;
+    }
+
+    .range::-webkit-slider-runnable-track {
+        background: var(--track);
+        border-radius: 9999px;
+        height: 0.375rem;
+    }
+
+    .range::-moz-range-track {
+        background: var(--track);
+        border-radius: 9999px;
+        height: 0.375rem;
+    }
+
+    .range::-webkit-slider-thumb {
+        appearance: none;
+        background: white;
+        border-radius: 9999px;
+        box-shadow:
+            0 0 0 1px rgb(0 0 0 / 0.4),
+            0 1px 3px rgb(0 0 0 / 0.5);
+        height: 1rem;
+        margin-top: -0.3125rem;
+        width: 1rem;
+    }
+
+    .range::-moz-range-thumb {
+        background: white;
+        border: 0;
+        border-radius: 9999px;
+        box-shadow:
+            0 0 0 1px rgb(0 0 0 / 0.4),
+            0 1px 3px rgb(0 0 0 / 0.5);
+        height: 1rem;
+        width: 1rem;
+    }
+
+    .range:focus {
+        outline: none;
+    }
+
+    .range:focus-visible::-webkit-slider-thumb {
+        outline: 2px solid var(--color-blue-500);
+        outline-offset: 2px;
+    }
+
+    .range:focus-visible::-moz-range-thumb {
+        outline: 2px solid var(--color-blue-500);
+        outline-offset: 2px;
+    }
+
+    .range:disabled {
+        cursor: default;
+        opacity: 0.5;
+    }
+}

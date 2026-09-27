@@ -1,8 +1,9 @@
 import { ThemeUpdateCallback } from '@colormotion';
 import { useEffect, useState } from 'react';
-import { theme } from '~/components/theme/theme';
+import { useTheme } from '~/hooks/useTheme';
 
 export function useNColors() {
+    const theme = useTheme();
     const [nColors, setNColors] = useState<number | undefined>(undefined);
 
     useEffect(() => {
@@ -15,7 +16,7 @@ export function useNColors() {
         return () => {
             theme.unsubscribe(updateNColors);
         };
-    }, []);
+    }, [theme]);
 
     return nColors;
 }
