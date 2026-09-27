@@ -167,6 +167,18 @@
         },
         "analyzeTheme": {
             "code": "function analyzeTheme(\n    colors: readonly ColorInput[],\n    options?: AnalyzeOptions,\n): ThemeAnalysis;"
+        },
+        "relationshipTemplate": {
+            "code": "function relationshipTemplate(\n    analysis: ThemeAnalysis,\n    options?: TemplateOptions,\n): RelationshipTemplate;\nfunction relationshipTemplate(\n    kind: Exclude<Relationship, 'neutral'>,\n    options: TemplateOptions & {\n        nColors: number;\n        random?: RandomFunction;\n        tints?: number;\n    },\n): RelationshipTemplate;"
+        },
+        "templateConstraints": {
+            "code": "function templateConstraints(\n    template: RelationshipTemplate,\n    anchor: number,\n    options?: { mirrored?: boolean; avoid?: readonly HueRange[] },\n): ColorConstraint[];"
+        },
+        "adjacentConstraints": {
+            "code": "function adjacentConstraints(\n    analysis: ThemeAnalysis,\n    options?: TemplateOptions,\n): ColorConstraint[];"
+        },
+        "randomLike": {
+            "code": "function randomLike(\n    source: ThemeAnalysis | RelationshipTemplate,\n    options?: RandomLikeOptions,\n): RandomLikeResult;"
         }
     },
     "types": {
@@ -801,6 +813,157 @@
                 {
                     "name": "options",
                     "doc": "The options the analysis used, defaults filled in, so templates and checks can use the same ones."
+                }
+            ]
+        },
+        "TemplateSlot": {
+            "code": "interface TemplateSlot {\n    role: 'structural' | 'muted' | 'neutral';\n    offset: number | null;\n    hueWidth: number;\n    tint: number | null;\n    chroma: ChromaRange;\n    group: number | null;\n    pick: number | null;\n}",
+            "doc": "One color's place in a relationship template: an arc of hue relative to the anchor, and a band of relative\nchroma that keeps a color drawn in it in its role.",
+            "fields": [
+                {
+                    "name": "role",
+                    "doc": "The role of the color the slot stands for (see PickAnalysis.role). Its chroma band keeps a color drawn\nin it in that role."
+                },
+                {
+                    "name": "offset",
+                    "doc": "The slot's hue, in degrees from the anchor (structural and muted slots). null for a neutral slot, which\nnever rotates or mirrors."
+                },
+                {
+                    "name": "hueWidth",
+                    "doc": "The full width of the slot's arc of hue, in degrees: half of it either side of the slot's hue (for a\nneutral slot, of its tint; 360 for a neutral slot with no tint)."
+                },
+                {
+                    "name": "tint",
+                    "doc": "A neutral slot's own tint, as an absolute OKLCH hue: it keeps the tint of a neutral color with a\nrelative chroma of 0.04 or more, within 30° either side. null for any hue, and for the other slots."
+                },
+                {
+                    "name": "chroma",
+                    "doc": "The relative chroma allowed, both bounds given: the color's own ± chromaWidth, within its role's\ninterval, so a color drawn in the slot keeps its role. The intervals sit a little inside the\nthresholds, so that a color rounded to 8 bits keeps its role too: with the defaults, 0.77–1 for\nstructural slots, 0.15–0.72 for muted ones and 0–0.08 for neutral ones. In a theme with no color at\nstructuralChroma (pastels, whose colors are all structural), structural slots take 0.15–0.72 as well,\nso none turns vivid."
+                },
+                {
+                    "name": "group",
+                    "doc": "The index of the slot's group in the template's groups; null for a neutral slot."
+                },
+                {
+                    "name": "pick",
+                    "doc": "The input color whose neighbourhood this is, for a template from an analysis: its index in the colors\nanalyzed. null for a template from a kind."
+                }
+            ]
+        },
+        "RelationshipTemplate": {
+            "code": "interface RelationshipTemplate {\n    relationship: Relationship;\n    groups: {\n        offset: number;\n        span: number;\n    }[];\n    slots: TemplateSlot[];\n    pickSlots: number[] | null;\n    options: Required<AnalyzeOptions>;\n}",
+            "doc": "A theme's hue relationship as slots around an anchor hue (see relationshipTemplate). Plain JSON.",
+            "fields": [
+                {
+                    "name": "relationship",
+                    "doc": "The relationship a palette drawn in the slots has."
+                },
+                {
+                    "name": "groups",
+                    "doc": "The hue groups: each one's center in degrees from the anchor, and its span. The anchor's is first."
+                },
+                {
+                    "name": "slots",
+                    "doc": "The slots, in order: a palette drawn from the template has one color per slot, in this order."
+                },
+                {
+                    "name": "pickSlots",
+                    "doc": "For a template from an analysis: pickSlots[j] is the index of the slot that holds input color j (its\nown slot, first in its run). null for a template from a kind."
+                },
+                {
+                    "name": "options",
+                    "doc": "The analysis options, defaults filled in: randomLike checks a palette drawn from the template with them."
+                }
+            ]
+        },
+        "TemplateOptions": {
+            "code": "interface TemplateOptions {\n    hueWidth?: number;\n    maxHueWidth?: number;\n    minHueWidth?: number;\n    chromaWidth?: number;\n    nColors?: number;\n}",
+            "doc": "Options for relationshipTemplate and adjacentConstraints: how wide the slots are, and how many there are.\nA value that is not a finite number counts as not given.",
+            "fields": [
+                {
+                    "name": "hueWidth",
+                    "doc": "The base half-width of a slot's arc of hue, in degrees (see relationshipTemplate). Defaults to 12 for a\ntemplate from an analysis, and to 8 for one from a kind (and for randomLike, given an analysis)."
+                },
+                {
+                    "name": "maxHueWidth",
+                    "doc": "The widest half-width a slot takes before its caps, in degrees. Defaults to 20."
+                },
+                {
+                    "name": "minHueWidth",
+                    "doc": "The narrowest half-width a slot takes before its caps, in degrees. Defaults to 3."
+                },
+                {
+                    "name": "chromaWidth",
+                    "doc": "How far a slot's chroma band reaches either side of its color's relative chroma. Defaults to 0.2."
+                },
+                {
+                    "name": "nColors",
+                    "doc": "For a template from an analysis: the number of slots to lay out. Defaults to the number of colors\nanalyzed, which is also the least it takes (see relationshipTemplate)."
+                }
+            ]
+        },
+        "RandomLikeOptions": {
+            "code": "interface RandomLikeOptions {\n    random?: RandomFunction;\n    minBrightness?: number;\n    deltaEThreshold?: number;\n    anchor?: number | HueRange | readonly HueRange[];\n    mirror?: boolean;\n    avoid?: readonly HueRange[];\n    attempts?: number;\n    nColors?: number;\n}",
+            "doc": "Options for randomLike.",
+            "fields": [
+                {
+                    "name": "random",
+                    "doc": "Random number generator. Defaults to Math.random. Supply a seeded generator for reproducible palettes."
+                },
+                {
+                    "name": "minBrightness",
+                    "doc": "The lowest brightness (HSV value) of the colors, from 0 to 1. Defaults to the minBrightness the source\nwas analyzed at (0 for a template from a kind)."
+                },
+                {
+                    "name": "deltaEThreshold",
+                    "doc": "How far each color is kept (CIEDE2000) from the one before it, and the last from the first as well,\nsince the wheel closes there. Best effort, as for any random color. Defaults to\nDEFAULT_DELTA_E_THRESHOLD (20)."
+                },
+                {
+                    "name": "anchor",
+                    "doc": "The anchor: a hue to place the template at, or the arcs (one or several) to draw it from, uniformly.\nLeft out, any hue."
+                },
+                {
+                    "name": "mirror",
+                    "doc": "Allows the mirrored geometry, drawn half the time. Defaults to true."
+                },
+                {
+                    "name": "avoid",
+                    "doc": "Hues to keep out: added to every rotating slot's avoid, and no drawn anchor puts a slot's hue inside\nthem (when any anchor allowed can)."
+                },
+                {
+                    "name": "attempts",
+                    "doc": "How many palettes to draw, at most, until one has the source's relationship. Defaults to 16."
+                },
+                {
+                    "name": "nColors",
+                    "doc": "For an analysis: the number of colors (see TemplateOptions.nColors). Ignored for a template."
+                }
+            ]
+        },
+        "RandomLikeResult": {
+            "code": "interface RandomLikeResult {\n    colors: Color[];\n    anchor: number;\n    mirrored: boolean;\n    constraints: ColorConstraint[];\n    relationship: Relationship;\n    verified: boolean;\n}",
+            "doc": "A palette randomLike drew, and where.",
+            "fields": [
+                {
+                    "name": "colors",
+                    "doc": "One color per slot, in the template's slot order, at full precision."
+                },
+                {
+                    "name": "anchor",
+                    "doc": "The anchor the template was placed at, in degrees."
+                },
+                { "name": "mirrored", "doc": "Whether it was mirrored." },
+                {
+                    "name": "constraints",
+                    "doc": "The constraint for each color, as templateConstraints gives them for this anchor and mirroring: keep\nthem for rolling single colors in the same shape."
+                },
+                {
+                    "name": "relationship",
+                    "doc": "The relationship the colors have, analyzed with the source's options."
+                },
+                {
+                    "name": "verified",
+                    "doc": "Whether the colors have the source's relationship and number of groups. When no attempt did, the\nclosest is returned, with verified false."
                 }
             ]
         }

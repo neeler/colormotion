@@ -5,3 +5,4 @@ export * from './Theme';
 export * from './gamut';
 export * from './constraints';
 export * from './analyze';
+export * from './relationships';

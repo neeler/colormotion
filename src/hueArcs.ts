@@ -111,6 +111,45 @@ export function allowedHues(constraint: ColorConstraint): HueSet {
 }
 
 /**
+ * The hues of the ranges (every hue when none is given) less the hues of the avoided ranges, as allowedHues
+ * takes them, or null when no hue would be left (where allowedHues ignores the avoided ranges instead).
+ */
+export function huesWithout(
+    hues: readonly HueRange[] | undefined,
+    avoid: readonly HueRange[],
+): HueSet | null {
+    const ranges = sortRanges(hues);
+    const without = sortRanges(avoid);
+    if (without.everyHue) {
+        return null;
+    }
+    if (
+        ranges.everyHue ||
+        (ranges.arcs.length === 0 && ranges.points.length === 0)
+    ) {
+        const arcs = subtract(EVERY_HUE.arcs, without.arcs);
+        return arcs.length > 0 ? { arcs, points: [] } : null;
+    }
+    if (ranges.arcs.length > 0) {
+        const arcs = subtract(ranges.arcs, without.arcs);
+        return arcs.length > 0 ? { arcs, points: [] } : null;
+    }
+    const points = ranges.points.filter(
+        (point) =>
+            !onArcs(without.arcs, point) && !without.points.includes(point),
+    );
+    return points.length > 0 ? { arcs: [], points } : null;
+}
+
+/** The hues of either set: arcs, if either has any, or else single hues. */
+export function unionHues(a: HueSet, b: HueSet): HueSet {
+    const arcs = union([...a.arcs, ...b.arcs]);
+    return arcs.length > 0
+        ? { arcs, points: [] }
+        : { arcs: [], points: [...new Set([...a.points, ...b.points])] };
+}
+
+/**
  * The hue a fraction u (0 to 1) of the way along the set: its arcs laid end to end, so a uniform u gives a
  * uniform hue, or its single hues, each with an equal share of u.
  */
