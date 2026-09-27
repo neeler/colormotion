@@ -223,7 +223,7 @@
             "fields": [
                 {
                     "name": "scale",
-                    "doc": "chroma-js's scale over the palette colors. The palette's own colors (scaleColors, and so a Theme's)\nfollow chroma's interpolation except near hue-less ends, where colormotion's mix reaches the end and\nchroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI."
+                    "doc": "chroma-js's scale over the palette colors. The palette's own colors (scaleColors, and so a Theme's)\nfollow chroma's interpolation except near hue-less ends, where colormotion's mix reaches the end and\nchroma's stops short: toward black in LCH, HCL and OKLCH, and toward white in HSI. And in OKLCH,\nwhere chroma's mix reads a translucent color's alpha as its hue, they mix translucent colors as the\nopaque ones, with alpha mixed on its own."
                 },
                 {
                     "name": "static normalizeColors",

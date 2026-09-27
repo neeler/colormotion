@@ -41,7 +41,10 @@ export function SectionInterpolation() {
                 <Code>chroma.js</Code> and follows its interpolation, except
                 near colors without a hue: in LCH, HCL and OKLCH a mix toward
                 black, and in HSI a mix toward white, fades the chroma or
-                saturation so it actually arrives there.
+                saturation so it actually arrives there. And in OKLCH,
+                translucent colors mix as the opaque ones do, with their alpha
+                mixed on its own, where <Code>chroma.js</Code> would mix alpha
+                as the hue.
             </Text>
         </>
     );

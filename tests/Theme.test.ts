@@ -601,6 +601,42 @@ test('colors without an alpha, such as chroma.oklch results, are opaque', () => 
     }
 });
 
+test('transitions mix translucent colors as opaque ones, with alpha on its own', () => {
+    const from = ['#e8b450', '#f4dca8', '#7a1a2b', '#b8862f', '#2b1a12'];
+    const to = ['#6b2fa0', '#ff7a1a', '#3a1660', '#c0409a', '#1a0a2e'];
+    for (const mode of Object.values(InterpolationModes)) {
+        const midway = (fromAlpha: string, toAlpha: string) => {
+            const theme = new Theme({
+                colors: from.map((hex) => hex + fromAlpha),
+                mode,
+                nSteps: 64,
+            });
+            theme.update({
+                colors: to.map((hex) => hex + toAlpha),
+                transitionDuration: 10,
+            });
+            tickThemeInPlace(theme, 4);
+            return theme;
+        };
+        const translucent = midway('80', 'cc');
+        const opaque = midway('', '');
+        expect(translucent.isTransitioning).toBe(true);
+        // every color is as far along, so every color has the same alpha, between the two palettes'
+        // (chroma reads a hex alpha to two decimals: 0.5 and 0.8)
+        const alpha = translucent.getColor(0).alpha();
+        expect(alpha).toBeGreaterThan(0.5);
+        expect(alpha).toBeLessThan(0.8);
+        for (let i = 0; i < 64; i++) {
+            expect(translucent.getColor(i).rgb(false), `${mode}, ${i}`).toEqual(
+                opaque.getColor(i).rgb(false),
+            );
+            expect(translucent.getColor(i).alpha(), `${mode}, ${i}`).toBe(
+                alpha,
+            );
+        }
+    }
+});
+
 describe('transitions mix from the start colors at a tracked progress', () => {
     const from = ['#e8b450', '#f4dca8', '#7a1a2b', '#b8862f', '#2b1a12'];
     const to = ['#6b2fa0', '#ff7a1a', '#3a1660', '#c0409a', '#1a0a2e'];
