@@ -428,25 +428,31 @@ describe('fillRgb caching', () => {
 });
 
 describe('fillRgb reads each color with getColor', () => {
-    test('when chroma is on a Lab white point other than D65', () => {
-        const theme = makeTheme({ mode: 'lab' });
-        theme.brightness = 0.6;
-        theme.update({ colors: DUSK, transitionDuration: 20 });
-        theme.tick(4);
-        const d65 = theme.fillRgb(new Float64Array(N_STEPS * 3));
-        try {
-            chroma.setLabWhitePoint('D50');
-            const d50 = theme.fillRgb(new Float64Array(N_STEPS * 3));
-            // getColor's colors under D50, not the buffers' (which assume D65)
-            expect(mismatches(theme, 'D50')).toEqual([]);
-            expect([...d50]).not.toEqual([...d65]);
-        } finally {
-            chroma.setLabWhitePoint('d65' as 'D65');
-        }
-        // getColor keeps the Lab coordinates it read under D50 until the transition ends
-        theme.finishTransition();
-        expect(mismatches(theme, 'back on D65')).toEqual([]);
-    });
+    test.each(['lab', 'lch', 'hcl', 'oklab', 'oklch'] as const)(
+        'when chroma is on a Lab white point other than D65, and back, mid-transition (%s)',
+        (mode) => {
+            const theme = makeTheme({ mode });
+            theme.brightness = 0.6;
+            theme.update({ colors: DUSK, transitionDuration: 20 });
+            theme.tick(4);
+            const d65 = theme.fillRgb(new Float64Array(N_STEPS * 3));
+            try {
+                chroma.setLabWhitePoint('D50');
+                const d50 = theme.fillRgb(new Float64Array(N_STEPS * 3));
+                // getColor's colors under D50, not the buffers' (which assume D65)
+                expect(mismatches(theme, 'D50')).toEqual([]);
+                expect([...d50]).not.toEqual([...d65]);
+            } finally {
+                chroma.setLabWhitePoint('d65' as 'D65');
+            }
+            // getColor reads its colors again under the white point in effect, so the two agree mid-transition
+            expect(theme.isTransitioning).toBe(true);
+            expect(mismatches(theme, 'back on D65')).toEqual([]);
+            expect([...theme.fillRgb(new Float64Array(N_STEPS * 3))]).toEqual([
+                ...d65,
+            ]);
+        },
+    );
 
     test('for an nSteps that is not a whole number', () => {
         const mode: InterpolationMode = 'rgb';

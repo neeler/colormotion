@@ -845,10 +845,7 @@ export class Theme {
      * about five times as fast as getColor, rather than ten or more.
      *
      * If chroma.setLabWhitePoint has moved chroma-js off its default white point, D65, it reads each color
-     * with getColor instead. One case still differs: during a transition in lab, lch, hcl, oklab or oklch,
-     * getColor keeps the coordinates it reads for each color until the transition ends, so if the white point
-     * changes and changes back midway, the colors getColor read under the other white point stay that way,
-     * and fillRgb's do not.
+     * with getColor instead.
      *
      * Throws a RangeError, writing nothing, when offset is not a whole number of 0 or more or out is too
      * short.
