@@ -10,7 +10,14 @@ import {
 } from './ColorPalette';
 import { InterpolationMode, InterpolationModes } from './InterpolationMode';
 import { clamp } from './clamp';
-import { ModeCoords, mixCoords, toModeCoords } from './interpolate';
+import { darkenScale, isD65WhitePoint } from './convert';
+import {
+    ModeCoords,
+    mixCoords,
+    mixScaleRgb,
+    scaleCoords,
+    toModeCoords,
+} from './interpolate';
 import { mapBrightnessToDarkenFactor } from './mapBrightnessToDarkenFactor';
 import { safeMod } from './safeMod';
 
@@ -242,6 +249,81 @@ export interface ThemeUpdateEvent {
 export type ThemeUpdateCallback = (event: ThemeUpdateEvent) => void;
 
 /**
+ * Options for Theme.fillRgb.
+ */
+export interface FillRgbOptions {
+    /**
+     * Adjusts the brightness of every color, as getColor's brightness option does: it compounds with the
+     * theme's brightness, in the theme's brightnessMode.
+     * 0-1, defaults to 1. NaN counts as 1.
+     */
+    brightness?: number;
+    /**
+     * Where in the array the first value goes.
+     * A whole number, 0 or more. Defaults to 0.
+     */
+    offset?: number;
+    /**
+     * The value a channel at full intensity is written as.
+     * Defaults to 1, for values from 0 to 1. 255 writes chroma-js's 0-255 channel values, the ones
+     * getColor(i).rgb(false) returns (unrounded).
+     * Anything that is not a finite number above 0 counts as 1.
+     */
+    max?: number;
+}
+
+/** An array fillRgb can write into. */
+type FillTarget = Float32Array | Float64Array | number[];
+
+/**
+ * fillRgb's darkened colors (sRGB, 0-255), and what they were darkened from and by: a buffer of scale
+ * colors, the tick it was read on, and the darken factors applied (-1 for none).
+ */
+interface DarkenedRgb {
+    rgb: Float64Array;
+    from?: Float64Array;
+    tick: number;
+    themeAmount: number;
+    amount: number;
+}
+
+/** A DarkenedRgb for colors of this many channels, holding none yet. */
+function emptyDarkenedRgb(length: number): DarkenedRgb {
+    return {
+        rgb: new Float64Array(length),
+        tick: -1,
+        themeAmount: -1,
+        amount: -1,
+    };
+}
+
+/**
+ * Whether cache holds the colors in from, as of tick, darkened by these factors. If not, it is keyed to
+ * them, for the caller to darken them into cache.rgb.
+ */
+function isDarkened(
+    cache: DarkenedRgb,
+    from: Float64Array,
+    tick: number,
+    themeAmount: number,
+    amount: number,
+) {
+    if (
+        cache.from === from &&
+        cache.tick === tick &&
+        cache.themeAmount === themeAmount &&
+        cache.amount === amount
+    ) {
+        return true;
+    }
+    cache.from = from;
+    cache.tick = tick;
+    cache.themeAmount = themeAmount;
+    cache.amount = amount;
+    return false;
+}
+
+/**
  * A dynamic color theme that can be updated and transitioned between different color palettes.
  */
 export class Theme {
@@ -310,6 +392,15 @@ export class Theme {
     /** transitionDistance during a timed transition, measured when read, and the tick it was measured on. */
     private measuredDistance?: number;
     private measuredDistanceTick = -1;
+    /** fillRgb's scale colors mixed at the current progress (sRGB, 0-255), and the tick they were mixed on. */
+    private fillMixed?: Float64Array;
+    private fillMixedTick = -1;
+    /**
+     * fillRgb's colors in 'darken' mode: darkened by the theme's brightness, and then by the brightness
+     * option. See darkenedRgb.
+     */
+    private fillThemeDarkened?: DarkenedRgb;
+    private fillDarkened?: DarkenedRgb;
     /**
      * Indexes of the scale colors sampled when measuring the distance to the target palette.
      */
@@ -730,6 +821,223 @@ export class Theme {
      */
     getColor(index = 0, { brightness = 1 }: { brightness?: number } = {}) {
         return this.applyBrightness(this.getBaseColor(index), brightness);
+    }
+
+    /**
+     * Writes every color of the scale into an array, as getColor reads them: the red, green and blue values
+     * of getColor(i, { brightness }) for each index i from 0 to nSteps - 1, at out[offset + 3 * i],
+     * out[offset + 3 * i + 1] and out[offset + 3 * i + 2]. So the wheel position that tick() moves, a
+     * transition in progress, and the theme's brightness and brightnessMode apply as they do there: out
+     * starts with the color at step normalizeIndex(0). Alpha is not written, and nothing else in out
+     * changes.
+     *
+     * The values are getColor(i, { brightness }).rgb(false) divided by 255, exactly: 0 to 1, for LED
+     * pipelines that work in floats. Pass max: 255 for the 0-255 channels themselves. A Float32Array holds
+     * them rounded to single precision.
+     *
+     * Made for filling a lookup table on every frame: it builds no chroma-js Color. At rest, it reads the
+     * colors from a buffer kept per palette. During a transition, it mixes them and converts them to sRGB in
+     * buffers the theme reuses, once per tick however many times it is called, with arithmetic that mirrors
+     * chroma-js's. The first fill after a palette change converts the new colors once. In 'darken' mode, it
+     * keeps the colors darkened by the theme's brightness, and those darkened by the most recent brightness
+     * option. So a brightness option that changes from one call to the next (a fade, or two lookup tables at
+     * different brightnesses) darkens every color again on each call, as every tick of a transition does:
+     * about five times as fast as getColor, rather than ten or more.
+     *
+     * If chroma.setLabWhitePoint has moved chroma-js off its default white point, D65, it reads each color
+     * with getColor instead. One case still differs: during a transition in lab, lch, hcl, oklab or oklch,
+     * getColor keeps the coordinates it reads for each color until the transition ends, so if the white point
+     * changes and changes back midway, the colors getColor read under the other white point stay that way,
+     * and fillRgb's do not.
+     *
+     * Throws a RangeError, writing nothing, when offset is not a whole number of 0 or more or out is too
+     * short.
+     * @param out The array to fill: room for nSteps * 3 values from offset.
+     * @param options Options for the fill.
+     * @returns out.
+     */
+    fillRgb<T extends Float32Array | Float64Array | number[]>(
+        out: T,
+        { brightness = 1, offset = 0, max = 1 }: FillRgbOptions = {},
+    ): T {
+        const nSteps = this.nSteps;
+        // the whole numbers from 0 below nSteps (nSteps itself, for the whole number the constructor expects)
+        const count = nSteps > 0 ? Math.ceil(nSteps) : 0;
+        if (!Number.isSafeInteger(offset) || offset < 0) {
+            throw new RangeError(
+                `fillRgb: offset must be a whole number of 0 or more, not ${offset}`,
+            );
+        }
+        if (out.length - offset < count * 3) {
+            throw new RangeError(
+                `fillRgb: out needs ${count * 3} values from offset ${offset}, and has ${Math.max(out.length - offset, 0)}`,
+            );
+        }
+        // dividing (rather than multiplying by max / 255) keeps max 1 and 255 exact
+        const divisor = 255 / (max > 0 && max < Infinity ? max : 1);
+
+        if (count !== nSteps || !isD65WhitePoint()) {
+            this.fillFromColors(out, count, brightness, offset, divisor);
+            return out;
+        }
+
+        let rgb: Float64Array;
+        // applyBrightness's linear factors, the theme's then the option's (1 leaves a channel as it is)
+        let themeFactor = 1;
+        let factor = 1;
+        if (this.brightnessMode === BrightnessModes.linear) {
+            rgb = this.currentRgb();
+            if (this._brightness < 1) {
+                themeFactor = Math.max(this._brightness, 0);
+            }
+            if (brightness < 1) {
+                factor = Math.max(brightness, 0);
+            }
+        } else {
+            rgb = this.darkenedRgb(brightness);
+        }
+
+        // out's color i is scale step (i + position) mod nSteps: the steps from position on, then those before it
+        const position = this.normalizeIndex();
+        const next = Theme.copyRgb(
+            rgb,
+            position * 3,
+            nSteps * 3,
+            out,
+            offset,
+            themeFactor,
+            factor,
+            divisor,
+        );
+        Theme.copyRgb(
+            rgb,
+            0,
+            position * 3,
+            out,
+            next,
+            themeFactor,
+            factor,
+            divisor,
+        );
+        return out;
+    }
+
+    /**
+     * Copies rgb[from..to) into out from index o, as applyBrightness scales each channel in linear mode
+     * (times themeFactor, then times factor), divided by divisor. Returns the index after the last value
+     * written.
+     */
+    private static copyRgb(
+        rgb: Float64Array,
+        from: number,
+        to: number,
+        out: FillTarget,
+        o: number,
+        themeFactor: number,
+        factor: number,
+        divisor: number,
+    ) {
+        for (let i = from; i < to; i++) {
+            out[o++] = (rgb[i]! * themeFactor * factor) / divisor;
+        }
+        return o;
+    }
+
+    /**
+     * fillRgb one color at a time through getColor, for what the buffers don't cover: a Lab white point other
+     * than D65, or an nSteps that is not a whole number of 1 or more.
+     */
+    private fillFromColors(
+        out: FillTarget,
+        count: number,
+        brightness: number,
+        offset: number,
+        divisor: number,
+    ) {
+        for (let i = 0, o = offset; i < count; i++, o += 3) {
+            const [r, g, b] = this.getColor(i, { brightness }).rgb(false) as [
+                number,
+                number,
+                number,
+            ];
+            out[o] = r / divisor;
+            out[o + 1] = g / divisor;
+            out[o + 2] = b / divisor;
+        }
+    }
+
+    /**
+     * The sRGB channels (0-255) of every scale color right now, before brightness, in scale order: what
+     * currentColor returns for each step, without building a Color. At rest, and before the first tick of a
+     * transition, a buffer kept per list of colors; mid-transition, the colors mixed at the current progress,
+     * once per tick.
+     */
+    private currentRgb(): Float64Array {
+        const targetPalette = this._targetPalette;
+        if (!targetPalette || this.progress === 0) {
+            return scaleCoords(this.colors, InterpolationModes.rgb);
+        }
+        const mixed = (this.fillMixed ??= new Float64Array(this.nSteps * 3));
+        if (this.fillMixedTick !== this.tickCount) {
+            mixScaleRgb(
+                scaleCoords(this.colors, this._mode),
+                scaleCoords(targetPalette.scaleColors, this._mode),
+                this.progress,
+                this._mode,
+                mixed,
+            );
+            this.fillMixedTick = this.tickCount;
+        }
+        return mixed;
+    }
+
+    /**
+     * The sRGB channels (0-255) of every scale color right now, darkened as applyBrightness darkens them in
+     * 'darken' mode: by the theme's brightness, then by the given one, each only when below 1. Each of the
+     * two darkens keeps its result until what it darkens or its brightness changes, so a theme at rest
+     * darkens its colors once, and a brightness option that changes on every call redoes only the second.
+     * Only the most recent option is kept: fills that alternate between two redo the second on every call.
+     * At rest, the first darken starts from the colors' Lab coordinates, converted once per list of colors
+     * (color.darken converts to Lab first), rather than converting their channels back to Lab on every call.
+     */
+    private darkenedRgb(brightness: number): Float64Array {
+        // each brightness's darken factor, or -1 when applyBrightness leaves the color as it is
+        const themeAmount =
+            this._brightness < 1
+                ? mapBrightnessToDarkenFactor(this._brightness)
+                : -1;
+        const amount =
+            brightness < 1 ? mapBrightnessToDarkenFactor(brightness) : -1;
+        if (themeAmount < 0 && amount < 0) {
+            return this.currentRgb();
+        }
+        // the colors to darken, which both darkens are keyed on: at rest (as in currentRgb), their Lab
+        // coordinates; mid-transition, their channels mixed on this tick
+        const isLab = !this._targetPalette || this.progress === 0;
+        const from = isLab
+            ? scaleCoords(this.colors, InterpolationModes.lab)
+            : this.currentRgb();
+        const tick = this.tickCount;
+        let darkened = from;
+        let darkenedIsLab = isLab;
+        if (themeAmount >= 0) {
+            const cache = (this.fillThemeDarkened ??= emptyDarkenedRgb(
+                from.length,
+            ));
+            if (!isDarkened(cache, from, tick, themeAmount, -1)) {
+                darkenScale(from, isLab, themeAmount, cache.rgb);
+            }
+            darkened = cache.rgb;
+            darkenedIsLab = false;
+        }
+        if (amount >= 0) {
+            const cache = (this.fillDarkened ??= emptyDarkenedRgb(from.length));
+            if (!isDarkened(cache, from, tick, themeAmount, amount)) {
+                darkenScale(darkened, darkenedIsLab, amount, cache.rgb);
+            }
+            darkened = cache.rgb;
+        }
+        return darkened;
     }
 
     /**

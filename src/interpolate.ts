@@ -1,6 +1,15 @@
 import chroma, { Color } from 'chroma-js';
 import { InterpolationMode } from './InterpolationMode';
 import { clamp } from './clamp';
+import {
+    hclToRgb,
+    hsiToRgb,
+    hslToRgb,
+    hsvToRgb,
+    labToRgb,
+    oklabToRgb,
+    oklchToRgb,
+} from './convert';
 
 /**
  * A color's coordinates in the space an interpolation mode mixes in, as chroma-js reads them: three
@@ -174,6 +183,9 @@ function keepsSaturation(mode: string, lbv: number) {
     );
 }
 
+/** The hue, saturation and lightness mixHsx mixes, before it builds the color from them. */
+const HSX = new Float64Array(3);
+
 /**
  * Hue-based modes, mirroring chroma-js's _hsx interpolator: shortest way around the hue circle,
  * and a missing hue (a gray) takes the other color's. Two departures, so every mix reaches its ends:
@@ -193,9 +205,40 @@ function mixHsx(
     mode: 'hsl' | 'hsv' | 'hsi' | 'lch' | 'hcl' | 'oklch',
 ): Color {
     const m = mode === 'lch' ? 'hcl' : mode;
-    const [hue0, sat0, lbv0] = xyz0 as [number, number, number];
-    const [hue1, sat1, lbv1] = xyz1 as [number, number, number];
+    mixHues(
+        xyz0[0]!,
+        xyz0[1]!,
+        xyz0[2]!,
+        xyz1[0]!,
+        xyz1[1]!,
+        xyz1[2]!,
+        f,
+        m,
+        HSX,
+        0,
+    );
+    const hue = HSX[0]!;
+    const sat = HSX[1]!;
+    const lbv = HSX[2]!;
+    return m === 'oklch' ? chroma(lbv, sat, hue, m) : chroma(hue, sat, lbv, m);
+}
 
+/**
+ * The hue, saturation and lightness (or value, or intensity) of mixHsx's mix of two colors' coordinates
+ * (lch as hcl), written to out[o], out[o + 1] and out[o + 2]. Shared with mixScaleRgb.
+ */
+function mixHues(
+    hue0: number,
+    sat0: number,
+    lbv0: number,
+    hue1: number,
+    sat1: number,
+    lbv1: number,
+    f: number,
+    m: 'hsl' | 'hsv' | 'hsi' | 'hcl' | 'oklch',
+    out: Float64Array,
+    o: number,
+) {
     let sat: number | undefined;
     let hue: number;
     if (!isNaN(hue0) && !isNaN(hue1)) {
@@ -222,8 +265,137 @@ function mixHsx(
         if (hue >= 360) hue -= 360;
     }
     if (sat === undefined) sat = sat0 + f * (sat1 - sat0);
-    const lbv = lbv0 + f * (lbv1 - lbv0);
-    return m === 'oklch' ? chroma(lbv, sat, hue, m) : chroma(hue, sat, lbv, m);
+    out[o] = hue;
+    out[o + 1] = sat;
+    out[o + 2] = lbv0 + f * (lbv1 - lbv0);
+}
+
+/**
+ * The space a mode mixes in, as scaleCoords keys it: lrgb mixes rgb's coordinates, and lch hcl's.
+ */
+function coordSpace(mode: InterpolationMode): InterpolationMode {
+    return mode === 'lrgb' ? 'rgb' : mode === 'lch' ? 'hcl' : mode;
+}
+
+/** scaleCoords' buffers, by color list and space. */
+const scaleCoordsCache = new WeakMap<
+    readonly Color[],
+    Map<InterpolationMode, Float64Array>
+>();
+
+/**
+ * The mode coordinates (toModeCoords) of every color in a list, three numbers per color, in a
+ * buffer built on first use and kept for as long as the list is: a palette's scaleColors, or the colors a
+ * Theme transition starts from. In rgb and lrgb they are the colors' sRGB channels, 0-255. The list must
+ * not change afterwards (palettes don't change theirs).
+ */
+export function scaleCoords(
+    colors: readonly Color[],
+    mode: InterpolationMode,
+): Float64Array {
+    const space = coordSpace(mode);
+    let spaces = scaleCoordsCache.get(colors);
+    if (!spaces) {
+        spaces = new Map();
+        scaleCoordsCache.set(colors, spaces);
+    }
+    let coords = spaces.get(space);
+    if (!coords) {
+        coords = new Float64Array(colors.length * 3);
+        for (let i = 0; i < colors.length; i++) {
+            const color = toModeCoords(colors[i]!, space);
+            coords[i * 3] = color[0]!;
+            coords[i * 3 + 1] = color[1]!;
+            coords[i * 3 + 2] = color[2]!;
+        }
+        spaces.set(space, coords);
+    }
+    return coords;
+}
+
+/**
+ * Mixes two lists of mode coordinates (from scaleCoords, in the same mode) a fraction f of the way, and
+ * writes each mix's sRGB channels to out: for every color k, the channels (0-255, unrounded) of
+ * mixCoords(from_k, to_k, f, mode), without building a Color. The conversions mirror chroma-js's (see
+ * convert.ts), so the channels are the same, and the Lab-based ones assume the D65 white point.
+ */
+export function mixScaleRgb(
+    from: Float64Array,
+    to: Float64Array,
+    f: number,
+    mode: InterpolationMode,
+    out: Float64Array,
+) {
+    const end = out.length;
+    switch (mode) {
+        // rgb and lrgb clamp as rgbWithAlpha does, written out: clamp(channel, 0, 255)
+        case 'rgb':
+            for (let o = 0; o < end; o++) {
+                const channel = from[o]! + f * (to[o]! - from[o]!);
+                out[o] = Math.min(Math.max(channel, 0), 255);
+            }
+            return;
+        case 'lrgb':
+            for (let o = 0; o < end; o++) {
+                const channel = Math.sqrt(
+                    Math.pow(from[o]!, 2) * (1 - f) + Math.pow(to[o]!, 2) * f,
+                );
+                out[o] = Math.min(Math.max(channel, 0), 255);
+            }
+            return;
+        case 'lab':
+        case 'oklab': {
+            const toRgb = mode === 'lab' ? labToRgb : oklabToRgb;
+            for (let o = 0; o < end; o += 3) {
+                toRgb(
+                    from[o]! + f * (to[o]! - from[o]!),
+                    from[o + 1]! + f * (to[o + 1]! - from[o + 1]!),
+                    from[o + 2]! + f * (to[o + 2]! - from[o + 2]!),
+                    out,
+                    o,
+                );
+            }
+            return;
+        }
+        default: {
+            const m = mode === 'lch' ? 'hcl' : mode;
+            for (let o = 0; o < end; o += 3) {
+                // mix into out, then convert in place
+                mixHues(
+                    from[o]!,
+                    from[o + 1]!,
+                    from[o + 2]!,
+                    to[o]!,
+                    to[o + 1]!,
+                    to[o + 2]!,
+                    f,
+                    m,
+                    out,
+                    o,
+                );
+                const hue = out[o]!;
+                const sat = out[o + 1]!;
+                const lbv = out[o + 2]!;
+                switch (m) {
+                    case 'hsl':
+                        hslToRgb(hue, sat, lbv, out, o);
+                        break;
+                    case 'hsv':
+                        hsvToRgb(hue, sat, lbv, out, o);
+                        break;
+                    case 'hsi':
+                        hsiToRgb(hue, sat, lbv, out, o);
+                        break;
+                    case 'hcl':
+                        hclToRgb(hue, sat, lbv, out, o);
+                        break;
+                    case 'oklch':
+                        oklchToRgb(lbv, sat, hue, out, o);
+                        break;
+                }
+            }
+        }
+    }
 }
 
 /**

@@ -103,6 +103,9 @@
         "Theme#getColor": {
             "code": "getColor(index?: number, options?: { brightness?: number }): Color;"
         },
+        "Theme#fillRgb": {
+            "code": "fillRgb<T extends Float32Array | Float64Array | number[]>(\n    out: T,\n    options?: FillRgbOptions,\n): T;"
+        },
         "Theme#update": {
             "code": "update(\n    options: {\n        colors: ColorInput[];\n        mode?: InterpolationMode;\n    } & ColorUpdateConfig,\n): void;"
         },
@@ -387,8 +390,26 @@
             "doc": "",
             "fields": []
         },
+        "FillRgbOptions": {
+            "code": "interface FillRgbOptions {\n    brightness?: number;\n    offset?: number;\n    max?: number;\n}",
+            "doc": "Options for Theme.fillRgb.",
+            "fields": [
+                {
+                    "name": "brightness",
+                    "doc": "Adjusts the brightness of every color, as getColor's brightness option does: it compounds with the\ntheme's brightness, in the theme's brightnessMode.\n0-1, defaults to 1. NaN counts as 1."
+                },
+                {
+                    "name": "offset",
+                    "doc": "Where in the array the first value goes.\nA whole number, 0 or more. Defaults to 0."
+                },
+                {
+                    "name": "max",
+                    "doc": "The value a channel at full intensity is written as.\nDefaults to 1, for values from 0 to 1. 255 writes chroma-js's 0-255 channel values, the ones\ngetColor(i).rgb(false) returns (unrounded).\nAnything that is not a finite number above 0 counts as 1."
+                }
+            ]
+        },
         "Theme": {
-            "code": "class Theme {\n    readonly nSteps: number;\n    readonly maxNumberOfColors: number;\n    readonly brightnessMode: BrightnessMode;\n    constructor(config?: ThemeConfig);\n    static random(config: ThemeConfig & { nColors: number }): Theme;\n    get palette(): ColorPalette;\n    set palette(palette: ColorPalette);\n    get targetPalette(): ColorPalette | undefined;\n    set targetPalette(palette: ColorPalette | undefined);\n    get mode(): InterpolationMode;\n    set mode(mode: InterpolationMode);\n    get transitionDistance(): number | undefined;\n    get isTransitioning(): boolean;\n    get activePalette(): Readonly<ColorPalette>;\n    get activePaletteHexes(): string[];\n    get brightness(): number;\n    set brightness(brightness: number);\n    subscribe(callback: ThemeUpdateCallback): ThemeUpdateEvent;\n    unsubscribe(callback: ThemeUpdateCallback): void;\n    getColor(index?: number, options?: { brightness?: number }): Color;\n    update(\n        options: {\n            colors: ColorInput[];\n            mode?: InterpolationMode;\n        } & ColorUpdateConfig,\n    ): void;\n    setMode(mode?: InterpolationMode, options?: ColorUpdateConfig): void;\n    rotateMode(options?: ColorUpdateConfig): void;\n    setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig): void;\n    randomFrom(\n        color: ColorInput,\n        options?: ColorUpdateConfig & RandomPaletteConfig,\n    ): void;\n    randomTheme(options?: ColorUpdateConfig & RandomPaletteConfig): void;\n    normalizeIndex(index?: number): number;\n    pushNewColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    pushRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    popOldestColor(options?: ColorUpdateConfig): void;\n    rotateColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    finishTransition(): void;\n    tick(n?: number): void;\n}",
+            "code": "class Theme {\n    readonly nSteps: number;\n    readonly maxNumberOfColors: number;\n    readonly brightnessMode: BrightnessMode;\n    constructor(config?: ThemeConfig);\n    static random(config: ThemeConfig & { nColors: number }): Theme;\n    get palette(): ColorPalette;\n    set palette(palette: ColorPalette);\n    get targetPalette(): ColorPalette | undefined;\n    set targetPalette(palette: ColorPalette | undefined);\n    get mode(): InterpolationMode;\n    set mode(mode: InterpolationMode);\n    get transitionDistance(): number | undefined;\n    get isTransitioning(): boolean;\n    get activePalette(): Readonly<ColorPalette>;\n    get activePaletteHexes(): string[];\n    get brightness(): number;\n    set brightness(brightness: number);\n    subscribe(callback: ThemeUpdateCallback): ThemeUpdateEvent;\n    unsubscribe(callback: ThemeUpdateCallback): void;\n    getColor(index?: number, options?: { brightness?: number }): Color;\n    fillRgb<T extends Float32Array | Float64Array | number[]>(\n        out: T,\n        options?: FillRgbOptions,\n    ): T;\n    update(\n        options: {\n            colors: ColorInput[];\n            mode?: InterpolationMode;\n        } & ColorUpdateConfig,\n    ): void;\n    setMode(mode?: InterpolationMode, options?: ColorUpdateConfig): void;\n    rotateMode(options?: ColorUpdateConfig): void;\n    setColors(colorInputs: ColorInput[], options?: ColorUpdateConfig): void;\n    randomFrom(\n        color: ColorInput,\n        options?: ColorUpdateConfig & RandomPaletteConfig,\n    ): void;\n    randomTheme(options?: ColorUpdateConfig & RandomPaletteConfig): void;\n    normalizeIndex(index?: number): number;\n    pushNewColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    pushRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    popOldestColor(options?: ColorUpdateConfig): void;\n    rotateColor(color: ColorInput, options?: ColorUpdateConfig): void;\n    rotateRandomColor(options?: ColorUpdateConfig & RandomColorConfig): void;\n    finishTransition(): void;\n    tick(n?: number): void;\n}",
             "doc": "A dynamic color theme that can be updated and transitioned between different color palettes.",
             "fields": [
                 {
@@ -450,6 +471,10 @@
                 {
                     "name": "getColor",
                     "doc": "Get the color at the given index in the theme.\nDuring a transition, the color is mixed when read, under chroma's Lab white point as it is then (see\nchroma.setLabWhitePoint), which mixing in lab, lch, hcl, oklab and oklch depends on. The palettes'\nown scale colors, which the theme shows at rest, keep the white point each palette was built under.\nBrightness below 1 in 'darken' mode is applied when read too, in CIELAB under the white point then.\n\n- `index`: The index of the color to get.\n- `options`: Options for the color generation.\n- `options.brightness`: Optionally adjust the brightness of the color. 0-1, defaults to 1. NaN counts as 1.\n\nReturns: The color at the given index."
+                },
+                {
+                    "name": "fillRgb",
+                    "doc": "Writes every color of the scale into an array, as getColor reads them: the red, green and blue values\nof getColor(i, { brightness }) for each index i from 0 to nSteps - 1, at out[offset + 3 * i],\nout[offset + 3 * i + 1] and out[offset + 3 * i + 2]. So the wheel position that tick() moves, a\ntransition in progress, and the theme's brightness and brightnessMode apply as they do there: out\nstarts with the color at step normalizeIndex(0). Alpha is not written, and nothing else in out\nchanges.\n\nThe values are getColor(i, { brightness }).rgb(false) divided by 255, exactly: 0 to 1, for LED\npipelines that work in floats. Pass max: 255 for the 0-255 channels themselves. A Float32Array holds\nthem rounded to single precision.\n\nMade for filling a lookup table on every frame: it builds no chroma-js Color. At rest, it reads the\ncolors from a buffer kept per palette. During a transition, it mixes them and converts them to sRGB in\nbuffers the theme reuses, once per tick however many times it is called, with arithmetic that mirrors\nchroma-js's. The first fill after a palette change converts the new colors once. In 'darken' mode, it\nkeeps the colors darkened by the theme's brightness, and those darkened by the most recent brightness\noption. So a brightness option that changes from one call to the next (a fade, or two lookup tables at\ndifferent brightnesses) darkens every color again on each call, as every tick of a transition does:\nabout five times as fast as getColor, rather than ten or more.\n\nIf chroma.setLabWhitePoint has moved chroma-js off its default white point, D65, it reads each color\nwith getColor instead. One case still differs: during a transition in lab, lch, hcl, oklab or oklch,\ngetColor keeps the coordinates it reads for each color until the transition ends, so if the white point\nchanges and changes back midway, the colors getColor read under the other white point stay that way,\nand fillRgb's do not.\n\nThrows a RangeError, writing nothing, when offset is not a whole number of 0 or more or out is too\nshort.\n\n- `out`: The array to fill: room for nSteps * 3 values from offset.\n- `options`: Options for the fill.\n\nReturns: out."
                 },
                 {
                     "name": "update",
