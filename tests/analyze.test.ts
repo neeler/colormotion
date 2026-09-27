@@ -213,6 +213,14 @@ describe('cases', () => {
         });
     }
 
+    test('reports near-duplicates as shown: two dark reds a floor lifts to one red', () => {
+        expect(analyzeTheme(['#300000', '#180000']).duplicates).toEqual([]);
+        expect(
+            analyzeTheme(['#300000', '#180000'], { minBrightness: FLOOR })
+                .duplicates,
+        ).toEqual([[0, 1]]);
+    });
+
     test('black is neutral, at a minBrightness of 0 and lifted to grey', () => {
         for (const minBrightness of [0, FLOOR]) {
             const analysis = analyzeTheme(['#000000', '#ff0000'], {
@@ -298,6 +306,36 @@ describe('groups', () => {
         ]) {
             const analysis = analyzeTheme(colors);
             expect(analysis.groups).toHaveLength(2);
+        }
+    });
+
+    test('chain a ring of hues less than familyJoin apart all the way round into one group, from after its widest gap', () => {
+        // 13 hues 27.6° apart, but for one gap of 29° (from the sixth to the seventh)
+        const hues = Array.from(
+            { length: 13 },
+            (_, i) => 10 + 27.583 * i + (i > 5 ? 29 - 27.583 : 0),
+        );
+        for (const turn of [0, 100, 250]) {
+            const analysis = analyzeTheme(hues.map((hue) => at(hue + turn)));
+            expect(analysis.relationship).toBe('family');
+            expect(analysis.groups).toHaveLength(1);
+            expect(analysis.groups[0]!.members).toEqual([
+                6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5,
+            ]);
+            // the mean of the hues along the chain, which starts after the widest gap
+            const along = [
+                ...hues.slice(6),
+                ...hues.slice(0, 6).map((hue) => hue + 360),
+            ];
+            const mean = along.reduce((sum, hue) => sum + hue, 0) / 13;
+            expect(hueDifference(analysis.anchor!, mean + turn)).toBeCloseTo(
+                0,
+                6,
+            );
+            expect(analysis.groups[0]!.span).toBeCloseTo(
+                along[12]! - along[0]!,
+                6,
+            );
         }
     });
 
