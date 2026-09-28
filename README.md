@@ -429,7 +429,7 @@ up to 100. Where the slots are too narrow for that (two groups a few degrees wid
 say), every color pays all 100 candidates, 300 calls to `random`, and `randomLike` pays that for each color
 of each attempt: up to 33,680 calls for 8 colors. `candidateBudget` bounds the whole call: each attempt may
 use half of what is left of it, shared by its colors, and a color that runs out keeps the furthest candidate
-it found. At 1000, palettes are about as far apart as without it, and 8 colors take at most 3,416 calls:
+it found. At 1000, 8 colors take at most 3,416 calls:
 
 ```typescript
 const { colors } = randomLike(analysis, {
@@ -439,9 +439,17 @@ const { colors } = randomLike(analysis, {
 });
 ```
 
+The bound costs some spacing where the threshold is hard to reach. At 1000, the first attempt of up to 5
+colors is the one drawn without a budget, but 8 colors share 500 in it, about 72 candidates for each color
+after the first, so a few that would have reached the threshold within 100 do not. And since each attempt may
+use half of what is left, a palette verified only after several attempts may keep neighbours close: in the
+costliest case known (olive and green grown to 8 colors at a `minBrightness` of 0.8), 1 or 2 palettes in 100
+have neighbours within 5 ΔE of each other, which none has without a budget.
+
 The random palette methods take it too, shared by the colors they draw, and so does `randomColor`, though a
-single color never looks at more than 100 candidates. Left out, every draw is as in 4.2; given, a color that
-stops short leaves `random` elsewhere, so a seeded `random` draws differently after it.
+single color never looks at more than 100 candidates: from 99, a budget changes one only where no distance
+can be measured (see `RandomColorOptions.candidateBudget`). Left out, every draw is as in 4.2; given, a color
+that stops short leaves `random` elsewhere, so a seeded `random` draws differently after it.
 
 With no theme to start from, `relationshipTemplate(kind, { nColors })` draws a template of a kind, and
 `randomLike` a palette from it:
