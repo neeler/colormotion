@@ -233,7 +233,7 @@
             ]
         },
         "RandomPaletteConfig": {
-            "code": "interface RandomPaletteConfig {\n    nColors?: number;\n    minBrightness?: number;\n    constraints?: ColorConstraints;\n}",
+            "code": "interface RandomPaletteConfig {\n    nColors?: number;\n    minBrightness?: number;\n    constraints?: ColorConstraints;\n    candidateBudget?: number;\n}",
             "doc": "",
             "fields": [
                 {
@@ -247,11 +247,15 @@
                 {
                     "name": "constraints",
                     "doc": "Limits on the random colors' OKLCH hue and relative chroma (see ColorConstraint): one constraint for\nevery color, or a list with one for each position in the palette (a missing entry counts as {}).\nEach method says which position a color it draws takes.\nGiven (even {}), the colors are drawn in OKLCH, as randomColor draws them with a constraint. Left out,\nthey are drawn in HSV exactly as in 4.0, so a seeded random draws the colors it drew then."
+                },
+                {
+                    "name": "candidateBudget",
+                    "doc": "The most candidates the method looks at beyond the first of each color it keeps deltaEThreshold from its\nneighbours (three calls to random each): shared evenly by those colors in the order they are drawn, a\ncolor passing what it does not use to the colors after it (see RandomLikeOptions.candidateBudget). A\ncolor never looks at more than 100, so a budget of 99 or more for each such color changes nothing. Left\nout (or NaN), up to 100 candidates each, as in 4.2."
                 }
             ]
         },
         "RandomColorConfig": {
-            "code": "interface RandomColorConfig extends Pick<\n    RandomPaletteConfig,\n    'minBrightness' | 'constraints'\n> {}",
+            "code": "interface RandomColorConfig extends Pick<\n    RandomPaletteConfig,\n    'minBrightness' | 'constraints' | 'candidateBudget'\n> {}",
             "doc": "",
             "fields": [
                 {
@@ -261,6 +265,10 @@
                 {
                     "name": "constraints",
                     "doc": "Limits on the random colors' OKLCH hue and relative chroma (see ColorConstraint): one constraint for\nevery color, or a list with one for each position in the palette (a missing entry counts as {}).\nEach method says which position a color it draws takes.\nGiven (even {}), the colors are drawn in OKLCH, as randomColor draws them with a constraint. Left out,\nthey are drawn in HSV exactly as in 4.0, so a seeded random draws the colors it drew then."
+                },
+                {
+                    "name": "candidateBudget",
+                    "doc": "The most candidates the method looks at beyond the first of each color it keeps deltaEThreshold from its\nneighbours (three calls to random each): shared evenly by those colors in the order they are drawn, a\ncolor passing what it does not use to the colors after it (see RandomLikeOptions.candidateBudget). A\ncolor never looks at more than 100, so a budget of 99 or more for each such color changes nothing. Left\nout (or NaN), up to 100 candidates each, as in 4.2."
                 }
             ]
         },
@@ -282,7 +290,7 @@
                 },
                 {
                     "name": "static random",
-                    "doc": "Returns a new random palette with the specified number of colors.\nDefaults to 5 colors.\nEach color after the first is drawn at least deltaEThreshold (CIEDE2000) from the one before it.\nThe color at position i meets constraints[i] (or the one constraint given for every color)."
+                    "doc": "Returns a new random palette with the specified number of colors.\nDefaults to 5 colors.\nEach color after the first is drawn at least deltaEThreshold (CIEDE2000) from the one before it.\nThe color at position i meets constraints[i] (or the one constraint given for every color).\nWith a candidateBudget, the colors after the first share it (see RandomPaletteConfig.candidateBudget)."
                 },
                 {
                     "name": "ageOrder",
@@ -306,11 +314,11 @@
                 },
                 {
                     "name": "randomizeFrom",
-                    "doc": "Randomizes the palette starting with the input color.\nMaintains the number of colors in the palette.\nEach random color is drawn at least deltaEThreshold (CIEDE2000) from the one before it.\n\n- `seed`: The color to start with, at position 0. It is kept as it is (it meets no constraint), lifted\nto minBrightness if it is darker.\n- `options`: Options for randomizing the palette. The random color at position i (from 1) meets\nconstraints[i] (or the one constraint given for every color).\n\nReturns: A new palette with randomized colors."
+                    "doc": "Randomizes the palette starting with the input color.\nMaintains the number of colors in the palette.\nEach random color is drawn at least deltaEThreshold (CIEDE2000) from the one before it.\n\n- `seed`: The color to start with, at position 0. It is kept as it is (it meets no constraint), lifted\nto minBrightness if it is darker.\n- `options`: Options for randomizing the palette. The random color at position i (from 1) meets\nconstraints[i] (or the one constraint given for every color). With a candidateBudget, the random colors\nshare it (see RandomPaletteConfig.candidateBudget).\n\nReturns: A new palette with randomized colors."
                 },
                 {
                     "name": "randomize",
-                    "doc": "Randomizes the whole palette.\nMaintains the number of colors in the palette.\nDraws the first color, then the others as randomizeFrom does. The color at position i meets\nconstraints[i] (or the one constraint given for every color)."
+                    "doc": "Randomizes the whole palette.\nMaintains the number of colors in the palette.\nDraws the first color, then the others as randomizeFrom does. The color at position i meets\nconstraints[i] (or the one constraint given for every color). With a candidateBudget, the colors after\nthe first share it, as in randomizeFrom."
                 },
                 {
                     "name": "push",
@@ -318,7 +326,7 @@
                 },
                 {
                     "name": "pushRandom",
-                    "doc": "Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the\ncurrent last color. The new color meets constraints[nColors], the constraint for the position it takes\n(or the one constraint given for every color)."
+                    "doc": "Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the\ncurrent last color. The new color meets constraints[nColors], the constraint for the position it takes\n(or the one constraint given for every color). With a candidateBudget, no more than 1 + candidateBudget\ncandidates are looked at (never more than 100)."
                 },
                 {
                     "name": "popOldest",
@@ -330,7 +338,7 @@
                 },
                 {
                     "name": "rotateRandomOn",
-                    "doc": "Replaces the oldest color with a random color, as rotateOn does. The new color is drawn at least\ndeltaEThreshold (CIEDE2000) from both of the colors it will sit between around the wheel: in a\npalette of two, the other color, and in a palette of one, the color it replaces. If no candidate\nqualifies within a bounded number of draws, the one furthest from the nearer of them is used.\nThe new color meets constraints[ageOrder[0]], the constraint for the position it replaces (or the one\nconstraint given for every color), so the colors a palette of picks rotates in stay near each pick.\n\nTo shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending\na random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same\nrandom, it draws the same colors as before 4.0, for a palette of two or more colors whose ages are\nin list order (as they are when its colors are only ever set from lists, pushed or popped). A single\ncolor gains a second."
+                    "doc": "Replaces the oldest color with a random color, as rotateOn does. The new color is drawn at least\ndeltaEThreshold (CIEDE2000) from both of the colors it will sit between around the wheel: in a\npalette of two, the other color, and in a palette of one, the color it replaces. If no candidate\nqualifies within a bounded number of draws, the one furthest from the nearer of them is used.\nThe new color meets constraints[ageOrder[0]], the constraint for the position it replaces (or the one\nconstraint given for every color), so the colors a palette of picks rotates in stay near each pick.\nWith a candidateBudget, no more than 1 + candidateBudget candidates are looked at (never more than 100).\n\nTo shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending\na random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same\nrandom, it draws the same colors as before 4.0, for a palette of two or more colors whose ages are\nin list order (as they are when its colors are only ever set from lists, pushed or popped). A single\ncolor gains a second."
                 }
             ]
         },
@@ -340,7 +348,7 @@
             "fields": []
         },
         "InitialThemeColors": {
-            "code": "type InitialThemeColors =\n    | {\n          palette?: ColorPalette;\n      }\n    | {\n          colors?: ColorInput[];\n      }\n    | {\n          nColors?: number;\n          minBrightness?: number;\n          constraints?: ColorConstraints;\n      };",
+            "code": "type InitialThemeColors =\n    | {\n          palette?: ColorPalette;\n      }\n    | {\n          colors?: ColorInput[];\n      }\n    | {\n          nColors?: number;\n          minBrightness?: number;\n          constraints?: ColorConstraints;\n          candidateBudget?: number;\n      };",
             "doc": "",
             "fields": [
                 {
@@ -362,6 +370,10 @@
                 {
                     "name": "constraints",
                     "doc": "Limits on the random colors' OKLCH hue and relative chroma: one constraint for every color, or a\nlist with one for each position (see RandomPaletteConfig.constraints and ColorPalette.random).\nLeft out, the colors are drawn in HSV, as in 4.0."
+                },
+                {
+                    "name": "candidateBudget",
+                    "doc": "The most candidates the random colors look at beyond the first of each, while keeping each\ndeltaEThreshold from the one before it (see RandomPaletteConfig.candidateBudget and\nColorPalette.random). Left out, up to 100 candidates each, as in 4.2."
                 }
             ]
         },
@@ -555,11 +567,11 @@
                 },
                 {
                     "name": "randomFrom",
-                    "doc": "Randomize the colors of the theme based on a seed color.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe seed color is the oldest, so rotations start again from it.\nWith constraints, the random color at position i (from 1) meets constraints[i]; the seed is kept as it\nis (see ColorPalette.randomizeFrom)."
+                    "doc": "Randomize the colors of the theme based on a seed color.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe seed color is the oldest, so rotations start again from it.\nWith constraints, the random color at position i (from 1) meets constraints[i]; the seed is kept as it\nis (see ColorPalette.randomizeFrom). With candidateBudget, the random colors share it (see\nColorPalette.randomizeFrom)."
                 },
                 {
                     "name": "randomTheme",
-                    "doc": "Randomize the colors of the theme.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe new colors' order is their age order, so rotations start again from the first.\nWith constraints, the color at position i meets constraints[i] (see ColorPalette.randomize)."
+                    "doc": "Randomize the colors of the theme.\nDefaults to the same number of colors as the current palette.\nMax number of colors defined in the theme config is respected.\nThe new colors' order is their age order, so rotations start again from the first.\nWith constraints, the color at position i meets constraints[i] (see ColorPalette.randomize). With\ncandidateBudget, the colors after the first share it (see ColorPalette.randomizeFrom)."
                 },
                 {
                     "name": "normalizeIndex",
@@ -571,7 +583,7 @@
                 },
                 {
                     "name": "pushRandomColor",
-                    "doc": "Push a random color to the end of the active palette, as its newest color, drawn at least\ndeltaEThreshold (CIEDE2000) from the current last color (see ColorPalette.pushRandom).\nWith constraints, it meets the constraint for the position it takes, constraints[nColors].\nAdds nothing if the palette already has maxNumberOfColors colors."
+                    "doc": "Push a random color to the end of the active palette, as its newest color, drawn at least\ndeltaEThreshold (CIEDE2000) from the current last color (see ColorPalette.pushRandom).\nWith constraints, it meets the constraint for the position it takes, constraints[nColors].\nWith candidateBudget, it looks at no more than 1 + candidateBudget candidates (see\nColorPalette.pushRandom).\nAdds nothing if the palette already has maxNumberOfColors colors."
                 },
                 {
                     "name": "popOldestColor",
@@ -583,7 +595,7 @@
                 },
                 {
                     "name": "rotateRandomColor",
-                    "doc": "Replace the oldest color of the active palette with a random color, as rotateColor does, drawn at\nleast deltaEThreshold (CIEDE2000) from both of the colors it will sit between on the wheel (see\nColorPalette.rotateRandomOn). With constraints, it meets the constraint for the position it replaces,\nconstraints[activePalette.ageOrder[0]].\n\nTo shift the colors instead, as rotateRandomColor did before 4.0 (dropping the first color and\nappending a random color drawn deltaEThreshold from the last):\nsetColors(activePalette.popOldest().pushRandom({ minBrightness }).colors, options). With the same\nrandom, it draws the same colors as before 4.0, as long as the colors are only ever set from lists,\npushed or popped, so that their ages stay in list order; a single color gains a second."
+                    "doc": "Replace the oldest color of the active palette with a random color, as rotateColor does, drawn at\nleast deltaEThreshold (CIEDE2000) from both of the colors it will sit between on the wheel (see\nColorPalette.rotateRandomOn). With constraints, it meets the constraint for the position it replaces,\nconstraints[activePalette.ageOrder[0]]. With candidateBudget, it looks at no more than\n1 + candidateBudget candidates (see ColorPalette.rotateRandomOn).\n\nTo shift the colors instead, as rotateRandomColor did before 4.0 (dropping the first color and\nappending a random color drawn deltaEThreshold from the last):\nsetColors(activePalette.popOldest().pushRandom({ minBrightness }).colors, options). With the same\nrandom, it draws the same colors as before 4.0, as long as the colors are only ever set from lists,\npushed or popped, so that their ages stay in list order; a single color gains a second."
                 },
                 {
                     "name": "finishTransition",
@@ -665,7 +677,7 @@
             "fields": []
         },
         "RandomColorOptions": {
-            "code": "interface RandomColorOptions {\n    random?: RandomFunction;\n    minBrightness?: number;\n    constraint?: ColorConstraint;\n    awayFrom?: readonly ColorInput[];\n    deltaEThreshold?: number;\n}",
+            "code": "interface RandomColorOptions {\n    random?: RandomFunction;\n    minBrightness?: number;\n    constraint?: ColorConstraint;\n    awayFrom?: readonly ColorInput[];\n    deltaEThreshold?: number;\n    candidateBudget?: number;\n}",
             "doc": "Options for randomColor.",
             "fields": [
                 {
@@ -682,11 +694,15 @@
                 },
                 {
                     "name": "awayFrom",
-                    "doc": "Colors to keep deltaEThreshold (CIEDE2000) from: candidates are drawn until one is at least that far from\nevery one of them, up to 100 candidates; if none is, the one furthest from its nearest is used. The\nconstraint always holds; the distance is best effort."
+                    "doc": "Colors to keep deltaEThreshold (CIEDE2000) from: candidates are drawn until one is at least that far from\nevery one of them, up to 100 candidates (fewer with candidateBudget); if none is, the one furthest from\nits nearest is used. The constraint always holds; the distance is best effort."
                 },
                 {
                     "name": "deltaEThreshold",
                     "doc": "The distance to keep from awayFrom. Defaults to DEFAULT_DELTA_E_THRESHOLD (20)."
+                },
+                {
+                    "name": "candidateBudget",
+                    "doc": "The most candidates the search for a color deltaEThreshold from awayFrom looks at beyond its first (each\ntakes three calls to random), so 0 takes the first candidate. The candidates are the first of those the\nsearch looks at without a budget, in the same order: a color that reaches the threshold within the\nbudget is the same color, and otherwise the furthest candidate so far is used. A color never looks at\nmore than 100, so only a budget under 99 changes randomColor; it matters for randomLike and the random\npalette methods, where one budget is shared by every color a call draws (see\nRandomLikeOptions.candidateBudget). Left out (or NaN), up to 100 candidates, as in 4.2. Below 0 counts\nas 0."
                 }
             ]
         },
@@ -903,7 +919,7 @@
             ]
         },
         "RandomLikeOptions": {
-            "code": "interface RandomLikeOptions {\n    random?: RandomFunction;\n    minBrightness?: number;\n    deltaEThreshold?: number;\n    anchor?: number | HueRange | readonly HueRange[];\n    mirror?: boolean;\n    avoid?: readonly HueRange[];\n    attempts?: number;\n    nColors?: number;\n}",
+            "code": "interface RandomLikeOptions {\n    random?: RandomFunction;\n    minBrightness?: number;\n    deltaEThreshold?: number;\n    anchor?: number | HueRange | readonly HueRange[];\n    mirror?: boolean;\n    avoid?: readonly HueRange[];\n    attempts?: number;\n    nColors?: number;\n    candidateBudget?: number;\n}",
             "doc": "Options for randomLike.",
             "fields": [
                 {
@@ -937,6 +953,10 @@
                 {
                     "name": "nColors",
                     "doc": "For an analysis: the number of colors (see TemplateOptions.nColors). Ignored for a template."
+                },
+                {
+                    "name": "candidateBudget",
+                    "doc": "A bound on what keeping the colors deltaEThreshold apart costs: the most candidates the call looks at\nbeyond the first of each color it draws (three calls to random each). Each attempt may use half of what\nis left of it, shared evenly by the attempt's colors in slot order, a color passing what it does not use\nto the colors after it; a color stops at the first candidate that reaches the threshold, as without a\nbudget, or keeps the furthest candidate it looked at. The calls to random are then at most\nattempts × (2 + 3 × colors) + 3 × candidateBudget: 3,416 for 8 colors and a budget of 1000, against\n33,680 without one. 1000 keeps palettes about as far apart as without a budget. Left out (or NaN), each\ncolor looks at up to 100 candidates, as in 4.2: a threshold out of reach (narrow slots at a high\nminBrightness) then costs all 100 for every color of every attempt."
                 }
             ]
         },

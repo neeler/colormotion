@@ -14,6 +14,7 @@ import {
     HueRange,
     randomColor,
 } from './constraints';
+import { budgetOf, drawAwayFrom, startRound } from './draw';
 import {
     HueSet,
     distanceToHues,
@@ -153,6 +154,18 @@ export interface RandomLikeOptions {
     attempts?: number;
     /** For an analysis: the number of colors (see TemplateOptions.nColors). Ignored for a template. */
     nColors?: number;
+    /**
+     * A bound on what keeping the colors deltaEThreshold apart costs: the most candidates the call looks at
+     * beyond the first of each color it draws (three calls to random each). Each attempt may use half of what
+     * is left of it, shared evenly by the attempt's colors in slot order, a color passing what it does not use
+     * to the colors after it; a color stops at the first candidate that reaches the threshold, as without a
+     * budget, or keeps the furthest candidate it looked at. The calls to random are then at most
+     * attempts × (2 + 3 × colors) + 3 × candidateBudget: 3,416 for 8 colors and a budget of 1000, against
+     * 33,680 without one. 1000 keeps palettes about as far apart as without a budget. Left out (or NaN), each
+     * color looks at up to 100 candidates, as in 4.2: a threshold out of reach (narrow slots at a high
+     * minBrightness) then costs all 100 for every color of every attempt.
+     */
+    candidateBudget?: number;
 }
 
 /**
@@ -201,6 +214,8 @@ const TINT_WIDTH = 60;
 /** Degrees kept spare in the caps on widths, so hues measured a hair off never cross a threshold. */
 const CAP_MARGIN = 1e-3;
 const DEFAULT_ATTEMPTS = 16;
+/** The share of what is left of a candidateBudget that each attempt of randomLike may use. */
+const ATTEMPT_SHARE = 0.5;
 
 /** Template options with defaults filled in. */
 function templateOptions(options: TemplateOptions, hueWidth: number) {
@@ -1092,6 +1107,11 @@ function clearAnchors(
  * turned into a template with a base half-width of 8° (and nColors). A neutral source's slots never rotate:
  * they are drawn in place, and verified.
  *
+ * With a candidateBudget, the colors of every attempt share it: each attempt may use half of what is left, so
+ * the calls to random are at most attempts × (2 + 3 × colors) + 3 × candidateBudget, and attempts: 1 still
+ * replays the first attempt exactly. A color that stops short leaves random elsewhere, so what is drawn after
+ * it differs from what is drawn without a budget.
+ *
  * The result is a pure function of the inputs and random.
  */
 export function randomLike(
@@ -1105,6 +1125,7 @@ export function randomLike(
         avoid = [],
         attempts = DEFAULT_ATTEMPTS,
         nColors,
+        candidateBudget,
     }: RandomLikeOptions = {},
 ): RandomLikeResult {
     const template = isTemplate(source)
@@ -1117,8 +1138,14 @@ export function randomLike(
             : options.minBrightness;
     const tries = slotCount(attempts, 1, DEFAULT_ATTEMPTS);
     const n = template.slots.length;
+    // one budget for the whole call, shared by every color of every attempt
+    const budget = budgetOf(candidateBudget);
 
-    const drawColors = (constraints: ColorConstraint[]) => {
+    const drawColors = (constraints: ColorConstraint[], share: number) => {
+        if (budget) {
+            // this attempt may use its share of what is left, shared evenly by its colors
+            startRound(budget, n, share);
+        }
         const colors: Color[] = [];
         for (let i = 0; i < n; i++) {
             const awayFrom =
@@ -1128,13 +1155,21 @@ export function randomLike(
                       ? [colors[i - 1]!, colors[0]!]
                       : [colors[i - 1]!];
             colors.push(
-                randomColor({
-                    random,
-                    minBrightness: floor,
-                    constraint: constraints[i],
-                    awayFrom,
-                    deltaEThreshold,
-                }),
+                budget
+                    ? drawAwayFrom(awayFrom, {
+                          random,
+                          minBrightness: floor,
+                          constraint: constraints[i],
+                          deltaEThreshold,
+                          budget,
+                      })
+                    : randomColor({
+                          random,
+                          minBrightness: floor,
+                          constraint: constraints[i],
+                          awayFrom,
+                          deltaEThreshold,
+                      }),
             );
         }
         return colors;
@@ -1152,7 +1187,7 @@ export function randomLike(
         // nothing rotates: the slots are drawn in place
         const constraints = templateConstraints(template, fixed ?? 0);
         return {
-            colors: drawColors(constraints),
+            colors: drawColors(constraints, 1),
             anchor: fixed ?? 0,
             mirrored: false,
             constraints,
@@ -1187,7 +1222,7 @@ export function randomLike(
             mirrored,
             avoid,
         });
-        const colors = drawColors(constraints);
+        const colors = drawColors(constraints, ATTEMPT_SHARE);
         const analysis = analyzeTheme(colors, options);
         // as drawn, and as most colors are shown: rounded to 8 bits
         const rounded = analyzeTheme(
