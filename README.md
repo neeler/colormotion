@@ -286,7 +286,7 @@ theme.rotateRandomColor({ constraints: nearEachPick });
 
 To draw one color, use `randomColor`. `awayFrom` keeps it at least `deltaEThreshold` (CIEDE2000, 20 by
 default) from other colors, as the random methods keep a new color from its neighbours: best effort, up to
-100 candidates, then the furthest of them.
+100 candidates (fewer with `candidateBudget`), then the furthest of them.
 
 ```typescript
 import { randomColor } from 'colormotion';
@@ -423,6 +423,25 @@ const { colors, constraints } = randomLike(analysis, {
 theme.setColors(colors);
 theme.rotateRandomColor({ minBrightness: 0.5, constraints });
 ```
+
+Each color is kept `deltaEThreshold` from its neighbours by drawing candidates until one is far enough,
+up to 100. Where the slots are too narrow for that (two groups a few degrees wide at a high `minBrightness`,
+say), every color pays all 100 candidates, 300 calls to `random`, and `randomLike` pays that for each color
+of each attempt: up to 33,680 calls for 8 colors. `candidateBudget` bounds the whole call: each attempt may
+use half of what is left of it, shared by its colors, and a color that runs out keeps the furthest candidate
+it found. At 1000, palettes are about as far apart as without it, and 8 colors take at most 3,416 calls:
+
+```typescript
+const { colors } = randomLike(analysis, {
+    minBrightness: 0.8,
+    candidateBudget: 1000,
+    random: seededRandom(42),
+});
+```
+
+The random palette methods take it too, shared by the colors they draw, and so does `randomColor`, though a
+single color never looks at more than 100 candidates. Left out, every draw is as in 4.2; given, a color that
+stops short leaves `random` elsewhere, so a seeded `random` draws differently after it.
 
 With no theme to start from, `relationshipTemplate(kind, { nColors })` draws a template of a kind, and
 `randomLike` a palette from it:
