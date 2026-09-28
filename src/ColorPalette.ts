@@ -5,7 +5,13 @@ import {
     getNextInterpolationMode,
 } from './InterpolationMode';
 import type { ColorConstraints } from './constraints';
-import { constraintAt, drawAwayFrom, drawColor } from './draw';
+import {
+    budgetOf,
+    constraintAt,
+    drawAwayFrom,
+    drawColor,
+    startRound,
+} from './draw';
 import { sampleScale } from './interpolate';
 import { sameOrder } from './sameOrder';
 
@@ -96,11 +102,21 @@ export interface RandomPaletteConfig {
      * they are drawn in HSV exactly as in 4.0, so a seeded random draws the colors it drew then.
      */
     constraints?: ColorConstraints;
+    /**
+     * The most candidates the method looks at beyond the first of each color it keeps deltaEThreshold from its
+     * neighbours (three calls to random each): shared evenly by those colors in the order they are drawn, a
+     * color passing what it does not use to the colors after it (see RandomLikeOptions.candidateBudget). A
+     * color never looks at more than 100, so a budget of 99 or more for each such color changes nothing,
+     * unless no candidate's distance is a number (a NaN minBrightness without constraints, say): the first
+     * candidate is then kept, where without a budget a 101st is drawn. Left out (or NaN), up to 100
+     * candidates each, as in 4.2.
+     */
+    candidateBudget?: number;
 }
 
 export interface RandomColorConfig extends Pick<
     RandomPaletteConfig,
-    'minBrightness' | 'constraints'
+    'minBrightness' | 'constraints' | 'candidateBudget'
 > {}
 
 /**
@@ -208,17 +224,25 @@ export class ColorPalette {
      * Defaults to 5 colors.
      * Each color after the first is drawn at least deltaEThreshold (CIEDE2000) from the one before it.
      * The color at position i meets constraints[i] (or the one constraint given for every color).
+     * With a candidateBudget, the colors after the first share it (see RandomPaletteConfig.candidateBudget).
      */
     static random({
         nColors = 5,
         minBrightness = 0,
         constraints,
+        candidateBudget,
         ...config
     }: Omit<ColorPaletteConfig, 'colors' | 'normalizedColors'> &
         RandomPaletteConfig) {
         const random = config.random ?? Math.random;
         const deltaEThreshold =
             config.deltaEThreshold ?? DEFAULT_DELTA_E_THRESHOLD;
+        const budget = budgetOf(candidateBudget);
+        if (budget) {
+            // shared by the colors after the first, each kept from the one before it: the loop below draws
+            // ceil(nColors) − 1 of them
+            startRound(budget, Math.ceil(nColors) - 1);
+        }
 
         let lastColor = drawColor(
             constraintAt(constraints, 0),
@@ -233,6 +257,7 @@ export class ColorPalette {
                 deltaEThreshold,
                 random,
                 constraint: constraintAt(constraints, colors.length),
+                budget,
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -487,7 +512,8 @@ export class ColorPalette {
      * @param seed The color to start with, at position 0. It is kept as it is (it meets no constraint), lifted
      * to minBrightness if it is darker.
      * @param options Options for randomizing the palette. The random color at position i (from 1) meets
-     * constraints[i] (or the one constraint given for every color).
+     * constraints[i] (or the one constraint given for every color). With a candidateBudget, the random colors
+     * share it (see RandomPaletteConfig.candidateBudget).
      * @returns A new palette with randomized colors.
      */
     randomizeFrom(
@@ -496,8 +522,14 @@ export class ColorPalette {
             nColors = this.nColors,
             minBrightness = 0,
             constraints,
+            candidateBudget,
         }: RandomPaletteConfig = {},
     ) {
+        const budget = budgetOf(candidateBudget);
+        if (budget) {
+            // shared by the colors after the seed: the loop below draws ceil(nColors) − 1 of them
+            startRound(budget, Math.ceil(nColors) - 1);
+        }
         let lastColor = chroma(seed);
         if (lastColor.get('hsv.v') < minBrightness) {
             lastColor = lastColor.set('hsv.v', minBrightness);
@@ -510,6 +542,7 @@ export class ColorPalette {
                 deltaEThreshold: this.deltaEThreshold,
                 random: this.random,
                 constraint: constraintAt(constraints, colors.length),
+                budget,
             });
             colors.push(nextColor);
             lastColor = nextColor;
@@ -522,16 +555,18 @@ export class ColorPalette {
      * Randomizes the whole palette.
      * Maintains the number of colors in the palette.
      * Draws the first color, then the others as randomizeFrom does. The color at position i meets
-     * constraints[i] (or the one constraint given for every color).
+     * constraints[i] (or the one constraint given for every color). With a candidateBudget, the colors after
+     * the first share it, as in randomizeFrom.
      */
     randomize({
         minBrightness = 0,
         nColors = this.nColors,
         constraints,
+        candidateBudget,
     }: RandomPaletteConfig = {}) {
         return this.randomizeFrom(
             drawColor(constraintAt(constraints, 0), this.random, minBrightness),
-            { nColors, minBrightness, constraints },
+            { nColors, minBrightness, constraints, candidateBudget },
         );
     }
 
@@ -555,16 +590,18 @@ export class ColorPalette {
     /**
      * Adds a random color at the end, as push does, drawn at least deltaEThreshold (CIEDE2000) from the
      * current last color. The new color meets constraints[nColors], the constraint for the position it takes
-     * (or the one constraint given for every color).
+     * (or the one constraint given for every color). With a candidateBudget, no more than 1 + candidateBudget
+     * candidates are looked at (never more than 100).
      */
     pushRandom(randomColorConfig: RandomColorConfig = {}) {
-        const { constraints, ...config } = randomColorConfig;
+        const { constraints, candidateBudget, ...config } = randomColorConfig;
         return this.push(
             drawAwayFrom([this.colors[this.nColors - 1]!], {
                 deltaEThreshold: this.deltaEThreshold,
                 random: this.random,
                 ...config,
                 constraint: constraintAt(constraints, this.nColors),
+                budget: budgetOf(candidateBudget),
             }),
         );
     }
@@ -616,6 +653,7 @@ export class ColorPalette {
      * qualifies within a bounded number of draws, the one furthest from the nearer of them is used.
      * The new color meets constraints[ageOrder[0]], the constraint for the position it replaces (or the one
      * constraint given for every color), so the colors a palette of picks rotates in stay near each pick.
+     * With a candidateBudget, no more than 1 + candidateBudget candidates are looked at (never more than 100).
      *
      * To shift the colors instead, as rotateRandomOn did before 4.0 (dropping the first color and appending
      * a random color drawn deltaEThreshold from the last): popOldest().pushRandom(options). With the same
@@ -624,7 +662,7 @@ export class ColorPalette {
      * color gains a second.
      */
     rotateRandomOn(options?: RandomColorConfig) {
-        const { constraints, ...config } = options ?? {};
+        const { constraints, candidateBudget, ...config } = options ?? {};
         const n = this.nColors;
         const oldest = this._ageOrder[0]!;
         const previous = this.colors[(oldest + n - 1) % n]!;
@@ -635,6 +673,7 @@ export class ColorPalette {
                 random: this.random,
                 ...config,
                 constraint: constraintAt(constraints, oldest),
+                budget: budgetOf(candidateBudget),
             }),
         );
     }

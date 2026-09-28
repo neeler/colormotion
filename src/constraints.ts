@@ -4,7 +4,7 @@ import {
     DEFAULT_DELTA_E_THRESHOLD,
     RandomFunction,
 } from './ColorPalette';
-import { drawAwayFrom } from './draw';
+import { budgetOf, drawAwayFrom } from './draw';
 import { measureColor } from './gamut';
 import { allowedHues, chromaBounds, distanceToHues } from './hueArcs';
 import { safeMod } from './safeMod';
@@ -101,12 +101,27 @@ export interface RandomColorOptions {
     constraint?: ColorConstraint;
     /**
      * Colors to keep deltaEThreshold (CIEDE2000) from: candidates are drawn until one is at least that far from
-     * every one of them, up to 100 candidates; if none is, the one furthest from its nearest is used. The
-     * constraint always holds; the distance is best effort.
+     * every one of them, up to 100 candidates (fewer with candidateBudget); if none is, the one furthest from
+     * its nearest is used. The constraint always holds; the distance is best effort.
      */
     awayFrom?: readonly ColorInput[];
     /** The distance to keep from awayFrom. Defaults to DEFAULT_DELTA_E_THRESHOLD (20). */
     deltaEThreshold?: number;
+    /**
+     * The most candidates the search for a color deltaEThreshold from awayFrom looks at beyond its first (each
+     * takes three calls to random), so 0 takes the first candidate. The candidates are the first of those the
+     * search looks at without a budget, in the same order: a color that reaches the threshold within the
+     * budget is the same color, and otherwise the furthest candidate so far is used. A color never looks at
+     * more than 100, so a budget of 99 or more changes randomColor only where no distance can be measured:
+     * with no awayFrom, the first candidate is taken after three calls whatever deltaEThreshold is (without a
+     * budget, a NaN threshold draws all 100 and keeps the first), and when no candidate's distance is a number
+     * (a NaN minBrightness without a constraint, say), the first candidate is kept (without a budget, a 101st
+     * is drawn). Either way a seeded random draws differently after it. The budget matters for randomLike and
+     * the random palette methods, where one budget is shared by every color a call draws (see
+     * RandomLikeOptions.candidateBudget). Left out (or NaN), up to 100 candidates, as in 4.2. Below 0 counts
+     * as 0.
+     */
+    candidateBudget?: number;
 }
 
 /**
@@ -126,10 +141,17 @@ export function randomColor({
     constraint,
     awayFrom = [],
     deltaEThreshold = DEFAULT_DELTA_E_THRESHOLD,
+    candidateBudget,
 }: RandomColorOptions = {}): Color {
     return drawAwayFrom(
         awayFrom.map((color) => chroma(color)),
-        { random, minBrightness, deltaEThreshold, constraint },
+        {
+            random,
+            minBrightness,
+            deltaEThreshold,
+            constraint,
+            budget: budgetOf(candidateBudget),
+        },
     );
 }
 

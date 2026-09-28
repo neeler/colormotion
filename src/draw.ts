@@ -93,10 +93,58 @@ function isList(
 }
 
 /**
+ * A call's candidateBudget being spent (see RandomLikeOptions.candidateBudget), shared by every color the
+ * call draws.
+ */
+export interface Budget {
+    /** Candidates left beyond each color's first, for the rest of the call. */
+    left: number;
+    /** Of left, the candidates this round (a palette, or one attempt of randomLike) may still use. */
+    roundLeft: number;
+    /** The colors this round still draws, each with an even share of roundLeft; 0: no round. */
+    roundColors: number;
+}
+
+/**
+ * A candidateBudget option as a Budget: a number other than NaN starts a budget of max(0, floor(value))
+ * candidates (Infinity stays Infinity). undefined (no budget: the 4.2 search) when it is not a number or is
+ * NaN.
+ */
+export function budgetOf(candidates: number | undefined): Budget | undefined {
+    if (typeof candidates !== 'number' || Number.isNaN(candidates)) {
+        return undefined;
+    }
+    return {
+        left: Math.max(0, Math.floor(candidates)),
+        roundLeft: 0,
+        roundColors: 0,
+    };
+}
+
+/**
+ * Starts a round of a budget: `colors` colors share `share` (0–1) of what is left, evenly. A color that uses
+ * less than its share leaves the rest to the colors after it; what the round does not use stays for the
+ * rounds after it.
+ */
+export function startRound(budget: Budget, colors: number, share = 1) {
+    budget.roundLeft = Math.floor(budget.left * share);
+    budget.roundColors = Math.max(0, colors);
+}
+
+/**
  * Draws a random color at least deltaEThreshold away from every one of the neighbours, within the
  * constraint if one is given. Gives up after a bounded number of attempts and returns the candidate
  * furthest from its nearest neighbour, so a strict threshold can never hang. With no neighbours, the
  * first candidate is the color.
+ *
+ * With a budget, the candidates are the same, in the same order, but the search looks at no more than
+ * 1 + its allowance of them: an even share of what is left of the round, or of the budget when there is no
+ * round (and never more than 100). It stops at the first candidate that reaches deltaEThreshold, as without
+ * a budget, or returns the furthest it looked at (the earliest of equals), and spends what it drew beyond the
+ * first. It differs from the search without a budget only by stopping sooner, and in two edge cases: with no
+ * neighbours it draws the first candidate only, whatever the threshold (without a budget, a NaN threshold
+ * draws all 100 and keeps the first), and when every distance is NaN it returns the first candidate (without
+ * a budget, a 101st is drawn).
  */
 export function drawAwayFrom(
     neighbours: Color[],
@@ -105,14 +153,25 @@ export function drawAwayFrom(
         deltaEThreshold = 0,
         random = Math.random,
         constraint,
+        budget,
     }: {
         minBrightness?: number;
         deltaEThreshold?: number;
         random?: RandomFunction;
         constraint?: ColorConstraint;
+        budget?: Budget;
     } = {},
 ) {
     const draw = colorDraw(constraint);
+    if (budget) {
+        return drawAwayFromWithin(neighbours, {
+            draw,
+            minBrightness,
+            deltaEThreshold,
+            random,
+            budget,
+        });
+    }
     let bestColor: Color | undefined;
     let bestDistance = -Infinity;
 
@@ -136,4 +195,69 @@ export function drawAwayFrom(
     }
 
     return bestColor ?? draw(random, minBrightness);
+}
+
+/** drawAwayFrom with a budget: the first candidates of the search without one, as many as the budget allows. */
+function drawAwayFromWithin(
+    neighbours: Color[],
+    {
+        draw,
+        minBrightness,
+        deltaEThreshold,
+        random,
+        budget,
+    }: {
+        draw: (random: RandomFunction, minBrightness?: number) => Color;
+        minBrightness: number;
+        deltaEThreshold: number;
+        random: RandomFunction;
+        budget: Budget;
+    },
+) {
+    const allowance =
+        budget.roundColors > 0
+            ? Math.floor(budget.roundLeft / budget.roundColors)
+            : budget.left;
+    const cap = Math.max(1, Math.min(MAX_RANDOM_COLOR_ATTEMPTS, 1 + allowance));
+    let firstColor: Color | undefined;
+    let bestColor: Color | undefined;
+    let bestDistance = -Infinity;
+    let drawn = 0;
+    let result: Color | undefined;
+
+    while (drawn < cap) {
+        const candidate = draw(random, minBrightness);
+        drawn++;
+        firstColor ??= candidate;
+        if (neighbours.length === 0) {
+            // nothing to keep from: the first candidate, whatever the threshold
+            result = candidate;
+            break;
+        }
+        let distance = Infinity;
+        for (const neighbour of neighbours) {
+            distance = Math.min(
+                distance,
+                chroma.deltaE(neighbour, candidate, 1, 1, 1),
+            );
+        }
+
+        if (distance >= deltaEThreshold) {
+            result = candidate;
+            break;
+        }
+        if (distance > bestDistance) {
+            bestColor = candidate;
+            bestDistance = distance;
+        }
+    }
+
+    const spent = drawn - 1;
+    budget.left = Math.max(0, budget.left - spent);
+    if (budget.roundColors > 0) {
+        budget.roundLeft = Math.max(0, budget.roundLeft - spent);
+        budget.roundColors--;
+    }
+    // every distance NaN: the first candidate (without a budget, one more is drawn)
+    return result ?? bestColor ?? firstColor!;
 }

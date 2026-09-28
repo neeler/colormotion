@@ -160,6 +160,41 @@ theme.rotateRandomColor({
                 the <Code>constraints</Code> it returns to roll single colors in
                 the new shape.
             </Text>
+            <Text>
+                Each color is kept <Code>deltaEThreshold</Code> from its
+                neighbours by drawing candidates until one is far enough, up to
+                100. Where the slots are too narrow for that (two groups a few
+                degrees wide at a high <Code>minBrightness</Code>, say), every
+                color pays all 100 candidates, 300 calls to <Code>random</Code>,
+                and <Code>randomLike</Code> pays that for each color of each
+                attempt: up to 33,680 calls for 8 colors.{' '}
+                <Code>candidateBudget</Code> bounds the whole call: each attempt
+                may use half of what is left of it, shared by its colors, and a
+                color that runs out keeps the furthest candidate it found. At
+                1000, 8 colors take at most 3,416 calls.
+            </Text>
+            <Text>
+                The bound costs some spacing where the threshold is hard to
+                reach. At 1000, the first attempt of up to 5 colors is the one
+                drawn without a budget, but 8 colors share 500 in it, about 72
+                candidates for each color after the first, so a few that would
+                have reached the threshold within 100 do not. And since each
+                attempt may use half of what is left, a palette verified only
+                after several attempts may keep neighbours close: in the
+                costliest case known (olive and green grown to 8 colors at a{' '}
+                <Code>minBrightness</Code> of 0.8), 1 or 2 palettes in 100 have
+                neighbours within 5 ΔE of each other, which none has without a
+                budget.
+            </Text>
+            <Text>
+                The random palette methods take it too, shared by the colors
+                they draw, and so does <Code>randomColor</Code>, though a single
+                color never looks at more than 100 candidates: from 99, a budget
+                changes one only where no distance can be measured. Left out,
+                every draw is as in 4.2; given, a color that stops short leaves{' '}
+                <Code>random</Code> elsewhere, so a seeded <Code>random</Code>{' '}
+                draws differently after it.
+            </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const anchor = analysis.anchor ?? 0;
 const { colors, constraints } = randomLike(analysis, {
@@ -171,6 +206,7 @@ const { colors, constraints } = randomLike(analysis, {
     ],
     // no slot centered in olive or lime
     avoid: [hueArc(95, 135)],
+    candidateBudget: 1000, // bounds the cost; left out, up to 100 candidates a color
 });
 theme.setColors(colors);
 theme.rotateRandomColor({ minBrightness: 0.5, constraints });

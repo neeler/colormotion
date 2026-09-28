@@ -104,9 +104,10 @@ theme.rotateRandomColor({ constraints: nearEachPick });`}
                 <Code>deltaEThreshold</Code> (CIEDE2000, 20 by default) from
                 each of the colors given, as the random methods keep a new color
                 from its neighbours: candidates are drawn until one is far
-                enough, up to 100, and otherwise the one furthest from its
-                nearest is used. The constraint always holds; the distance is
-                best effort.
+                enough, up to 100 (fewer with a <Code>candidateBudget</Code>,
+                see <Code>randomLike</Code>), and otherwise the one furthest
+                from its nearest is used. The constraint always holds; the
+                distance is best effort.
             </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const color = randomColor({

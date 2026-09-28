@@ -286,7 +286,7 @@ theme.rotateRandomColor({ constraints: nearEachPick });
 
 To draw one color, use `randomColor`. `awayFrom` keeps it at least `deltaEThreshold` (CIEDE2000, 20 by
 default) from other colors, as the random methods keep a new color from its neighbours: best effort, up to
-100 candidates, then the furthest of them.
+100 candidates (fewer with `candidateBudget`), then the furthest of them.
 
 ```typescript
 import { randomColor } from 'colormotion';
@@ -423,6 +423,33 @@ const { colors, constraints } = randomLike(analysis, {
 theme.setColors(colors);
 theme.rotateRandomColor({ minBrightness: 0.5, constraints });
 ```
+
+Each color is kept `deltaEThreshold` from its neighbours by drawing candidates until one is far enough,
+up to 100. Where the slots are too narrow for that (two groups a few degrees wide at a high `minBrightness`,
+say), every color pays all 100 candidates, 300 calls to `random`, and `randomLike` pays that for each color
+of each attempt: up to 33,680 calls for 8 colors. `candidateBudget` bounds the whole call: each attempt may
+use half of what is left of it, shared by its colors, and a color that runs out keeps the furthest candidate
+it found. At 1000, 8 colors take at most 3,416 calls:
+
+```typescript
+const { colors } = randomLike(analysis, {
+    minBrightness: 0.8,
+    candidateBudget: 1000,
+    random: seededRandom(42),
+});
+```
+
+The bound costs some spacing where the threshold is hard to reach. At 1000, the first attempt of up to 5
+colors is the one drawn without a budget, but 8 colors share 500 in it, about 72 candidates for each color
+after the first, so a few that would have reached the threshold within 100 do not. And since each attempt may
+use half of what is left, a palette verified only after several attempts may keep neighbours close: in the
+costliest case known (olive and green grown to 8 colors at a `minBrightness` of 0.8), 1 or 2 palettes in 100
+have neighbours within 5 ΔE of each other, which none has without a budget.
+
+The random palette methods take it too, shared by the colors they draw, and so does `randomColor`, though a
+single color never looks at more than 100 candidates: from 99, a budget changes one only where no distance
+can be measured (see `RandomColorOptions.candidateBudget`). Left out, every draw is as in 4.2; given, a color
+that stops short leaves `random` elsewhere, so a seeded `random` draws differently after it.
 
 With no theme to start from, `relationshipTemplate(kind, { nColors })` draws a template of a kind, and
 `randomLike` a palette from it:
