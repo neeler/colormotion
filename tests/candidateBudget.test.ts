@@ -1024,19 +1024,22 @@ describe('candidateBudget', { timeout: 30_000 }, () => {
 });
 
 describe('candidateBudget statistics', { timeout: 30_000 }, () => {
-    test('the costliest known case, 200 seeds: at most 3,416 calls, as verified and about as far apart', () => {
+    test('the costliest known case, 200 seeds: at most 3,416 calls, as verified, and the spacing it costs', () => {
         /*
          * Measured, seeds 1–200 (1,600 pairs of neighbours around the wheel):
          *
-         *              calls mean    p99      max   verified   at the first attempt   pairs within ΔE 10
-         * no budget       3131.9   11,472   15,355      200              121             186 (11.63 %)
-         * 1000            1893.1    3,108    3,108      200              130             239 (14.94 %)
+         *              calls mean    p99      max   verified   at the first attempt   within ΔE 10    within ΔE 5
+         * no budget       3131.9   11,472   15,355      200              121          186 (11.63 %)        0
+         * 1000            1893.1    3,108    3,108      200              130          239 (14.94 %)   3 (2 palettes)
+         *
+         * The pairs within ΔE 5 are in palettes verified at the sixth attempt, when little of the budget was left.
          */
         const measure = (budget: { candidateBudget?: number }) => {
             const calls: number[] = [];
             let verified = 0;
             let first = 0;
             let near = 0;
+            let close = 0;
             for (let seed = 1; seed <= 200; seed++) {
                 const random = counting(seededRandom(seed));
                 const result = randomLike(WILD, {
@@ -1062,8 +1065,12 @@ describe('candidateBudget statistics', { timeout: 30_000 }, () => {
                         }),
                     ).toBe(true);
                     const next = colors[(i + 1) % colors.length]!;
-                    if (chroma.deltaE(color, next, 1, 1, 1) < 10) {
+                    const distance = chroma.deltaE(color, next, 1, 1, 1);
+                    if (distance < 10) {
                         near++;
+                    }
+                    if (distance < 5) {
+                        close++;
                     }
                 });
             }
@@ -1075,6 +1082,7 @@ describe('candidateBudget statistics', { timeout: 30_000 }, () => {
                 verified,
                 first,
                 near,
+                close,
             };
         };
         const without = measure({});
@@ -1087,5 +1095,8 @@ describe('candidateBudget statistics', { timeout: 30_000 }, () => {
         expect(budget.verified).toBe(200);
         expect(budget.first).toBeGreaterThanOrEqual(without.first - 15);
         expect(budget.near).toBeLessThanOrEqual(without.near + 80);
+        // near-identical neighbours: none without a budget, a few with one (at most 1 % of the pairs)
+        expect(without.close).toBe(0);
+        expect(budget.close).toBeLessThanOrEqual(16);
     });
 });
