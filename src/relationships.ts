@@ -161,9 +161,16 @@ export interface RandomLikeOptions {
      * to the colors after it; a color stops at the first candidate that reaches the threshold, as without a
      * budget, or keeps the furthest candidate it looked at. The calls to random are then at most
      * attempts × (2 + 3 × colors) + 3 × candidateBudget: 3,416 for 8 colors and a budget of 1000, against
-     * 33,680 without one. 1000 keeps palettes about as far apart as without a budget. Left out (or NaN), each
-     * color looks at up to 100 candidates, as in 4.2: a threshold out of reach (narrow slots at a high
-     * minBrightness) then costs all 100 for every color of every attempt.
+     * 33,680 without one. Left out (or NaN), each color looks at up to 100 candidates, as in 4.2: a threshold
+     * out of reach (narrow slots at a high minBrightness) then costs all 100 for every color of every attempt.
+     *
+     * The bound costs some spacing where the threshold is hard to reach. At 1000, the first attempt of up to 5
+     * colors is the one drawn without a budget, but 8 colors share 500 in it (about 72 candidates for each
+     * color after the first, where they need them all), so a few colors that would have reached the threshold
+     * within 100 candidates do not. Each attempt may use half of what is left, so an attempt after others that
+     * spent their share has little: the palettes verified only after several attempts are the least far
+     * apart. In the costliest case known (olive and green grown to 8 colors at a minBrightness of 0.8), 1 or 2
+     * palettes in 100 have neighbours within 5 ΔE of each other, which none has without a budget.
      */
     candidateBudget?: number;
 }
@@ -1109,8 +1116,9 @@ function clearAnchors(
  *
  * With a candidateBudget, the colors of every attempt share it: each attempt may use half of what is left, so
  * the calls to random are at most attempts × (2 + 3 × colors) + 3 × candidateBudget, and attempts: 1 still
- * replays the first attempt exactly. A color that stops short leaves random elsewhere, so what is drawn after
- * it differs from what is drawn without a budget.
+ * replays the first attempt exactly. A later attempt has less to spend, so a palette verified late may keep
+ * its colors less far apart (see RandomLikeOptions.candidateBudget). A color that stops short leaves random
+ * elsewhere, so what is drawn after it differs from what is drawn without a budget.
  *
  * The result is a pure function of the inputs and random.
  */

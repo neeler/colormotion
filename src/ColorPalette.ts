@@ -106,8 +106,10 @@ export interface RandomPaletteConfig {
      * The most candidates the method looks at beyond the first of each color it keeps deltaEThreshold from its
      * neighbours (three calls to random each): shared evenly by those colors in the order they are drawn, a
      * color passing what it does not use to the colors after it (see RandomLikeOptions.candidateBudget). A
-     * color never looks at more than 100, so a budget of 99 or more for each such color changes nothing. Left
-     * out (or NaN), up to 100 candidates each, as in 4.2.
+     * color never looks at more than 100, so a budget of 99 or more for each such color changes nothing,
+     * unless no candidate's distance is a number (a NaN minBrightness without constraints, say): the first
+     * candidate is then kept, where without a budget a 101st is drawn. Left out (or NaN), up to 100
+     * candidates each, as in 4.2.
      */
     candidateBudget?: number;
 }

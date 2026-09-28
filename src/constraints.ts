@@ -112,8 +112,12 @@ export interface RandomColorOptions {
      * takes three calls to random), so 0 takes the first candidate. The candidates are the first of those the
      * search looks at without a budget, in the same order: a color that reaches the threshold within the
      * budget is the same color, and otherwise the furthest candidate so far is used. A color never looks at
-     * more than 100, so only a budget under 99 changes randomColor; it matters for randomLike and the random
-     * palette methods, where one budget is shared by every color a call draws (see
+     * more than 100, so a budget of 99 or more changes randomColor only where no distance can be measured:
+     * with no awayFrom, the first candidate is taken after three calls whatever deltaEThreshold is (without a
+     * budget, a NaN threshold draws all 100 and keeps the first), and when no candidate's distance is a number
+     * (a NaN minBrightness without a constraint, say), the first candidate is kept (without a budget, a 101st
+     * is drawn). Either way a seeded random draws differently after it. The budget matters for randomLike and
+     * the random palette methods, where one budget is shared by every color a call draws (see
      * RandomLikeOptions.candidateBudget). Left out (or NaN), up to 100 candidates, as in 4.2. Below 0 counts
      * as 0.
      */
