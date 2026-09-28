@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { CodeGroup } from '~/components/playground/CodeGroup';
 import { PaletteGroup } from '~/components/playground/PaletteGroup';
 import { RandomGroup } from '~/components/playground/RandomGroup';
+import { ShapeGroup } from '~/components/playground/ShapeGroup';
 import { SketchToolbar } from '~/components/playground/SketchToolbar';
 import { TransitionBar } from '~/components/playground/TransitionBar';
 import { TransitionGroup } from '~/components/playground/TransitionGroup';
@@ -20,7 +21,8 @@ import { useSharedPlaygroundState } from '~/hooks/useSharedPlaygroundState';
 /**
  * The demo theme in a sketch, with controls for experimenting with it: the
  * palette, its scale, updates, the interpolation mode, and collapsible groups
- * for transitions, randomness, the wheel and brightness, and code.
+ * for transitions, randomness, the palette's shape, the wheel and brightness,
+ * and code.
  */
 export function ThemedSketch({ className }: { className?: string }) {
     useSharedPlaygroundState();
@@ -39,6 +41,7 @@ export function ThemedSketch({ className }: { className?: string }) {
                 <PaletteGroup />
                 <TransitionGroup />
                 <RandomGroup />
+                <ShapeGroup />
                 <WheelGroup />
                 <CodeGroup />
             </div>

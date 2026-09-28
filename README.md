@@ -306,6 +306,137 @@ const color = randomColor({
 Without `constraints` (for `randomColor`, without `constraint`), colors are drawn in HSV exactly as before,
 so a seeded `random` draws the same colors as in 4.0.
 
+## Themes that keep their shape
+
+`analyzeTheme(colors)` finds how a theme's hues relate: a few picks, or a whole palette. Vivid colors
+(relative chroma 0.75 or more) define the hue structure, and hues less than 30° apart chain into a group.
+Muted tints and tones follow the nearest group within 45°, and greys, whites and blacks (under 0.12) take
+no part. The relationship follows from the groups:
+
+| Relationship  | Groups                                                                             |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `neutral`     | none: every color is a grey, white or black                                        |
+| `family`      | one (or three packed into less than 90°)                                           |
+| `accent`      | two, less than 90° apart                                                           |
+| `contrast`    | two, 90° or more apart                                                             |
+| `bridge`      | three within half the wheel, spanning 90° or more: the middle one bridges the ends |
+| `pair-accent` | three spread wider, two of them less than 90° apart                                |
+| `triad`       | three, every gap 90° or more                                                       |
+| `spectrum`    | four or more                                                                       |
+
+```typescript
+import { analyzeTheme } from 'colormotion';
+
+// Measure the colors as they show when lifted to a brightness floor
+const analysis = analyzeTheme(
+    ['#e8b450', '#f4dca8', '#7a1a2b', '#b8862f', '#2b1a12'],
+    { minBrightness: 0.537 },
+);
+analysis.relationship; // 'accent': gold, champagne and brass against oxblood and umber, 63° apart
+analysis.anchor; // 79.2…: the OKLCH hue of the heaviest group
+analysis.picks[4].role; // 'muted': the umber follows the oxblood
+```
+
+The result is plain JSON, and the thresholds are options (`neutralChroma`, `structuralChroma`,
+`familyJoin`, `attachWithin` and `contrastFrom`). It depends on the colors, not their order.
+
+A relationship template turns an analysis into one slot per color: an arc of hue relative to the anchor,
+and a band of relative chroma that keeps the color in its role. `adjacentConstraints(analysis)` places it
+at the theme's own anchor, so each position's constraint is the neighbourhood of its color: its hue ± 12°
+(plus a quarter of its group's span, up to ± 20°) and its relative chroma ± 0.2. Rolling one color at a time
+within them keeps the theme near its colors:
+
+```typescript
+import { Theme, adjacentConstraints, analyzeTheme } from 'colormotion';
+
+const theme = new Theme({
+    colors: ['#e8b450', '#f4dca8', '#7a1a2b', '#b8862f', '#2b1a12'],
+    mode: 'oklch',
+});
+const nearEachColor = adjacentConstraints(
+    analyzeTheme(theme.activePaletteHexes, { minBrightness: 0.5 }),
+);
+
+// Replace the oldest color with one near the color in its position
+theme.rotateRandomColor({ minBrightness: 0.5, constraints: nearEachColor });
+```
+
+The slots are narrowed where they have to be, so that no palette drawn within them changes the
+relationship or the number of groups: two groups are never drawn close enough to merge, a group's colors
+never far enough apart to split, a muted color never far enough from its group to go off on its own, and
+where a theme sits near a threshold (two groups nearly 90° apart, say), no group can move across it (where
+the colors' chroma alone could move it, their chroma bands narrow too). That holds for colors as drawn:
+rounded to 8 bits, a hue can move by a degree or so, and more for a muted color.
+
+To grow a few picks into more colors, pass `nColors`. The extra slots go to the picks by relative chroma
+(neutral picks get none), in a run after each pick's own slot, `template.pickSlots[j]`:
+
+```typescript
+import {
+    analyzeTheme,
+    randomColor,
+    relationshipTemplate,
+    templateConstraints,
+} from 'colormotion';
+
+const picks = ['#e8b450', '#7a1a2b'];
+const analysis = analyzeTheme(picks, { minBrightness: 0.5 });
+const template = relationshipTemplate(analysis, { nColors: 5 });
+const constraints = templateConstraints(template, analysis.anchor ?? 0);
+
+// The picks in their own slots, and a color near the pick in each of the others
+const colors: string[] = [];
+template.slots.forEach((_, i) => {
+    const pick = template.pickSlots!.indexOf(i);
+    colors.push(
+        pick >= 0
+            ? picks[pick]
+            : randomColor({
+                  constraint: constraints[i],
+                  minBrightness: 0.5,
+                  awayFrom: [colors[i - 1]],
+              }).hex(),
+    );
+});
+// gold, a color near gold, oxblood, and two near oxblood (the more saturated pick gets the extra)
+```
+
+`randomLike(analysis)` draws a palette in the same relationship at another anchor hue, optionally mirrored:
+a contrast pair stays a contrast pair, a bridge a bridge. Each palette is analyzed again, as drawn and
+rounded to 8 bits, and redrawn until it matches (up to `attempts`, 16 by default). Keep the `constraints` it
+returns to roll single colors in the new shape:
+
+```typescript
+import { hueArc, randomLike } from 'colormotion';
+
+const anchor = analysis.anchor ?? 0;
+const { colors, constraints } = randomLike(analysis, {
+    minBrightness: 0.5,
+    // 30° to 90° from the theme's anchor, either way round, with no slot centered in olive or lime
+    anchor: [
+        hueArc(anchor + 30, anchor + 90),
+        hueArc(anchor - 90, anchor - 30),
+    ],
+    avoid: [hueArc(95, 135)],
+    random: seededRandom(42),
+});
+theme.setColors(colors);
+theme.rotateRandomColor({ minBrightness: 0.5, constraints });
+```
+
+With no theme to start from, `relationshipTemplate(kind, { nColors })` draws a template of a kind, and
+`randomLike` a palette from it:
+
+```typescript
+theme.setColors(
+    randomLike(relationshipTemplate('triad', { nColors: 5 }), {
+        minBrightness: 0.5,
+    }).colors,
+);
+```
+
+All of these are pure functions of their inputs and `random`.
+
 ## Upgrading to 4.0
 
 Rotating a color (`theme.rotateColor`, `theme.rotateRandomColor`, `palette.rotateOn` and
@@ -351,7 +482,7 @@ Also changed:
 
 ```bash
 npm test          # unit tests (watch mode)
-npm run bench     # benchmarks: palette building, getColor, fillRgb, transition ticks, LED frames, random draws
+npm run bench     # benchmarks: palette building, getColor, fillRgb, transition ticks, LED frames, random draws, theme analysis
 npm run docs:api  # regenerate the docs site's API reference (Node 22.18 or later)
 ```
 
