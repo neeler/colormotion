@@ -237,8 +237,9 @@ export class ColorPalette {
             config.deltaEThreshold ?? DEFAULT_DELTA_E_THRESHOLD;
         const budget = budgetOf(candidateBudget);
         if (budget) {
-            // shared by the colors after the first, each kept from the one before it
-            startRound(budget, nColors - 1);
+            // shared by the colors after the first, each kept from the one before it: the loop below draws
+            // ceil(nColors) − 1 of them
+            startRound(budget, Math.ceil(nColors) - 1);
         }
 
         let lastColor = drawColor(
@@ -524,8 +525,8 @@ export class ColorPalette {
     ) {
         const budget = budgetOf(candidateBudget);
         if (budget) {
-            // shared by the colors after the seed
-            startRound(budget, nColors - 1);
+            // shared by the colors after the seed: the loop below draws ceil(nColors) − 1 of them
+            startRound(budget, Math.ceil(nColors) - 1);
         }
         let lastColor = chroma(seed);
         if (lastColor.get('hsv.v') < minBrightness) {

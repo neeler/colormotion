@@ -844,6 +844,93 @@ describe('candidateBudget', { timeout: 30_000 }, () => {
         }
     });
 
+    test('a count of colors that is not whole shares the budget among the colors drawn', () => {
+        const options = {
+            minBrightness: 0.8,
+            constraints: NARROW,
+            deltaEThreshold: 1e9,
+        };
+        // nColors 2.5 draws 3 colors, and 4.2 draws 5: out of reach, the colors after the first share the
+        // budget evenly and spend all of it, never more
+        for (const nColors of [2.5, 4.2]) {
+            const drawnColors = Math.ceil(nColors);
+            const spaced = drawnColors - 1;
+            for (const candidateBudget of [0, 1, 7, 50]) {
+                const calls = 3 * (spaced + candidateBudget);
+                // each color in turn: an even share of what is left, floor(left / colors left)
+                const blocks: number[] = [];
+                let left = candidateBudget;
+                for (let colorsLeft = spaced; colorsLeft > 0; colorsLeft--) {
+                    const share = Math.floor(left / colorsLeft);
+                    blocks.push(1 + share);
+                    left -= share;
+                }
+
+                let random = counting(seededRandom(1));
+                const palette = ColorPalette.random({
+                    nColors,
+                    mode: 'rgb',
+                    nSteps: 16,
+                    random,
+                    candidateBudget,
+                    ...options,
+                });
+                expect(palette.nColors).toBe(drawnColors);
+                expect(channelsOf(palette)).toEqual(
+                    furthestOfBlocks(1, blocks),
+                );
+                expect(random.calls).toBe(3 + calls);
+
+                random = counting(seededRandom(1));
+                new Theme({
+                    nColors,
+                    mode: 'rgb',
+                    nSteps: 16,
+                    random,
+                    candidateBudget,
+                    ...options,
+                });
+                expect(random.calls).toBe(3 + calls);
+                random = counting(seededRandom(1));
+                Theme.random({
+                    nColors,
+                    mode: 'rgb',
+                    nSteps: 16,
+                    random,
+                    candidateBudget,
+                    ...options,
+                });
+                expect(random.calls).toBe(3 + calls);
+
+                const config = { ...options, nColors, candidateBudget };
+                let drawn = makePalette(1, 1e9);
+                drawn.palette.randomize(config);
+                expect(drawn.random.calls).toBe(3 + calls);
+                drawn = makePalette(1, 1e9);
+                drawn.palette.randomizeFrom('#808a0c', config);
+                expect(drawn.random.calls).toBe(calls);
+
+                for (const [update, extra] of [
+                    [(t: Theme) => t.randomTheme(config), 3],
+                    [(t: Theme) => t.randomFrom('#808a0c', config), 0],
+                ] as const) {
+                    random = counting(seededRandom(1));
+                    const theme = new Theme({
+                        colors: OLIVES,
+                        mode: 'oklch',
+                        nSteps: 16,
+                        random,
+                        deltaEThreshold: 1e9,
+                    });
+                    const before = random.calls;
+                    update(theme);
+                    expect(theme.activePalette.nColors).toBe(drawnColors);
+                    expect(random.calls - before).toBe(extra + calls);
+                }
+            }
+        }
+    });
+
     test('Theme forwards it to the palette, not to the transition', () => {
         const options = {
             minBrightness: 0.8,
