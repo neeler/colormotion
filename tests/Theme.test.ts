@@ -129,9 +129,14 @@ test('can not pop once down to one color', () => {
 });
 
 test('always respects max number of colors', () => {
+    // seeded: a random 3-color list can end on its first color (#000000 twice, say), which the list
+    // takes for the closing repeat and drops, so an unseeded run would now and then draw only 2 colors
+    const random = seededRandom(1);
+
     const theme1 = new Theme({
         nColors: 5,
         maxNumberOfColors: 3,
+        random,
     });
     expect(theme1.activePalette.nColors).toBe(3);
     expect(theme1.activePalette.maxNumberOfColors).toBe(3);
@@ -139,6 +144,7 @@ test('always respects max number of colors', () => {
     const theme2 = new Theme({
         colors: ['red', 'green', 'blue'],
         maxNumberOfColors: 3,
+        random,
     });
     theme2.pushRandomColor();
     expect(theme2.activePalette.nColors).toBe(3);
