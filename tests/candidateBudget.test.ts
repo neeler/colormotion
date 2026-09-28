@@ -861,3 +861,70 @@ describe('candidateBudget', { timeout: 30_000 }, () => {
         }
     });
 });
+
+describe('candidateBudget statistics', { timeout: 30_000 }, () => {
+    test('the costliest known case, 200 seeds: at most 3,416 calls, as verified and about as far apart', () => {
+        /*
+         * Measured, seeds 1–200 (1,600 pairs of neighbours around the wheel):
+         *
+         *              calls mean    p99      max   verified   at the first attempt   pairs within ΔE 10
+         * no budget       3131.9   11,472   15,355      200              121             186 (11.63 %)
+         * 1000            1893.1    3,108    3,108      200              130             239 (14.94 %)
+         */
+        const measure = (budget: { candidateBudget?: number }) => {
+            const calls: number[] = [];
+            let verified = 0;
+            let first = 0;
+            let near = 0;
+            for (let seed = 1; seed <= 200; seed++) {
+                const random = counting(seededRandom(seed));
+                const result = randomLike(WILD, {
+                    ...COSTLY,
+                    ...budget,
+                    random,
+                });
+                calls.push(random.calls);
+                if (result.verified) {
+                    verified++;
+                }
+                if (
+                    like(WILD, seed, { ...COSTLY, ...budget, attempts: 1 })
+                        .verified
+                ) {
+                    first++;
+                }
+                const { colors, constraints } = result;
+                colors.forEach((color, i) => {
+                    expect(
+                        meetsConstraint(color, constraints[i]!, {
+                            minBrightness: F,
+                        }),
+                    ).toBe(true);
+                    const next = colors[(i + 1) % colors.length]!;
+                    if (chroma.deltaE(color, next, 1, 1, 1) < 10) {
+                        near++;
+                    }
+                });
+            }
+            calls.sort((a, b) => a - b);
+            return {
+                mean: calls.reduce((sum, c) => sum + c, 0) / calls.length,
+                p99: calls[197]!,
+                max: calls[calls.length - 1]!,
+                verified,
+                first,
+                near,
+            };
+        };
+        const without = measure({});
+        const budget = measure({ candidateBudget: 1000 });
+
+        expect(without.max).toBeGreaterThan(3416);
+        expect(budget.max).toBeLessThanOrEqual(3416);
+        expect(budget.mean).toBeLessThanOrEqual(0.65 * without.mean);
+        expect(without.verified).toBe(200);
+        expect(budget.verified).toBe(200);
+        expect(budget.first).toBeGreaterThanOrEqual(without.first - 15);
+        expect(budget.near).toBeLessThanOrEqual(without.near + 80);
+    });
+});

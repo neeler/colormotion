@@ -79,3 +79,48 @@ describe('randomLike, 5 slots', () => {
         randomLike(dusk, { random, minBrightness: FLOOR, nColors: 8 });
     });
 });
+
+/*
+ * The costliest case known: olive and green (an accent 30.5° apart, whose adjacent slots are about ±0.25°
+ * wide) grown to 8 colors and placed as a wild roll at the brightness of 60 % linear light. Most colors
+ * cannot reach 20 ΔE from the one before them, so without a budget each pays all 100 candidates, in every
+ * attempt.
+ */
+describe('randomLike, the costliest known case (olive and green at floor 0.6, 8 colors, a wild roll)', () => {
+    const floor = 1.055 * 0.6 ** (1 / 2.4) - 0.055;
+    const analysis = analyzeTheme(['#808a0c', '#48b254'], {
+        minBrightness: floor,
+    });
+    const wild = relationshipTemplate(analysis, { nColors: 8, hueWidth: 8 });
+    const anchor = analysis.anchor!;
+    const options = {
+        minBrightness: floor,
+        anchor: [
+            hueArc(anchor + 30, anchor + 90),
+            hueArc(anchor - 90, anchor - 30),
+        ],
+        avoid: [hueArc(95, 135)],
+    };
+    // enough rolls for the tail: a roll that needs many attempts is the costly one
+    const runs = { time: 0, iterations: 300, warmupIterations: 20 };
+    const plain = seeded(4);
+    bench(
+        'without a budget',
+        () => {
+            randomLike(wild, { ...options, random: plain });
+        },
+        runs,
+    );
+    const budgeted = seeded(4);
+    bench(
+        'candidateBudget 1000',
+        () => {
+            randomLike(wild, {
+                ...options,
+                random: budgeted,
+                candidateBudget: 1000,
+            });
+        },
+        runs,
+    );
+});

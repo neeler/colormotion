@@ -51,6 +51,20 @@ describe('randomColor', () => {
             deltaEThreshold: 200,
         });
     });
+    // the same search cut short: the first 30 of those candidates
+    bench(
+        'OKLCH, 30 candidates (an unmet distance, candidateBudget 29)',
+        () => {
+            randomColor({
+                random,
+                minBrightness: FLOOR,
+                constraint: NEAR_GOLD,
+                awayFrom: ['#e8b450'],
+                deltaEThreshold: 200,
+                candidateBudget: 29,
+            });
+        },
+    );
 });
 
 describe('measures', () => {
