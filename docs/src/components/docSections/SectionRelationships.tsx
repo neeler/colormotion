@@ -160,6 +160,26 @@ theme.rotateRandomColor({
                 the <Code>constraints</Code> it returns to roll single colors in
                 the new shape.
             </Text>
+            <Text>
+                Each color is kept <Code>deltaEThreshold</Code> from its
+                neighbours by drawing candidates until one is far enough, up to
+                100. Where the slots are too narrow for that (two groups a few
+                degrees wide at a high <Code>minBrightness</Code>, say), every
+                color pays all 100 candidates, 300 calls to <Code>random</Code>,
+                and <Code>randomLike</Code> pays that for each color of each
+                attempt: up to 33,680 calls for 8 colors.{' '}
+                <Code>candidateBudget</Code> bounds the whole call: each attempt
+                may use half of what is left of it, shared by its colors, and a
+                color that runs out keeps the furthest candidate it found. At
+                1000, palettes are about as far apart as without it, and 8
+                colors take at most 3,416 calls. The random palette methods take
+                it too, shared by the colors they draw, and so does{' '}
+                <Code>randomColor</Code>, though a single color never looks at
+                more than 100 candidates. Left out, every draw is as in 4.2;
+                given, a color that stops short leaves <Code>random</Code>{' '}
+                elsewhere, so a seeded <Code>random</Code> draws differently
+                after it.
+            </Text>
             <SyntaxHighlighter language="typescript" style={hybrid}>
                 {`const anchor = analysis.anchor ?? 0;
 const { colors, constraints } = randomLike(analysis, {
@@ -171,6 +191,7 @@ const { colors, constraints } = randomLike(analysis, {
     ],
     // no slot centered in olive or lime
     avoid: [hueArc(95, 135)],
+    candidateBudget: 1000, // bounds the cost; left out, up to 100 candidates a color
 });
 theme.setColors(colors);
 theme.rotateRandomColor({ minBrightness: 0.5, constraints });
