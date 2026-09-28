@@ -73,6 +73,31 @@ const NARROW: ColorConstraint = {
     chroma: { min: 0.6 },
 };
 
+/**
+ * The colors a palette draws in NARROW at minBrightness 0.8 when its threshold is out of reach, so each
+ * color looks at all of its allowance: `first` (the first candidate when left out), then, from each block of
+ * the candidates that follow, the one furthest from the color before it (the earliest of equals).
+ */
+function furthestOfBlocks(
+    seed: number,
+    blocks: number[],
+    first?: Color,
+): number[][] {
+    const count = blocks.reduce((sum, size) => sum + size, first ? 0 : 1);
+    const stream = candidates(seed, count, {
+        constraint: NARROW,
+        minBrightness: 0.8,
+    });
+    const colors = [first ?? stream.shift()!];
+    for (const size of blocks) {
+        const block = stream.splice(0, size);
+        const previous = colors[colors.length - 1]!;
+        const distances = block.map((c) => chroma.deltaE(previous, c, 1, 1, 1));
+        colors.push(block[distances.indexOf(Math.max(...distances))]!);
+    }
+    return colors.map(rgb);
+}
+
 /** Single draws: in HSV, in OKLCH, in a narrow slot and in a hue arc. */
 const CASES: {
     constraint?: ColorConstraint;
@@ -767,6 +792,55 @@ describe('candidateBudget', { timeout: 30_000 }, () => {
                     }
                 }
             }
+        }
+    });
+
+    test('palettes split the budget evenly, in the order the colors are drawn', () => {
+        // out of reach, every color looks at all of its share: 7 colors sharing 100 take 14, 14, 14, 14, 14,
+        // 15 and 15 beyond their first (floor(100 / 7), then floor(86 / 6), ..., floor(30 / 2), 15)
+        const options = { minBrightness: 0.8, constraints: NARROW };
+        const sevenShare100 = [15, 15, 15, 15, 15, 16, 16];
+        // 4 colors sharing 10: 2, 2, 3 and 3
+        const fourShare10 = [3, 3, 4, 4];
+        for (let seed = 1; seed <= 5; seed++) {
+            const random = counting(seededRandom(seed));
+            const palette = ColorPalette.random({
+                nColors: 8,
+                mode: 'rgb',
+                nSteps: 64,
+                random,
+                deltaEThreshold: 1e9,
+                candidateBudget: 100,
+                ...options,
+            });
+            expect(channelsOf(palette)).toEqual(
+                furthestOfBlocks(seed, sevenShare100),
+            );
+            expect(random.calls).toBe(324);
+
+            let drawn = makePalette(seed, 1e9);
+            const randomized = drawn.palette.randomize({
+                ...options,
+                candidateBudget: 10,
+            });
+            expect(channelsOf(randomized)).toEqual(
+                furthestOfBlocks(seed, fourShare10),
+            );
+            expect(drawn.random.calls).toBe(3 + 3 * (4 + 10));
+
+            drawn = makePalette(seed, 1e9);
+            const from = drawn.palette.randomizeFrom('#808a0c', {
+                ...options,
+                candidateBudget: 10,
+            });
+            expect(channelsOf(from)).toEqual(
+                furthestOfBlocks(
+                    seed,
+                    fourShare10,
+                    chroma('#808a0c').set('hsv.v', 0.8),
+                ),
+            );
+            expect(drawn.random.calls).toBe(3 * (4 + 10));
         }
     });
 
