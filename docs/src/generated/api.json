@@ -164,6 +164,21 @@
         },
         "meetsConstraint": {
             "code": "function meetsConstraint(\n    color: ColorInput,\n    constraint: ColorConstraint,\n    options?: { minBrightness?: number; tolerance?: number },\n): boolean;"
+        },
+        "analyzeTheme": {
+            "code": "function analyzeTheme(\n    colors: readonly ColorInput[],\n    options?: AnalyzeOptions,\n): ThemeAnalysis;"
+        },
+        "relationshipTemplate": {
+            "code": "function relationshipTemplate(\n    analysis: ThemeAnalysis,\n    options?: TemplateOptions,\n): RelationshipTemplate;\nfunction relationshipTemplate(\n    kind: Exclude<Relationship, 'neutral'>,\n    options: TemplateOptions & {\n        nColors: number;\n        random?: RandomFunction;\n        tints?: number;\n    },\n): RelationshipTemplate;"
+        },
+        "templateConstraints": {
+            "code": "function templateConstraints(\n    template: RelationshipTemplate,\n    anchor: number,\n    options?: { mirrored?: boolean; avoid?: readonly HueRange[] },\n): ColorConstraint[];"
+        },
+        "adjacentConstraints": {
+            "code": "function adjacentConstraints(\n    analysis: ThemeAnalysis,\n    options?: TemplateOptions,\n): ColorConstraint[];"
+        },
+        "randomLike": {
+            "code": "function randomLike(\n    source: ThemeAnalysis | RelationshipTemplate,\n    options?: RandomLikeOptions,\n): RandomLikeResult;"
         }
     },
     "types": {
@@ -672,6 +687,283 @@
                 {
                     "name": "deltaEThreshold",
                     "doc": "The distance to keep from awayFrom. Defaults to DEFAULT_DELTA_E_THRESHOLD (20)."
+                }
+            ]
+        },
+        "Relationship": {
+            "code": "type Relationship =\n    | 'neutral'\n    | 'family'\n    | 'accent'\n    | 'contrast'\n    | 'bridge'\n    | 'pair-accent'\n    | 'triad'\n    | 'spectrum';",
+            "doc": "How a theme's hues relate, from the number of hue groups it has and the gaps between them (see\nanalyzeTheme):\n- `neutral`: no hue group; every color is a grey, white or black.\n- `family`: one group, or three packed into less than contrastFrom (a wide analogous run).\n- `accent`: two groups, less than contrastFrom (90°) apart.\n- `contrast`: two groups, contrastFrom or more apart.\n- `bridge`: three groups within half the wheel, spanning contrastFrom or more: the middle one bridges the\n  two ends.\n- `pair-accent`: three groups spread wider, two of them less than contrastFrom apart.\n- `triad`: three groups, every gap contrastFrom or more.\n- `spectrum`: four groups or more.",
+            "fields": []
+        },
+        "AnalyzeOptions": {
+            "code": "interface AnalyzeOptions {\n    minBrightness?: number;\n    neutralChroma?: number;\n    structuralChroma?: number;\n    familyJoin?: number;\n    attachWithin?: number;\n    contrastFrom?: number;\n    duplicateDeltaE?: number;\n}",
+            "doc": "Options for analyzeTheme: how colors are measured, and the thresholds of the analysis. A value that is\nnot a finite number counts as not given.",
+            "fields": [
+                {
+                    "name": "minBrightness",
+                    "doc": "Measure the colors as lifted to this brightness (HSV value), as measureColor does: as they show when a\ntheme lifts its colors to a floor. From 0 to 1; defaults to 0."
+                },
+                {
+                    "name": "neutralChroma",
+                    "doc": "Colors under this relative chroma are neutral: greys, whites and blacks, which take no part in the hue\nstructure. So are colors under brightness 0.02 (black, at a minBrightness of 0). Defaults to 0.12."
+                },
+                {
+                    "name": "structuralChroma",
+                    "doc": "Colors at or over this relative chroma are structural: they define the hue groups. Less saturated\ncolors are muted tints and tones that follow the groups. When no color reaches it (a theme of pastels),\nevery color that is not neutral is structural. Defaults to 0.75."
+                },
+                {
+                    "name": "familyJoin",
+                    "doc": "Structural hues closer than this, in degrees, chain into one group. Defaults to 30."
+                },
+                {
+                    "name": "attachWithin",
+                    "doc": "A muted color joins the group of the nearest structural color if that is within this many degrees;\nmuted colors no group takes form groups of their own. Defaults to 45."
+                },
+                {
+                    "name": "contrastFrom",
+                    "doc": "Two groups less than this many degrees apart are an accent, and this far or further a contrast. It\nalso bounds a bridge's span and a triad's gaps. Defaults to 90."
+                },
+                {
+                    "name": "duplicateDeltaE",
+                    "doc": "Pairs of colors closer than this (CIEDE2000) are reported as near-duplicates. Defaults to 3."
+                }
+            ]
+        },
+        "PickAnalysis": {
+            "code": "interface PickAnalysis extends ColorMeasure {\n    index: number;\n    role: 'structural' | 'muted' | 'neutral';\n    group: number | null;\n    offset: number | null;\n}",
+            "doc": "One of the analyzed colors, measured as shown (lifted to minBrightness), with its part in the theme.",
+            "fields": [
+                {
+                    "name": "index",
+                    "doc": "Its position in the colors analyzed."
+                },
+                {
+                    "name": "role",
+                    "doc": "`structural` colors define the hue groups, `muted` ones follow them, and `neutral` ones (greys, whites\nand blacks) take no part."
+                },
+                {
+                    "name": "group",
+                    "doc": "The index of its group in ThemeAnalysis.groups; null for a neutral color."
+                },
+                {
+                    "name": "offset",
+                    "doc": "Its hue's signed distance from the anchor, in degrees, over −180 up to 180; null for a neutral color."
+                },
+                {
+                    "name": "hue",
+                    "doc": "OKLCH hue in degrees, from 0 to 360. null for a color with no hue: an OKLCH chroma under 1e-4 (greys,\nwhite) or black."
+                },
+                {
+                    "name": "chroma",
+                    "doc": "Relative chroma, from 0 to 1: the color's OKLCH chroma as a fraction of the most any sRGB color has at\nits hue and brightness (see maxChroma). 0 is grey and 1 is as saturated as sRGB allows there.\nIn the 0.16° of hue just past blue's, where the colors of one brightness have no chroma between two\nvalues, the fraction leaves that gap out, so that every value from 0 to 1 is a color there too."
+                },
+                {
+                    "name": "brightness",
+                    "doc": "Brightness: HSV value, from 0 to 1 (the hottest channel), after any lift to minBrightness."
+                }
+            ]
+        },
+        "HueGroup": {
+            "code": "interface HueGroup {\n    center: number;\n    span: number;\n    members: number[];\n    weight: number;\n}",
+            "doc": "A group of related hues: structural colors chained less than familyJoin apart, and the muted colors that\nfollow them (or muted colors on their own, when no structural color is near).",
+            "fields": [
+                {
+                    "name": "center",
+                    "doc": "Its hue in degrees, 0 to 360: the mean of its structural members' hues, weighted by their relative\nchroma (for a group of muted colors on their own, the mean of theirs)."
+                },
+                {
+                    "name": "span",
+                    "doc": "Degrees from its first member's hue to its last's, muted members included."
+                },
+                {
+                    "name": "members",
+                    "doc": "The indexes of its colors, in hue order."
+                },
+                {
+                    "name": "weight",
+                    "doc": "The sum of its members' relative chroma."
+                }
+            ]
+        },
+        "ThemeAnalysis": {
+            "code": "interface ThemeAnalysis {\n    relationship: Relationship;\n    anchor: number | null;\n    groups: HueGroup[];\n    picks: PickAnalysis[];\n    neutrals: number[];\n    duplicates: [number, number][];\n    span: number;\n    options: Required<AnalyzeOptions>;\n}",
+            "doc": "A theme's hue relationship, as analyzeTheme finds it. Plain JSON: numbers, strings, arrays and null, with\nno NaN.",
+            "fields": [
+                {
+                    "name": "anchor",
+                    "doc": "The hue the theme is placed by: the center of its heaviest group (ties: the group holding the earliest\ncolor). null when every color is neutral."
+                },
+                {
+                    "name": "groups",
+                    "doc": "The hue groups: the anchor's first, then the others in hue order from it."
+                },
+                { "name": "picks", "doc": "Every color analyzed, in order." },
+                {
+                    "name": "neutrals",
+                    "doc": "The indexes of the neutral colors."
+                },
+                {
+                    "name": "duplicates",
+                    "doc": "Pairs of indexes of colors closer than duplicateDeltaE, each pair in order."
+                },
+                {
+                    "name": "span",
+                    "doc": "The arc of hue the groups occupy, in degrees: 360 less the largest gap between group centers. For a\nsingle group, its span; 0 when there is none."
+                },
+                {
+                    "name": "options",
+                    "doc": "The options the analysis used, defaults filled in, so templates and checks can use the same ones."
+                }
+            ]
+        },
+        "TemplateSlot": {
+            "code": "interface TemplateSlot {\n    role: 'structural' | 'muted' | 'neutral';\n    offset: number | null;\n    hueWidth: number;\n    tint: number | null;\n    chroma: ChromaRange;\n    group: number | null;\n    pick: number | null;\n}",
+            "doc": "One color's place in a relationship template: an arc of hue relative to the anchor, and a band of relative\nchroma that keeps a color drawn in it in its role.",
+            "fields": [
+                {
+                    "name": "role",
+                    "doc": "The role of the color the slot stands for (see PickAnalysis.role). Its chroma band keeps a color drawn\nin it in that role."
+                },
+                {
+                    "name": "offset",
+                    "doc": "The slot's hue, in degrees from the anchor (structural and muted slots). null for a neutral slot, which\nnever rotates or mirrors."
+                },
+                {
+                    "name": "hueWidth",
+                    "doc": "The full width of the slot's arc of hue, in degrees: half of it either side of the slot's hue (for a\nneutral slot, of its tint; 360 for a neutral slot with no tint)."
+                },
+                {
+                    "name": "tint",
+                    "doc": "A neutral slot's own tint, as an absolute OKLCH hue: it keeps the tint of a neutral color with a\nrelative chroma of 0.04 or more, within 30° either side. null for any hue, and for the other slots."
+                },
+                {
+                    "name": "chroma",
+                    "doc": "The relative chroma allowed, both bounds given: the color's own ± chromaWidth, within its role's\ninterval, so a color drawn in the slot keeps its role. The intervals sit a little inside the\nthresholds, so that a color rounded to 8 bits keeps its role too: with the defaults, 0.77–1 for\nstructural slots, 0.15–0.72 for muted ones and 0–0.08 for neutral ones. In a theme with no color at\nstructuralChroma (pastels, whose colors are all structural), structural slots take 0.15–0.72 as well,\nso none turns vivid. Narrower where a group sits near a threshold of the relationship (see\nrelationshipTemplate)."
+                },
+                {
+                    "name": "group",
+                    "doc": "The index of the slot's group in the template's groups; null for a neutral slot."
+                },
+                {
+                    "name": "pick",
+                    "doc": "The input color whose neighbourhood this is, for a template from an analysis: its index in the colors\nanalyzed. null for a template from a kind."
+                }
+            ]
+        },
+        "RelationshipTemplate": {
+            "code": "interface RelationshipTemplate {\n    relationship: Relationship;\n    groups: {\n        offset: number;\n        span: number;\n    }[];\n    slots: TemplateSlot[];\n    pickSlots: number[] | null;\n    options: Required<AnalyzeOptions>;\n}",
+            "doc": "A theme's hue relationship as slots around an anchor hue (see relationshipTemplate). Plain JSON.",
+            "fields": [
+                {
+                    "name": "relationship",
+                    "doc": "The relationship a palette drawn in the slots has."
+                },
+                {
+                    "name": "groups",
+                    "doc": "The hue groups: each one's center in degrees from the anchor, and its span. The anchor's is first."
+                },
+                {
+                    "name": "slots",
+                    "doc": "The slots, in order: a palette drawn from the template has one color per slot, in this order."
+                },
+                {
+                    "name": "pickSlots",
+                    "doc": "For a template from an analysis: pickSlots[j] is the index of the slot that holds input color j (its\nown slot, first in its run). null for a template from a kind."
+                },
+                {
+                    "name": "options",
+                    "doc": "The analysis options, defaults filled in: randomLike checks a palette drawn from the template with them."
+                }
+            ]
+        },
+        "TemplateOptions": {
+            "code": "interface TemplateOptions {\n    hueWidth?: number;\n    maxHueWidth?: number;\n    minHueWidth?: number;\n    chromaWidth?: number;\n    nColors?: number;\n}",
+            "doc": "Options for relationshipTemplate and adjacentConstraints: how wide the slots are, and how many there are.\nA value that is not a finite number counts as not given.",
+            "fields": [
+                {
+                    "name": "hueWidth",
+                    "doc": "The base half-width of a slot's arc of hue, in degrees (see relationshipTemplate). Defaults to 12 for a\ntemplate from an analysis, and to 8 for one from a kind (and for randomLike, given an analysis)."
+                },
+                {
+                    "name": "maxHueWidth",
+                    "doc": "The widest half-width a slot takes before its caps, in degrees. Defaults to 20."
+                },
+                {
+                    "name": "minHueWidth",
+                    "doc": "The narrowest half-width a slot takes before its caps, in degrees. Defaults to 3."
+                },
+                {
+                    "name": "chromaWidth",
+                    "doc": "How far a slot's chroma band reaches either side of its color's relative chroma. Defaults to 0.2."
+                },
+                {
+                    "name": "nColors",
+                    "doc": "For a template from an analysis: the number of slots to lay out. Defaults to the number of colors\nanalyzed, which is also the least it takes (see relationshipTemplate)."
+                }
+            ]
+        },
+        "RandomLikeOptions": {
+            "code": "interface RandomLikeOptions {\n    random?: RandomFunction;\n    minBrightness?: number;\n    deltaEThreshold?: number;\n    anchor?: number | HueRange | readonly HueRange[];\n    mirror?: boolean;\n    avoid?: readonly HueRange[];\n    attempts?: number;\n    nColors?: number;\n}",
+            "doc": "Options for randomLike.",
+            "fields": [
+                {
+                    "name": "random",
+                    "doc": "Random number generator. Defaults to Math.random. Supply a seeded generator for reproducible palettes."
+                },
+                {
+                    "name": "minBrightness",
+                    "doc": "The lowest brightness (HSV value) of the colors, from 0 to 1. Defaults to the minBrightness the source\nwas analyzed at (0 for a template from a kind)."
+                },
+                {
+                    "name": "deltaEThreshold",
+                    "doc": "How far each color is kept (CIEDE2000) from the one before it, and the last from the first as well,\nsince the wheel closes there. Best effort, as for any random color. Defaults to\nDEFAULT_DELTA_E_THRESHOLD (20)."
+                },
+                {
+                    "name": "anchor",
+                    "doc": "The anchor: a hue to place the template at, or the arcs (one or several) to draw it from, uniformly.\nLeft out, any hue."
+                },
+                {
+                    "name": "mirror",
+                    "doc": "Allows the mirrored geometry, drawn half the time. Defaults to true."
+                },
+                {
+                    "name": "avoid",
+                    "doc": "Hues to keep out: added to every rotating slot's avoid, and no drawn anchor puts a slot's hue inside\nthem (when any anchor allowed can)."
+                },
+                {
+                    "name": "attempts",
+                    "doc": "How many palettes to draw, at most, until one has the source's relationship. Defaults to 16."
+                },
+                {
+                    "name": "nColors",
+                    "doc": "For an analysis: the number of colors (see TemplateOptions.nColors). Ignored for a template."
+                }
+            ]
+        },
+        "RandomLikeResult": {
+            "code": "interface RandomLikeResult {\n    colors: Color[];\n    anchor: number;\n    mirrored: boolean;\n    constraints: ColorConstraint[];\n    relationship: Relationship;\n    verified: boolean;\n}",
+            "doc": "A palette randomLike drew, and where.",
+            "fields": [
+                {
+                    "name": "colors",
+                    "doc": "One color per slot, in the template's slot order, at full precision."
+                },
+                {
+                    "name": "anchor",
+                    "doc": "The anchor the template was placed at, in degrees."
+                },
+                { "name": "mirrored", "doc": "Whether it was mirrored." },
+                {
+                    "name": "constraints",
+                    "doc": "The constraint for each color, as templateConstraints gives them for this anchor and mirroring: keep\nthem for rolling single colors in the same shape."
+                },
+                {
+                    "name": "relationship",
+                    "doc": "The relationship the colors have, analyzed with the source's options."
+                },
+                {
+                    "name": "verified",
+                    "doc": "Whether the colors have the source's relationship and number of groups, both as they are and rounded\nto 8 bits (as hex). When no attempt did, the closest is returned, with verified false."
                 }
             ]
         }

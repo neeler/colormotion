@@ -6,6 +6,7 @@ import { SectionInstallation } from '~/components/docSections/SectionInstallatio
 import { SectionInterpolation } from '~/components/docSections/SectionInterpolation';
 import { SectionQuickStart } from '~/components/docSections/SectionQuickStart';
 import { SectionRandom } from '~/components/docSections/SectionRandom';
+import { SectionRelationships } from '~/components/docSections/SectionRelationships';
 import { SectionTheme } from '~/components/docSections/SectionTheme';
 import { SectionTypes } from '~/components/docSections/SectionTypes';
 import { MobileSidebar } from '~/components/sideMenu/MobileSidebar';
@@ -85,6 +86,7 @@ export default function Home() {
                         <SectionInterpolation />
                         <SectionTheme />
                         <SectionRandom />
+                        <SectionRelationships />
                         <SectionTypes />
                     </div>
                 </div>
